@@ -26,11 +26,6 @@ const strongJa = (state, silent, mdOptions) => {
 
   content = state.src.slice(start + 2, state.pos - 1)
 
-  if(!mdOptions.html) {
-    content = content.replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  }
-
-
   state.posMax = state.pos
   state.pos = start + 2
   //console.log('state.posMax: ' + state.posMax + ', state.pos: ' + state.pos)
@@ -39,7 +34,7 @@ const strongJa = (state, silent, mdOptions) => {
   token.markup  = '**'
 
 
-  const md = new mdit({html: true})
+  const md = new mdit({html: mdOptions.html})
   const childTokens = md.parseInline(content)
 
   token = childTokens[0].children.map(t => {
