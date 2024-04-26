@@ -1,6 +1,6 @@
 import mdit from 'markdown-it'
 
-const mdRulerEmphasisJa = (state, silent, mdOptions) => {
+const strongJa = (state, silent, mdOptions) => {
   let found, content,token
   const max = state.posMax
   const start = state.pos
@@ -68,10 +68,10 @@ const mdRulerEmphasisJa = (state, silent, mdOptions) => {
   return
 }
 
-const emphasisJa = (md) => {
-  md.inline.ruler.before('emphasis', 'emphasis_ja', (state, silent) => {
-    mdRulerEmphasisJa(state, silent, md.options)
+const mdStrongJa = (md) => {
+  md.inline.ruler.before('emphasis', 'strong_ja', (state, silent) => {
+    strongJa(state, silent, md.options)
   })
 }
 
-export default emphasisJa
+export default mdStrongJa

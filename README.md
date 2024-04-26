@@ -1,13 +1,13 @@
-# p7d-markdown-it-rules-inline-emphas-ja
+# p7d-markdown-it-strong-ja
 
 This is a plugin for markdown-it. It is an alternative to the standard `**` (strong) processing. It also processes strings that cannot be converted by the standard."
 
-## Use 
+## Use
 
 ```js
 import mdit from 'markdown-it'
-import mdRulerEmphasisJa from '@peaceroad/markdown-it-rules-inline-emphas-ja'
-const md = mdit().use(mdRulerEmphasisJa)
+import mdStrongJa from '@peaceroad/markdown-it-strong-ja'
+const md = mdit().use(mdStrongJa)
 
 md.renderer('HTMLは**「HyperText Markup Language」**の略です。')
 // <p>HTMLは<strong>「HyperText Markup Language」</strong>の略です。</p>
