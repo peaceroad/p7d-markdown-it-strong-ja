@@ -89,9 +89,9 @@ HTMLは`**`は**「HyperText <b>Markup</b> Language」**の略です。
 
 
 [Markdown]
-```
+\```
 HTMLは`**`は**「HyperText Markup Language」**の略です。
-```
+\```
 [HTML:false]
 <pre><code>HTMLは`**`は**「HyperText Markup Language」**の略です。
 </code></pre>
