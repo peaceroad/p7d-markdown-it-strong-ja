@@ -7,6 +7,7 @@
   "scripts": {
     "test": "node test/test.js"
   },
+  "repository": "https://github.com/peaceroad/p7d-markdown-it-strong-ja.git",
   "author": "peaceroad <peaceroad@gmail.com>",
   "license": "MIT",
   "dependencies": {
