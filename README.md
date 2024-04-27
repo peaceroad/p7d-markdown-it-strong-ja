@@ -9,7 +9,7 @@ import mdit from 'markdown-it'
 import mdStrongJa from '@peaceroad/markdown-it-strong-ja'
 const md = mdit().use(mdStrongJa)
 
-md.renderer('HTMLは**「HyperText Markup Language」**の略です。')
+md.render('HTMLは**「HyperText Markup Language」**の略です。')
 // <p>HTMLは<strong>「HyperText Markup Language」</strong>の略です。</p>
 ```
 
