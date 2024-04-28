@@ -62,6 +62,8 @@ const strongJa = (state, silent, mdOptions) => {
   token.markup  = '**'
 
   state.pos = end + 1
+  // When there is `** at the end of a paragraph(state.pos === max), if state.pos = end + 1 remains, the output is `</strong>undefined</p>`.
+  //For now, I created md.core.ruler.push('remove_strong_ja_sp_chars') and it worked.
   if (state.pos === max) {
     state.pos = end
     token = state.push('text', '', 0)
