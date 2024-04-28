@@ -89,10 +89,15 @@ const mdStrongJa = (md) => {
         continue
       }
       //console.log(state.tokens[i].children)
-      if(state.tokens[i].children[state.tokens[i].children.length - 1].content === '★mdStrongJa★*') {
-        //console.log(state.tokens[i].children[state.tokens[i].children.length - 1])
-        state.tokens[i].children.pop()
-        
+      if (state.tokens[i].children) {
+        if(state.tokens[i].children[state.tokens[i].children.length - 1]) {
+          if (state.tokens[i].children[state.tokens[i].children.length - 1].content) {
+            if(state.tokens[i].children[state.tokens[i].children.length - 1].content === '★mdStrongJa★*') {
+              //console.log(state.tokens[i].children[state.tokens[i].children.length - 1])
+              state.tokens[i].children.pop()
+            }
+          }
+        }
       }
       i++
     }
