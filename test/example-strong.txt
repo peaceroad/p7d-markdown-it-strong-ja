@@ -81,3 +81,48 @@ HTMLは`**`は**「HyperText Markup Language」**の略です。
 <pre><code>HTMLは`**`は**「HyperText Markup Language」**の略です。
 </code></pre>
 
+
+[Markdown]
+HTMLは**「HyperText <b>Markup</b> Language」**
+[HTML:false]
+<p>HTMLは<strong>「HyperText &lt;b&gt;Markup&lt;/b&gt; Language」</strong></p>
+[HTML:true]
+<p>HTMLは<strong>「HyperText <b>Markup</b> Language」</strong></p>
+
+
+[Markdown]
+HTMLは「**HyperText Markup Language**」
+[HTML]
+<p>HTMLは「<strong>HyperText Markup Language</strong>」</p>
+
+[Markdown]
+HTMLは**「HyperText Markup Language」**。
+[HTML]
+<p>HTMLは<strong>「HyperText Markup Language」</strong>。</p>
+
+[Markdown]
+HTMLは**「HyperText Markup Language」**
+[HTML]
+<p>HTMLは<strong>「HyperText Markup Language」</strong></p>
+
+
+[Markdown]
+HTMLは**「HyperText Markup Language」**。
+[HTML]
+<p>HTMLは<strong>「HyperText Markup Language」</strong>。</p>
+
+[Markdown]
+****
+[HTML]
+<hr>
+
+[Markdown]
+a****b
+[HTML]
+<p>a<strong></strong>b</p>
+
+[Markdown]
+a****    
+[HTML]
+<p>a<strong></strong></p>
+

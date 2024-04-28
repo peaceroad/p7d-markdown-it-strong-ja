@@ -13,7 +13,8 @@ const check = (ms, example) => {
   const mdWithHtml = mdit({html: true}).use(mdStrongJa)
   let n = 1
   while (n < ms.length) {
-    //if (n !== 7) { n++; continue }
+    //if (n !== 13) { n++; continue }
+   //if (n !== 2) { n++; continue }
     const m = ms[n].markdown
 
     console.log('Test [' + n + ', HTML: false] >>>')
