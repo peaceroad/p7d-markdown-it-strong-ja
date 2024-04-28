@@ -126,3 +126,14 @@ a****
 [HTML]
 <p>a<strong></strong></p>
 
+
+[Markdown]
+HTMLは**「HyperText <b>Markup</b> Language」**
+
+HTMLは**「HyperText <b>Markup</b> Language」**
+[HTML:false]
+<p>HTMLは<strong>「HyperText &lt;b&gt;Markup&lt;/b&gt; Language」</strong></p>
+<p>HTMLは<strong>「HyperText &lt;b&gt;Markup&lt;/b&gt; Language」</strong></p>
+[HTML:true]
+<p>HTMLは<strong>「HyperText <b>Markup</b> Language」</strong></p>
+<p>HTMLは<strong>「HyperText <b>Markup</b> Language」</strong></p>
