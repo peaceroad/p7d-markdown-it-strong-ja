@@ -1,6 +1,4 @@
-import mdit from 'markdown-it'
-
-const strongJa = (state, silent, mdOptions) => {
+const strongJa = (state, silent, md) => {
 
   let content, token
   let found = false
@@ -33,14 +31,13 @@ const strongJa = (state, silent, mdOptions) => {
 
 
   content = state.src.slice(start + 2, end - 1)
-
   //console.log('content: ' + content)
 
   token = state.push('strong_open', 'strong', 1)
   token.markup  = '**'
 
-  const md = new mdit({html: mdOptions.html})
-  const childTokens = md.parseInline(content)
+  //**An error will occur if there are [] inside the brackets. I needed an argument for state.env.
+  const childTokens = md.parseInline(content, state.env)
 
   if (childTokens[0] && childTokens[0].children) {
     childTokens[0].children.forEach(t => {
@@ -78,8 +75,7 @@ const strongJa = (state, silent, mdOptions) => {
 
 const mdStrongJa = (md) => {
   md.inline.ruler.before('emphasis', 'strong_ja', (state, silent) => {
-    strongJa(state, silent, md.options)
-    
+    strongJa(state, silent, md)
   })
 
   md.core.ruler.push('remove_strong_ja_sp_chars', (state) => {

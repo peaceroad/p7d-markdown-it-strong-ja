@@ -4,13 +4,13 @@ import path from 'path'
 import url from 'url'
 
 import mdit from 'markdown-it'
-import mdStrongJa from '../index.js'
+import mditStrongJa from '../index.js'
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url)).replace(/\\/g, '/')
 
 const check = (ms, example) => {
-  const md = mdit().use(mdStrongJa)
-  const mdWithHtml = mdit({html: true}).use(mdStrongJa)
+  const md = mdit().use(mditStrongJa)
+  const mdWithHtml = mdit({html: true}).use(mditStrongJa)
   let n = 1
   while (n < ms.length) {
     //if (n !== 13) { n++; continue }
