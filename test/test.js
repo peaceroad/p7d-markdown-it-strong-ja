@@ -41,6 +41,7 @@ const check = (ms, example) => {
 
 const examples = {
   strong: __dirname + '/example-strong.txt',
+  em: __dirname + '/example-em.txt',
 }
 
 for (let example in examples) {

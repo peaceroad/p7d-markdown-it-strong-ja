@@ -1,6 +1,8 @@
 # p7d-markdown-it-strong-ja
 
-This is a plugin for markdown-it. It is an alternative to the standard `**` (strong) processing. It also processes strings that cannot be converted by the standard."
+This is a plugin for markdown-it. It is an alternative to the standard `**` (strong) and `*` (em) processing. It also processes strings that cannot be converted by the standard.
+
+Since em processing was added from 0.2, the package name is strange.
 
 ## Use
 
@@ -11,9 +13,14 @@ const md = mdit().use(mdStrongJa)
 
 md.render('HTMLは**「HyperText Markup Language」**の略です。')
 // <p>HTMLは<strong>「HyperText Markup Language」</strong>の略です。</p>
+
+md.render('HTMLは*「HyperText Markup Language」*の略です。')
+// <p>HTMLは<em>「HyperText Markup Language」</em>の略です。</p>
 ```
 
 ## Example
+
+The following examples is for strong. The process for em is roughly the same.
 
 ~~~
 [Markdown]
@@ -137,10 +144,10 @@ HTMLは**「HyperText Markup Language」**。
 [Markdown]
 a****b
 [HTML]
-<p>a<strong></strong>b</p>
+<p>a****b</p>
 
 [Markdown]
-a****    
+a****
 [HTML]
-<p>a<strong></strong></p>
+<p>a****</p>
 ~~~

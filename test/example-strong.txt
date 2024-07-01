@@ -119,12 +119,12 @@ HTMLは**「HyperText Markup Language」**。
 [Markdown]
 a****b
 [HTML]
-<p>a<strong></strong>b</p>
+<p>a****b</p>
 
 [Markdown]
-a****    
+a****
 [HTML]
-<p>a<strong></strong></p>
+<p>a****</p>
 
 
 [Markdown]
