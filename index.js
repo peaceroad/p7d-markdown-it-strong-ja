@@ -82,11 +82,6 @@ const mdStrongJa = (md) => {
   md.inline.ruler.before('emphasis', 'strong_ja', (state, silent) => {
     strongJa(state, silent, md)
   })
-  /*
-  md.inline.ruler.before('emphasis', 'em_ja', (state, silent) => {
-    emJa(state, silent, md)
-  })*/
-
 
   md.core.ruler.push('remove_strong_ja_sp_chars', (state) => {
     let i = 0
@@ -98,12 +93,14 @@ const mdStrongJa = (md) => {
       }
       //console.log(state.tokens[i].children)
       if (state.tokens[i].children) {
-        if(state.tokens[i].children[state.tokens[i].children.length - 1]) {
-          if (state.tokens[i].children[state.tokens[i].children.length - 1].content) {
-            if(state.tokens[i].children[state.tokens[i].children.length - 1].content === '★mdStrongJa★*') {
-              //console.log(state.tokens[i].children[state.tokens[i].children.length - 1])
-              state.tokens[i].children.pop()
+        if (state.tokens[i].children[state.tokens[i].children.length - 1]) {
+          let j = state.tokens[i].children.length - 1
+          while (j > -1) {
+            if (state.tokens[i].children[j].content === '★mdStrongJa★*') {
+              state.tokens[i].children.splice(j, 1)
+              break
             }
+            j--
           }
         }
       }

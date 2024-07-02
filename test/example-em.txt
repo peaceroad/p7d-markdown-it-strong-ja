@@ -174,3 +174,32 @@ HTMLは*「Hyper[Text] <b>Markup</b> Language」*
 <ul>
 <li>HTMLは<em>「Hyper[Text] Markup Language」</em></li>
 </ul>
+
+[Markdown]
+HTMLは*「Hyper[Text](https://example.com/) Markup Language」*
+[HTML]
+<p>HTMLは<em>「Hyper<a href="https://example.com/">Text</a> Markup Language」</em></p>
+
+[Markdown]
+HTMLは[*HyperText Markup Language*](https://example.com/)
+[HTML]
+<p>HTMLは<a href="https://example.com/"><em>HyperText Markup Language</em></a></p>
+
+[Markdown]
+HTMLは[*「HyperText Markup Language」*](https://example.com/)
+[HTML]
+<p>HTMLは<a href="https://example.com/"><em>「HyperText Markup Language」</em></a></p>
+
+[Markdown]
+HTMLは[*「HyperText Markup Language」*][]です。
+
+[*「HyperText Markup Language」*]: https://example.com/
+[HTML]
+<p>HTMLは<a href="https://example.com/"><em>「HyperText Markup Language」</em></a>です。</p>
+
+[Markdown]
+- HTMLは*「Hyper[Text](https://example.com/) Markup Language」*
+[HTML]
+<ul>
+<li>HTMLは<em>「Hyper<a href="https://example.com/">Text</a> Markup Language」</em></li>
+</ul>
