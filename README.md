@@ -2,7 +2,7 @@
 
 This is a plugin for markdown-it. It is an alternative to the standard `**` (strong) and `*` (em) processing. It also processes strings that cannot be converted by the standard.
 
-Since em processing was added from 0.2, the package name is strange.
+Notice: this is slightly different from the commonmark processing.
 
 ## Use
 
