@@ -8,7 +8,7 @@ Since em processing was added from 0.2, the package name is strange.
 
 ```js
 import mdit from 'markdown-it'
-import mdStrongJa from '@peaceroad/markdown-it-strong-ja'
+import mditStrongJa from '@peaceroad/markdown-it-strong-ja'
 const md = mdit().use(mdStrongJa)
 
 md.render('HTMLは**「HyperText Markup Language」**の略です。')
