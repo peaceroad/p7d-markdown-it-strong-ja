@@ -9,7 +9,7 @@ Notice: this is slightly different from the commonmark processing.
 ```js
 import mdit from 'markdown-it'
 import mditStrongJa from '@peaceroad/markdown-it-strong-ja'
-const md = mdit().use(mdStrongJa)
+const md = mdit().use(mditStrongJa)
 
 md.render('HTMLは**「HyperText Markup Language」**の略です。')
 // <p>HTMLは<strong>「HyperText Markup Language」</strong>の略です。</p>
