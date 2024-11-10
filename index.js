@@ -383,9 +383,9 @@ const strongJa = (state, silent) => {
   return true
 }
 
-const mdStrongJa = (md) => {
+const mditStrongJa = (md) => {
   md.inline.ruler.before('emphasis', 'strong_ja', (state, silent) => {
     return strongJa(state, silent)
   })
 }
-export default mdStrongJa
+export default mditStrongJa
