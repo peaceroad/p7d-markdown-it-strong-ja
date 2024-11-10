@@ -379,7 +379,7 @@ const strongJa = (state, silent) => {
   setToken(state, inlines)
 
   //console.log('state.pos: ' + state.pos + ', inlines[inlines.length - 1].e + 1: ' + (inlines[inlines.length - 1].e + 1) + ', max: ' + max)
-  state.pos = inlines[inlines.length - 1].e + 1
+  state.pos = max + 1
   return true
 }
 
