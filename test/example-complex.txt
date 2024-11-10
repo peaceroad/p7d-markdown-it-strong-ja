@@ -1,0 +1,141 @@
+[Markdown]
+HTMLは「***HyperText Markup Language***」の略です。
+[HTML]
+<p>HTMLは「<em><strong>HyperText Markup Language</strong></em>」の略です。</p>
+
+
+[Markdown]
+HTMLは***「HyperText Markup Language」***の略です。
+[HTML]
+<p>HTMLは<em><strong>「HyperText Markup Language」</strong></em>の略です。</p>
+
+
+[Markdown]
+HTMLは「****HyperText Markup Language****」の略です。
+[HTML]
+<p>HTMLは「<strong><strong>HyperText Markup Language</strong></strong>」の略です。</p>
+
+
+[Markdown]
+HTMLは****「HyperText Markup Language」****の略です。
+[HTML]
+<p>HTMLは<strong><strong>「HyperText Markup Language」</strong></strong>の略です。</p>
+
+
+[Markdown]
+HTMLは**「*HyperText* Markup *Language*」**の略です。
+[HTML]
+<p>HTMLは<strong>「<em>HyperText</em> Markup <em>Language</em>」</strong>の略です。</p>
+
+
+
+[Markdown]
+あ*い**う
+[HTML]
+<p>あ*い**う</p>
+
+
+[Markdown]
+あ**い***う
+[HTML]
+<p>あ<strong>い</strong>*う</p>
+
+[Markdown]
+あ***い****う
+[HTML]
+<p>あ<em><strong>い</strong></em>*う</p>
+
+[Markdown]
+**あ*い**う*
+[HTML]
+<p><strong>あ*い</strong>う*</p>
+
+[Markdown]
+*あ**い*う**
+[HTML]
+<p><em>あ**い</em>う**</p>
+
+
+[Markdown]
+ん*あ**い*う**
+[HTML]
+<p>ん<em>あ**い</em>う**</p>
+
+
+[Markdown]
+***か*
+[HTML]
+<p>**<em>か</em></p>
+
+[Markdown]
+か***き*
+[HTML]
+<p>か**<em>き</em></p>
+
+
+
+[Markdown]
+***さ*し***す*
+[HTML]
+<p><strong><em>さ</em>し</strong><em>す</em></p>
+
+
+[Markdown]
+*a**b**c**d**e*
+[HTML]
+<p><em>a<strong>b</strong>c<strong>d</strong>e</em></p>
+
+
+[Markdown]
+*aa**
+[HTML commomark: <p><em>aa</em>*</p>]
+<p>*aa**</p>
+
+[Markdown]
+a*aa**
+[HTML]
+<p>a*aa**</p>
+
+[Markdown]
+*ee***
+[HTML]
+<p><em>ee</em>**</p>
+
+
+[Markdown]
+*aa***e*
+[HTML]
+<p><em>aa</em>*<em>e</em></p>
+
+
+[Markdown]
+**a*****b**
+[HTML]
+<p><strong>a</strong>*<strong>b</strong></p>
+
+
+[Markdown]
+*ee**ee***
+[HTML]
+<p><em>ee<strong>ee</strong></em></p>
+
+
+[Markdown]
+**a*b**c***d*e**f*
+[HTML]
+<p><strong>a*b</strong>c<strong><em>d</em>e</strong>f*</p>
+
+[Markdown]
+*a**a***b***c**d*e
+[HTML]
+<p><em>a<strong>a</strong></em>b<em><strong>c</strong>d</em>e</p>
+
+[Markdown]
+a[*](https://example.com)*b
+[HTML]
+<p>a<a href="https://example.com">*</a>*b</p>
+
+[Markdown]
+a[*](https://example*.com)*b*
+[HTML]
+<p>a<a href="https://example*.com">*</a><em>b</em></p>

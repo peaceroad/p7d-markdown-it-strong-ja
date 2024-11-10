@@ -48,6 +48,11 @@ HTMLは\\\**「HyperText Markup Language」**の略です。
 [HTML]
 <p>HTMLは\**「HyperText Markup Language」**の略です。</p>
 
+[Markdown]
+HTMLは\\\\**「HyperText Markup Language」**の略です。
+[HTML]
+<p>HTMLは\\<strong>「HyperText Markup Language」</strong>の略です。</p>
+
 
 [Markdown]
 HTMLは`**`は**「HyperText Markup Language」**の略です。
@@ -200,3 +205,16 @@ HTMLは[**「HyperText Markup Language」**][]です。
 <ul>
 <li>HTMLは<strong>「Hyper<a href="https://example.com/">Text</a> Markup Language」</strong></li>
 </ul>
+
+[Markdown]
+aaa><aaa
+[HTML]
+<p>aaa&gt;&lt;aaa</p>
+
+
+[Markdown]
+aaa&lt;/&gt;aaa
+[HTML]
+<p>aaa&lt;/&gt;aaa</p>
+
+
