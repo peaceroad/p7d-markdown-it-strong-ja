@@ -1,4 +1,4 @@
-const hasSlashFlag = (state, start) => {
+const hasBackslash = (state, start) => {
   let slashNum = 0
   let i = start - 1
   while(i >= 0) {
@@ -31,9 +31,12 @@ const setToken = (state, inlines) => {
         continue
       }
       const childTokens = state.md.parseInline(content, state.env)
+
       if (childTokens[0] && childTokens[0].children) {
+        //console.log(state.tokens[state.tokens.length - 1])
         state.tokens[state.tokens.length - 1].children = childTokens[0].children
         childTokens[0].children.forEach(t => {
+          //console.log('t.type: ' + t.type + ', t.tag: ' + t.tag + ', t.nesting: ' + t.nesting)
           const token = state.push(t.type, t.tag, t.nesting)
           token.attrs = t.attrs
           token.map = t.map
@@ -47,6 +50,25 @@ const setToken = (state, inlines) => {
           token.hidden = t.hidden
         })
       }
+      //console.log(childTokens[0].children)
+      /*
+      if (childTokens[0] && childTokens[0].children) {
+        state.tokens[state.tokens.length - 1].children = childTokens[0].children
+        childTokens[0].children.forEach(t => {
+          //console.log('t.type: ' + t.type + ', t.tag: ' + t.tag + ', t.nesting: ' + t.nesting)
+          const token = state.push(t.type, t.tag, t.nesting)
+          token.attrs = t.attrs
+          token.map = t.map
+          token.level = t.level
+          token.children = t.children
+          token.content = t.content
+          token.markup = t.markup
+          token.info = t.info
+          token.meta = t.meta
+          token.block = t.block
+          token.hidden = t.hidden
+        })
+      }*/
     }
 
     if (/_close$/.test(type)) {
@@ -69,15 +91,25 @@ const inlinesPush = (inlines, s, e, len, type) => {
   })
 }
 
-const crateInlines = (state, start, max) => {
+const createInlines = (state, start, max, opt) => {
   let n = start
   let inlines = []
   let noMark = ''
   let mark = ''
+  let isInCode = false
+  let isInMath = false
   let beforeIsMark = true
   while (n < max) {
-    if (state.src.charCodeAt(n) === 0x2A) {
-      if (hasSlashFlag(state, n)) {
+    if (state.src.charCodeAt(n) === 0x60) {
+      if (!hasBackslash(state, n)) isInCode = isInCode ? false : true
+    }
+    if (opt.dollarMath) {
+      if (state.src.charCodeAt(n) === 0x24) {
+        if (!hasBackslash(state, n)) isInMath = isInMath ? false : true
+      }
+    }
+    if (state.src.charCodeAt(n) === 0x2A && !isInCode && !isInMath) {
+      if (hasBackslash(state, n)) {
         beforeIsMark = false
         noMark += state.src[n]
         if (n === max - 1) {
@@ -323,15 +355,25 @@ const createMarks = (inlines, inlinesStart, inlinesEnd, memo) => {
   return marks
 }
 
-const strongJa = (state, silent) => {
-  const max = state.posMax
-  const start = state.pos
+const strongJa = (state, silent, opt) => {
   if (silent) return false
+  const start = state.pos
+  let max = state.posMax
+  const hasCurlyAttributes = state.md.core.ruler.__rules__.filter(rule => {
+    rule.name === 'curly_attributes' // markdown-it-attrs
+  })
+  let attributesSrc
+  if (hasCurlyAttributes) {
+    attributesSrc = state.src.match(/( *){.*?}$/)
+    if (attributesSrc) {
+      max = state.src.slice(0, attributesSrc.index).length
+    }
+  }
   if (start > max) return false
   if (state.src.charCodeAt(start) !== 0x2A) return false
-  if (hasSlashFlag(state, start)) return false
+  if (hasBackslash(state, start)) return false
   //console.log('state.src.length: ' + state.src.length + ', start: ' + start +  ', state.src: ' + state.src)
-  let inlines = crateInlines(state, start, max)
+  let inlines = createInlines(state, start, max, opt)
   //console.log('inlines: ')
   //console.log(inlines)
 
@@ -379,13 +421,26 @@ const strongJa = (state, silent) => {
   setToken(state, inlines)
 
   //console.log('state.pos: ' + state.pos + ', inlines[inlines.length - 1].e + 1: ' + (inlines[inlines.length - 1].e + 1) + ', max: ' + max)
-  state.pos = max + 1
+  state.pos = inlines[inlines.length - 1].e + 1
+  if (attributesSrc) {
+    if (attributesSrc[1].length > 1) {
+     state.pos += attributesSrc[1].length
+    }
+  }
   return true
 }
 
-const mditStrongJa = (md) => {
+const mditStrongJa = (md, option) => {
+  const opt = {
+    dollarMath: true
+  }
+  if (option !== undefined) {
+    for (let o in option) {
+        opt[o] = option[o]
+    }
+  }
   md.inline.ruler.before('emphasis', 'strong_ja', (state, silent) => {
-    return strongJa(state, silent)
+    return strongJa(state, silent, opt)
   })
 }
 export default mditStrongJa

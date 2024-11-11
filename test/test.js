@@ -4,16 +4,17 @@ import path from 'path'
 import url from 'url'
 
 import mdit from 'markdown-it'
+import mditAttrs from 'markdown-it-attrs'
 import mditStrongJa from '../index.js'
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url)).replace(/\\/g, '/')
 
 const check = (ms, example) => {
-  const md = mdit().use(mditStrongJa)
-  const mdWithHtml = mdit({html: true}).use(mditStrongJa)
+  const md = mdit().use(mditStrongJa).use(mditAttrs)
+  const mdWithHtml = mdit({html: true}).use(mditStrongJa).use(mditAttrs)
   let n = 1
   while (n < ms.length) {
-   //if (n != 1 ) { n++; continue }
+  //if (n != 29 ) { n++; continue }
     const m = ms[n].markdown
     console.log('Test [' + n + ', HTML: false] >>>')
     const h = md.render(m)

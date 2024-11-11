@@ -139,3 +139,48 @@ a[*](https://example.com)*b
 a[*](https://example*.com)*b*
 [HTML]
 <p>a<a href="https://example*.com">*</a><em>b</em></p>
+
+[Markdown]
+**重要な文・文節や語句**は`**`を使って囲みます。*文脈上強調する語句*は`*`を使って囲みます。
+[HTML]
+<p><strong>重要な文・文節や語句</strong>は<code>**</code>を使って囲みます。<em>文脈上強調する語句</em>は<code>*</code>を使って囲みます。</p>
+
+[Markdown]
+インライン数式は$x * y = z$のように*書きます*。
+[HTML]
+<p>インライン数式は$x * y = z$のように<em>書きます</em>。</p>
+
+[Markdown]
+[node_modules/*](#)の*はすべてを意味します。
+[HTML]
+<p><a href="#">node_modules/*</a>の*はすべてを意味します。</p>
+
+[Markdown]
+**test** {.style}
+[HTML]
+<p class="style"><strong>test</strong></p>
+
+[Markdown]
+a**test**b {.style}
+[HTML]
+<p class="style">a<strong>test</strong>b</p>
+
+[Markdown]
+z*a**test**{.style}b*c*d
+[HTML]
+<p>z<em>a<strong class="style">test</strong>b</em>c*d</p>
+
+[Markdown]
+a**b**c{.style}
+[HTML]
+<p class="style">a<strong>b</strong>c</p>
+
+[Markdown]
+a**b**{.style}
+[HTML]
+<p>a<strong class="style">b</strong></p>
+
+[Markdown]
+a**b**c  {.style}
+[HTML]
+<p class="style">a<strong>b</strong>c</p>
