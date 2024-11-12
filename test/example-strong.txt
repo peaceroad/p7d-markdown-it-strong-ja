@@ -21,8 +21,7 @@ HTMLは**「HyperText *Markup* `Language`」**の略です。
 [HTML]
 <p>HTMLは<strong>「HyperText <em>Markup</em> <code>Language</code>」</strong>の略です。</p>
 
-
-[Markdown]
+[Markdown: 5]
 HTMLは**「HyperText Mark
 
 up Language」**の略です。

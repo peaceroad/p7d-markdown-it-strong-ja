@@ -146,9 +146,9 @@ a[*](https://example*.com)*b*
 <p><strong>重要な文・文節や語句</strong>は<code>**</code>を使って囲みます。<em>文脈上強調する語句</em>は<code>*</code>を使って囲みます。</p>
 
 [Markdown]
-インライン数式は$x * y = z$のように*書きます*。
+インラインコードは`*`と`*`で*囲みます*。
 [HTML]
-<p>インライン数式は$x * y = z$のように<em>書きます</em>。</p>
+<p>インラインコードは<code>*</code>と<code>*</code>で<em>囲みます</em>。</p>
 
 [Markdown]
 [node_modules/*](#)の*はすべてを意味します。
@@ -184,3 +184,77 @@ a**b**{.style}
 a**b**c  {.style}
 [HTML]
 <p class="style">a<strong>b</strong>c</p>
+
+
+[Markdown]
+z*a<span>b*c</span>d*e
+[HTML]
+<p>z<em>a&lt;span&gt;b</em>c&lt;/span&gt;d*e</p>
+[HTML:true]
+<p>z*a<span>b*c</span>d*e</p>
+
+[Markdown]
+a<span>b*c</span>d*e*f
+[HTML]
+<p>a&lt;span&gt;b<em>c&lt;/span&gt;d</em>e*f</p>
+[HTML:true]
+<p>a<span>b*c</span>d<em>e</em>f</p>
+
+[Markdown]
+a*a<span>b</span>c*c
+[HTML:false]
+<p>a<em>a&lt;span&gt;b&lt;/span&gt;c</em>c</p>
+[HTML:true]
+<p>a<em>a<span>b</span>c</em>c</p>
+
+[Markdown]
+aa<span>b*ef*</span>cc
+[HTML:false]
+<p>aa&lt;span&gt;b<em>ef</em>&lt;/span&gt;cc</p>
+[HTML:true]
+<p>aa<span>b<em>ef</em></span>cc</p>
+
+[Markdown]
+a*a<span>b*ef*</span>c*c
+[HTML:false]
+<p>a<em>a&lt;span&gt;b</em>ef<em>&lt;/span&gt;c</em>c</p>
+[HTML:true, commonmark: <p>a<em>a<span>b</em>ef*</span>c*c</p>]
+<p>a<em>a<span>b<em>ef</em></span>c</em>c</p>
+
+
+[Markdown]
+a***a<span>b</span>c***c
+[HTML:false]
+<p>a<em><strong>a&lt;span&gt;b&lt;/span&gt;c</strong></em>c</p>
+[HTML:true]
+<p>a<em><strong>a<span>b</span>c</strong></em>c</p>
+
+
+[Markdown]
+a***a<span>b***e</span>cc
+[HTML:false]
+<p>a<em><strong>a&lt;span&gt;b</strong></em>e&lt;/span&gt;cc</p>
+[HTML:true]
+<p>a***a<span>b***e</span>cc</p>
+
+[Markdown]
+aa<span>b*e<s>f</s>*</span>cc
+[HTML:false]
+<p>aa&lt;span&gt;b<em>e&lt;s&gt;f&lt;/s&gt;</em>&lt;/span&gt;cc</p>
+[HTML:true]
+<p>aa<span>b<em>e<s>f</s></em></span>cc</p>
+
+[Markdown]
+**aa<span>b*e<s>f</s>*</span>cc**
+[HTML:false]
+<p><strong>aa&lt;span&gt;b<em>e&lt;s&gt;f&lt;/s&gt;</em>&lt;/span&gt;cc</strong></p>
+[HTML:true]
+<p><strong>aa<span>b<em>e<s>f</s></em></span>cc</strong></p>
+
+
+[Markdown]
+*aa<span>b**e<s>f</s>**</span>cc*
+[HTML:false]
+<p><em>aa&lt;span&gt;b<strong>e&lt;s&gt;f&lt;/s&gt;</strong>&lt;/span&gt;cc</em></p>
+[HTML:true]
+<p><em>aa<span>b<strong>e<s>f</s></strong></span>cc</em></p>

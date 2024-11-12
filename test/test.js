@@ -14,7 +14,8 @@ const check = (ms, example) => {
   const mdWithHtml = mdit({html: true}).use(mditStrongJa).use(mditAttrs)
   let n = 1
   while (n < ms.length) {
-  //if (n != 29 ) { n++; continue }
+    //if (n !== 43 ) { n++; continue }
+    //if (n !== 36 ) { n++; continue }
     const m = ms[n].markdown
     console.log('Test [' + n + ', HTML: false] >>>')
     const h = md.render(m)
@@ -23,7 +24,6 @@ const check = (ms, example) => {
     } catch(e) {
       console.log('Input: ' + ms[n].markdown + '\nConvert: ' + h + 'Correct: ' + ms[n].html)
     }
-
     if (ms[n].htmlWithHtmlTrue) {
       console.log('Test [' + n + ', HTML: true] >>>')
       const hh = mdWithHtml.render(m)
