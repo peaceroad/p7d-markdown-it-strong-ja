@@ -235,9 +235,9 @@ const setStrong = (inlines, marks, n, memo) => {
       if (i > inlines.length - 1) return n, nest, memo
     }
 
+    //console.log('memo.html: ' + memo.html + 'insideTagsIsClose: ' + insideTagsIsClose + 'inlines[i].len: ' + inlines[i].len)
     if (memo.html && !insideTagsIsClose && inlines[i].len !== 1) {
-      memo.htmlTags = {}
-      return n, nest, memo
+      i++; continue
     }
     let strongNum = Math.trunc(Math.min(inlines[n].len, inlines[i].len) / 2)
 
@@ -258,7 +258,8 @@ const setStrong = (inlines, marks, n, memo) => {
       if (inlines[n].len === 0) return n, nest, memo
     }
 
-    if (inlines[n].len === 1) {
+    //console.log('len: ', inlines[n].len, inlines[i].len)
+    if ((inlines[n].len > 0 && inlines[i] === 1) || (inlines[n].len === 1 && inlines[i].len > 0)) {
       //console.log('check em that warp strong.')
       nest++
       n, nest, memo = setEm(inlines, marks, n, memo, nest)
@@ -345,8 +346,7 @@ const setEm = (inlines, marks, n, memo, sNest) => {
     if (emNum === 1) {
       //console.log(n, i, 'insideTagsIsClose: ' + insideTagsIsClose)
       if (memo.html && !insideTagsIsClose && inlines[i].len !== 2) {
-        memo.htmlTags = {}
-        return n, nest, memo
+        i++; continue;
       }
       //console.log('n: ' + n +  ' [em]: normal push, nest: ' + nest)
       //console.log('strongPNum: ' + strongPNum)
@@ -391,6 +391,7 @@ const checkNest = (inlines, marks, n, i) => {
   let strongNest = 0
   let emNest = 0
   let j = 0
+  //console.log(inlines)
   //console.log(marks)
   //console.log('n: ' + n + ', i: ' + i + ', inlines[n].s: ' + inlines[n].s + ', inlines[i].s: ' + inlines[i].s)
   while (j < marks.length) {
@@ -408,10 +409,16 @@ const checkNest = (inlines, marks, n, i) => {
   if (parentCloseN < marks.length) {
     while (parentCloseN < marks.length) {
       if (marks[parentCloseN].nest === parentNest) break
+      //if (marks.length - 1 == parentCloseN) break
       parentCloseN++
     }
-    //console.log(parentCloseN, marks[parentCloseN].s, i, inlines[i].s)
-    if (marks[parentCloseN].s < inlines[i].s) isRange = false
+    //console.log('parentCloseN: ' + parentCloseN)
+    if (parentCloseN >  marks.length - 1) {
+      isRange = true
+    } else {
+      //console.log(marks[parentCloseN].s, i, inlines[i].s)
+      if (marks[parentCloseN].s < inlines[i].s) isRange = false
+    }
   }
   //console.log('isRange: ' + isRange)
 
@@ -431,13 +438,13 @@ const createMarks = (inlines, start, end, memo) => {
     memo.isEm = inlines[n].len === 1 ? true : false
     memo.wrapEm = 0
     let nest = 0
-     //console.log('n: ' + n +  ' ----- inlines.length: ' + inlines.length + ', memo.isEm: ' + memo.isEm)
+    //console.log('n: ' + n +  ' ----- inlines.length: ' + inlines.length + ', memo.isEm: ' + memo.isEm)
     if (!memo.isEm) {
       n, nest, memo = setStrong(inlines, marks, n, memo)
     }
     n, nest, memo = setEm(inlines, marks, n, memo)
-
     if (inlines[n].len !== 0) setText(inlines, marks, n, nest)
+    //console.log(marks)
     n++
   }
   return marks
@@ -503,11 +510,6 @@ const strongJa = (state, silent, opt) => {
     inlineMarkStart: state.src.charCodeAt(0) === 0x2A ? true : false,
     inlineMarkEnd: state.src.charCodeAt(max - 1) === 0x2A ? true : false,
   }
-  /*
-  if (memo.html) {
-    let beforeInlines = createInlines(state, 0, start - 1, opt)
-    isJumpTag(beforeInlines, beforeInlines.length - 1, memo)
-  }*/
   let marks = createMarks(inlines, 0, inlines.length, memo)
   //console.log('marks: ')
   //console.log(marks)
