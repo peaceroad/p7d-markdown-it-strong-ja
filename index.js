@@ -85,32 +85,39 @@ const hasNextSymbol = (state, n, max, symbol, noMark) => {
     while (i < max) {
       tempNoMark += state.src[i]
       if (state.src.charCodeAt(i) === symbol && !hasBackslash(state, i)) {
-        noMark += state.src[n]
+        noMark += state.src.substring(n, i + 1)
         nextSymbolPos = i
         break
       }
       i++
     }
   }
-  return nextSymbolPos
+  return [nextSymbolPos, noMark]
 }
 
 const createInlines = (state, start, max, opt) => {
   let n = start
   let inlines = []
   let noMark = ''
-  let isInStartMark = true
   let textStart = n
-
   while (n < max) {
-    let nextSymbolPos = hasNextSymbol(state, n, max, 0x60, noMark)  // '`'
+    let nextSymbolPos = -1;
+    [nextSymbolPos, noMark] = hasNextSymbol(state, n, max, 0x60, noMark)  // '`'
     if (nextSymbolPos !== -1) {
+      if (nextSymbolPos === max - 1) {
+        inlinesPush(inlines, textStart, nextSymbolPos, nextSymbolPos - textStart + 1, 'text')
+        break
+      }
       n = nextSymbolPos + 1
       continue
     }
     if (opt.dollarMath) {
-      nextSymbolPos = hasNextSymbol(state, n, max, 0x24, noMark)  // '$'
+      [nextSymbolPos, noMark] = hasNextSymbol(state, n, max, 0x24, noMark)  // '$'
       if (nextSymbolPos !== -1) {
+        if (nextSymbolPos === max - 1) {
+          inlinesPush(inlines, textStart, nextSymbolPos, nextSymbolPos - textStart + 1, 'text')
+          break
+        }
         n = nextSymbolPos + 1
         continue
       }
@@ -142,9 +149,8 @@ const createInlines = (state, start, max, opt) => {
         continue
       }
     }
-
     if (state.src.charCodeAt(n) === 0x2A && !hasBackslash(state, n)) { // '*'
-      if (!isInStartMark) {
+      if (n !== 0) {
         inlinesPush(inlines, textStart, n - 1, n - textStart, 'text')
       }
       if (n === max - 1) {
@@ -165,10 +171,8 @@ const createInlines = (state, start, max, opt) => {
       n = i
       continue
     }
-    isInStartMark = false
     noMark += state.src[n]
-    //console.log('noMark: ' + noMark)
-    if (n === max - 1 || max < 3) {
+    if (n === max - 1) {
       inlinesPush(inlines, textStart, n, n - textStart + 1, 'text')
       break
     }
@@ -482,11 +486,8 @@ const strongJa = (state, silent, opt) => {
   if (silent) return false
   const start = state.pos
   let max = state.posMax
-  const hasCurlyAttributes = state.md.core.ruler.__rules__.filter(rule => {
-    rule.name === 'curly_attributes' // markdown-it-attrs
-  })
   let attributesSrc
-  if (hasCurlyAttributes) {
+  if (opt.hasCurlyAttributes) {
     attributesSrc = state.src.match(/( *){.*?}$/)
     if (attributesSrc) {
       max = state.src.slice(0, attributesSrc.index).length
@@ -536,7 +537,11 @@ const strongJa = (state, silent, opt) => {
 const mditStrongJa = (md, option) => {
   const opt = {
     dollarMath: true,
+    hasCurlyAttributes: false,
   }
+  opt.hasCurlyAttributes = md.core.ruler.__rules__.filter(rule => {
+    rule.name === 'curly_attributes' // markdown-it-attrs
+  })
   if (option !== undefined) {
     for (let o in option) {
         opt[o] = option[o]

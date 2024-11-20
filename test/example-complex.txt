@@ -336,3 +336,31 @@ b<span>c</span>*
 <p>*<em><em><span>a</span></em>b</em></p>
 
 
+[Markdown]
+*`a`*
+[HTML]
+<p><em><code>a</code></em></p>
+
+[Markdown]
+**z`a`b**
+[HTML]
+<p><strong>z<code>a</code>b</strong></p>
+
+[Markdown]
+**`a`
+[HTML]
+<p>**<code>a</code></p>
+
+[Markdown]
+**<b>a</b>**
+[HTML:false]
+<p><strong>&lt;b&gt;a&lt;/b&gt;</strong></p>
+[HTML:true]
+<p><strong><b>a</b></strong></p>
+
+[Markdown]
+**<br>
+[HTML:false]
+<p>**&lt;br&gt;</p>
+[HTML:true]
+<p>**<br></p>

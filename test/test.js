@@ -15,7 +15,7 @@ const check = (ms, example) => {
   let n = 1
   while (n < ms.length) {
     //if (n !== 23 ) { n++; continue }
-    //if (n !== 36 ) { n++; continue }
+    //if (n !== 59 ) { n++; continue }
     const m = ms[n].markdown
     console.log('Test [' + n + ', HTML: false] >>>')
     const h = md.render(m)
