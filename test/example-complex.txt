@@ -185,13 +185,12 @@ a**b**c  {.style}
 [HTML]
 <p class="style">a<strong>b</strong>c</p>
 
-
 [Markdown]
 z*a<span>b*c</span>d*e
 [HTML]
 <p>z<em>a&lt;span&gt;b</em>c&lt;/span&gt;d*e</p>
-[HTML:true]
-<p>z<em>a<span>b*c</span>d</em>e</p>
+[HTML:true ::commonmark: <p>z<em>a<span>b</em>c</span>d*e</p>]
+<p>z<em>a<span>b</em>c</span>d*e</p>
 
 [Markdown]
 a<span>b*c</span>d*e*f
@@ -219,8 +218,7 @@ a*a<span>b*ef*</span>c*c
 [HTML:false]
 <p>a<em>a&lt;span&gt;b</em>ef<em>&lt;/span&gt;c</em>c</p>
 [HTML:true, commonmark: <p>a<em>a<span>b</em>ef*</span>c*c</p>]
-<p>a<em>a<span>b<em>ef</em></span>c</em>c</p>
-
+<p>a<em>a<span>b</em>ef<em></span>c</em>c</p>
 
 [Markdown]
 a***a<span>b</span>c***c
@@ -235,7 +233,7 @@ a***a<span>b***e</span>cc
 [HTML:false]
 <p>a<em><strong>a&lt;span&gt;b</strong></em>e&lt;/span&gt;cc</p>
 [HTML:true]
-<p>a***a<span>b***e</span>cc</p>
+<p>a<em><strong>a<span>b</strong></em>e</span>cc</p>
 
 [Markdown]
 aa<span>b*e<s>f</s>*</span>cc

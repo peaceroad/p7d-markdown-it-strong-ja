@@ -2,21 +2,23 @@
 
 This is a plugin for markdown-it. It is an alternative to the standard `**` (strong) and `*` (em) processing. It also processes strings that cannot be converted by the standard.
 
-Notice: this is slightly different from the commonmark processing.
-
 ## Use
 
 ```js
 import mdit from 'markdown-it'
 import mditStrongJa from '@peaceroad/markdown-it-strong-ja'
-const md = mdit().use(mditStrongJa)
+import mditAttrs from 'markdown-it-attrs'
+const md = mdit().use(mditStrongJa).use(mditAttrs)
 
 md.render('HTMLは**「HyperText Markup Language」**の略です。')
 // <p>HTMLは<strong>「HyperText Markup Language」</strong>の略です。</p>
 
+
 md.render('HTMLは*「HyperText Markup Language」*の略です。')
 // <p>HTMLは<em>「HyperText Markup Language」</em>の略です。</p>
 ```
+
+Notice. Basically, it is assumed that you will use markdown-it-attrs in conjunction with this. If you do not use it, please use `use(mditStrongJa, {mditAttrs: false})`.
 
 ## Example
 

@@ -2,44 +2,86 @@ const hasBackslash = (state, start) => {
   let slashNum = 0
   let i = start - 1
   while(i >= 0) {
-    /// if (state.src.charCodeAt(i) === 0x2A) { i--; continue }
     if (state.src.charCodeAt(i) === 0x5C) { slashNum++; i--; continue }
     break
   }
   return slashNum % 2 === 1 ? true : false
 }
 
-const setToken = (state, inlines) => {
+const setToken = (state, inlines, opt) => {
   let i = 0
+  let attrsIsText = {
+    val: false,
+    tag: '',
+  }
   while (i < inlines.length) {
     let type = inlines[i].type
+    //console.log(i, type)
     const tag = type.replace(/(?:_open|_close)$/, '')
 
     if (/_open$/.test(type)) {
       const startToken = state.push(type, tag, 1)
       startToken.markup = tag === 'strong' ? '**' : '*'
+      attrsIsText = {
+        val: true,
+        tag: tag,
+      }
     }
 
     if (type === 'html_inline') {
       type = 'text'
     }
     if (type === 'text') {
-      const content = state.src.slice(inlines[i].s, inlines[i].e + 1)
-      if (/^\**$/.test(content)) {
+      let content = state.src.slice(inlines[i].s, inlines[i].e + 1)
+      //console.log('content: ' + content)
+      if (/^\*+$/.test(content)) {
         //console.log('asterisk process::')
         const asteriskToken = state.push(type, '', 0)
         asteriskToken.content = content
         i++
         continue
       }
+      if (opt.mditAttrs && attrsIsText.val && i + 1 < inlines.length) {
+        const hasImmediatelyAfterAsteriskClose = inlines[i+1].type === attrsIsText.tag + '_close'
+        //console.log(hasImmediatelyAfterAsteriskClose, inlines[i+1].type, /^[\s\S]*{[^{}\n!@#%^&*()]+?}$/.test(content))
+        if (hasImmediatelyAfterAsteriskClose && /{[^{}\n!@#%^&*()]+?}$/.test(content)) {
+          const attrsToken = state.push(type, '', 0)
+
+          const hasBackslashBeforeCurlyAttribute = content.match(/(\\+){/)
+          if (hasBackslashBeforeCurlyAttribute) {
+            if (hasBackslashBeforeCurlyAttribute[1].length === 1) {
+              attrsToken.content = content.replace(/\\{/, '{')
+            } else {
+              let backSlashNum = Math.floor(hasBackslashBeforeCurlyAttribute[1].length / 2)
+              let k = 0
+              let backSlash = ''
+              while (k < backSlashNum) {
+                backSlash +=  '\\'
+                k++
+              }
+              //console.log(backSlashNum, backSlash)
+              attrsToken.content = content.replace(/\\+{/, backSlash + '{')
+            }
+          } else {
+            attrsToken.content = content
+          }
+          attrsIsText.val = false
+          i++
+          continue
+        }
+      }
 
       const childTokens = state.md.parseInline(content, state.env)
+      //console.log(childTokens)
       if (childTokens[0] && childTokens[0].children) {
-        //console.log(state.tokens) 
-        //console.log(state.tokens[state.tokens.length - 1])
-        state.tokens[state.tokens.length - 1].children = childTokens[0].children
-        childTokens[0].children.forEach(t => {
-          //console.log('t.type: ' + t.type + ', t.tag: ' + t.tag + ', t.nesting: ' + t.nesting)
+        let j = 0
+        while (j < childTokens[0].children.length) {
+          const t = childTokens[0].children[j]
+          if (t.type === 'softbreak') {
+            t.type = 'text'
+            t.tag = ''
+            t.content = '\n'
+          }
           const token = state.push(t.type, t.tag, t.nesting)
           token.attrs = t.attrs
           token.map = t.map
@@ -51,13 +93,18 @@ const setToken = (state, inlines) => {
           token.meta = t.meta
           token.block = t.block
           token.hidden = t.hidden
-        })
+          j++
+        }
       }
     }
 
     if (/_close$/.test(type)) {
       const closeToken = state.push(type, tag, -1)
       closeToken.markup = tag === 'strong' ? '**' : '*'
+      attrsIsText = {
+        val: false,
+        tag: '',
+      }
     }
 
     i++
@@ -200,7 +247,7 @@ const marksPush = (marks, nest, s, e, len, outsideLen, type) => {
   }
 }
 
-const setStrong = (inlines, marks, n, memo) => {
+const setStrong = (state, inlines, marks, n, memo, opt) => {
   let i = n + 1
   let j = 0
   let nest = 0
@@ -240,9 +287,11 @@ const setStrong = (inlines, marks, n, memo) => {
     }
 
     //console.log('memo.html: ' + memo.html + 'insideTagsIsClose: ' + insideTagsIsClose + 'inlines[i].len: ' + inlines[i].len)
-    if (memo.html && !insideTagsIsClose && inlines[i].len !== 1) {
-      i++; continue
+    //if (memo.html && !insideTagsIsClose && inlines[i].len !== 1) {
+    if (memo.html && inlines[i].len < 2) {
+      i++; continue;
     }
+
     let strongNum = Math.trunc(Math.min(inlines[n].len, inlines[i].len) / 2)
 
     if (inlines[i].len > 1) {
@@ -266,13 +315,13 @@ const setStrong = (inlines, marks, n, memo) => {
     if ((inlines[n].len > 0 && inlines[i] === 1) || (inlines[n].len === 1 && inlines[i].len > 0)) {
       //console.log('check em that warp strong.')
       nest++
-      n, nest, memo = setEm(inlines, marks, n, memo, nest)
+      n, nest, memo = setEm(state, inlines, marks, n, memo, opt, nest)
       if (memo.hasEmThatWrapStrong) {
         //console.log('set em that wrap strong.')
         let k = 0
         while (k < strongNum) {
-            marks[marks.length - 2 - k * 2 - 1].nest += 1
-            marks[marks.length - 2 - k * 2].nest += 1
+          marks[marks.length - 2 - k * 2 - 1].nest += 1
+          marks[marks.length - 2 - k * 2].nest += 1
           k++
         }
       }
@@ -303,7 +352,7 @@ const isJumpTag = (inlines, n, memo) => {
     }
     memo.htmlTags[inlines[n].tag[0]] = 1
   }
-   //console.log(n, 'after::memo.htmlTags: ' + JSON.stringify(memo.htmlTags))
+  //console.log(n, 'after::memo.htmlTags: ' + JSON.stringify(memo.htmlTags))
   const closeAllTags = Object.values(memo.htmlTags).every(val => val === 0)
   //console.log('closeAllTags: ' + closeAllTags)
   if (closeAllTags) return 1
@@ -311,7 +360,7 @@ const isJumpTag = (inlines, n, memo) => {
   return 0
 }
 
-const setEm = (inlines, marks, n, memo, sNest) => {
+const setEm = (state, inlines, marks, n, memo, opt, sNest) => {
   let i = n + 1
   let nest = 0
   let strongPNum = 0
@@ -333,7 +382,15 @@ const setEm = (inlines, marks, n, memo, sNest) => {
     //console.log('n: ' + n +  ' [em]: inlines[n].len: ' + inlines[n].len + ', i: ' + i,  ', inlines[i].len: ' + inlines[i].len + ', isEm: ' + memo.isEm)
     //console.log(marks)
 
-    if (memo.isEm && inlines[i].len === 2) {
+    //if (memo.isEm && inlines[i].len === 2) {
+    let curlyProcess = false
+    if (opt.mditAttrs) {
+      const checkText = state.src.slice(inlines[i-1].sp, inlines[i-1].ep + 1)
+      if (/{[^{}\n!@#%^&*()]+?}$/.test(checkText)) {
+        curlyProcess = true
+      }
+    }
+    if (memo.isEm && !curlyProcess && inlines[i].len === 2) {
       strongPNum++
       i++
       continue
@@ -348,10 +405,11 @@ const setEm = (inlines, marks, n, memo, sNest) => {
     if (nest === -1) return n, nest, memo
 
     if (emNum === 1) {
-      //console.log(n, i, 'insideTagsIsClose: ' + insideTagsIsClose)
-      if (memo.html && !insideTagsIsClose && inlines[i].len !== 2) {
+      //console.log(n, i, 'insideTagsIsClose: ' + insideTagsIsClose, !insideTagsIsClose, inlines[i].len)
+      if (memo.html && inlines[i].len < 1) {
         i++; continue;
       }
+
       //console.log('n: ' + n +  ' [em]: normal push, nest: ' + nest)
       //console.log('strongPNum: ' + strongPNum)
       //console.log(inlines[n].ep, inlines[n].sp, inlines[n].s)
@@ -367,7 +425,6 @@ const setEm = (inlines, marks, n, memo, sNest) => {
         marksPush(marks, nest, inlines[i].ep, inlines[i].ep, 1, inlines[i].len - 1, 'em_close')
         inlines[i].sp = inlines[i].ep - 1
         inlines[i].ep -= 1
-
       }
       inlines[i].len -= 1
       //console.log(marks)
@@ -382,9 +439,7 @@ const setEm = (inlines, marks, n, memo, sNest) => {
 
 const setText = (inlines, marks, n, nest) => {
   //console.log('n: ' + n + ' [text]: inlines[n].len: ' + inlines[n].len)
-  //marksPush(marks, -1, inlines[n].sp + 1, inlines[n].ep, inlines[n].len, -1, 'text')
   marksPush(marks, nest, inlines[n].sp, inlines[n].ep, inlines[n].len, -1, 'text')
-  //inlines[n].sp +=  1
   inlines[n].len = 0
 }
 
@@ -434,7 +489,7 @@ const checkNest = (inlines, marks, n, i) => {
   return nest
 }
 
-const createMarks = (inlines, start, end, memo) => {
+const createMarks = (state, inlines, start, end, memo, opt) => {
   let marks = []
   let n = start
   while (n < end) {
@@ -444,9 +499,9 @@ const createMarks = (inlines, start, end, memo) => {
     let nest = 0
     //console.log('n: ' + n +  ' ----- inlines.length: ' + inlines.length + ', memo.isEm: ' + memo.isEm)
     if (!memo.isEm) {
-      n, nest, memo = setStrong(inlines, marks, n, memo)
+      n, nest, memo = setStrong(state, inlines, marks, n, memo, opt)
     }
-    n, nest, memo = setEm(inlines, marks, n, memo)
+    n, nest, memo = setEm(state, inlines, marks, n, memo, opt)
     if (inlines[n].len !== 0) setText(inlines, marks, n, nest)
     //console.log(marks)
     n++
@@ -487,17 +542,30 @@ const strongJa = (state, silent, opt) => {
   const start = state.pos
   let max = state.posMax
   let attributesSrc
-  if (opt.hasCurlyAttributes) {
-    attributesSrc = state.src.match(/( *){.*?}$/)
-    if (attributesSrc) {
-      max = state.src.slice(0, attributesSrc.index).length
-    }
-  }
   if (start > max) return false
   if (state.src.charCodeAt(start) !== 0x2A) return false
-
   if (hasBackslash(state, start)) return false
-  //console.log('state.src.length: ' + state.src.length + ', start: ' + start +  ', state.src: ' + state.src)
+
+  if (opt.mditAttrs) {
+    attributesSrc = state.src.match(/((\n)? *){([^{}\n!@#%^&*()]+?)} *$/)
+    if (attributesSrc && attributesSrc[3] !== '.') {
+      max = state.src.slice(0, attributesSrc.index).length
+      if (attributesSrc[2] === '\n') {
+        max = state.src.slice(0, attributesSrc.index - 1).length
+      }
+      if(hasBackslash(state, attributesSrc.index) && attributesSrc[2] === '' && attributesSrc[1].length === 0) {
+        max = state.posMax
+      }
+    } else {
+      let endCurlyKet = state.src.match(/(\n *){([^{}\n!@#%^&*()]*?)}.*(} *?)$/)
+      if (endCurlyKet) {
+        max -= endCurlyKet[3].length
+      }
+    }
+  }
+
+
+  //console.log('state.src.length(max): ' + state.src.length + (state.src.length === max ? '' : '(' + max + ')') + ', start: ' + start +  ', state.src: ' + state.src)
   let inlines = createInlines(state, start, max, opt)
   //console.log('inlines: ')
   //console.log(inlines)
@@ -511,7 +579,8 @@ const strongJa = (state, silent, opt) => {
     inlineMarkStart: state.src.charCodeAt(0) === 0x2A ? true : false,
     inlineMarkEnd: state.src.charCodeAt(max - 1) === 0x2A ? true : false,
   }
-  let marks = createMarks(inlines, 0, inlines.length, memo)
+
+  let marks = createMarks(state, inlines, 0, inlines.length, memo, opt)
   //console.log('marks: ')
   //console.log(marks)
 
@@ -519,10 +588,14 @@ const strongJa = (state, silent, opt) => {
   //console.log('fix inlines:')
   //console.log(inlines)
 
-  setToken(state, inlines)
+  setToken(state, inlines, opt)
 
-  if (attributesSrc) {
-    //console.log('attributesSrc[1].length: ' + attributesSrc[1].length)
+  if (opt.mditAttrs && max !== state.posMax) {
+    if (!attributesSrc) {
+      state.pos = max
+      return true
+    }
+    //console.log('start: ' + start + ', attributesSrc[0]::' + attributesSrc[0] + ', attributesSrc[1].length: ' + attributesSrc[1].length)
     if (attributesSrc[1].length > 1) {
       state.pos = max + attributesSrc[1].length
     } else {
@@ -531,17 +604,15 @@ const strongJa = (state, silent, opt) => {
   } else {
     state.pos = max + 1
   }
+  //console.log(state.tokens)
   return true
 }
 
 const mditStrongJa = (md, option) => {
   const opt = {
-    dollarMath: true,
-    hasCurlyAttributes: false,
+    dollarMath: true, //inline math $...$
+    mditAttrs: true, //markdown-it-attrs
   }
-  opt.hasCurlyAttributes = md.core.ruler.__rules__.filter(rule => {
-    rule.name === 'curly_attributes' // markdown-it-attrs
-  })
   if (option !== undefined) {
     for (let o in option) {
         opt[o] = option[o]
