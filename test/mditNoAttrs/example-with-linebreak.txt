@@ -1,0 +1,289 @@
+[Markdown]
+- a
+- b
+{.nomarker}
+[HTML]
+<ul>
+<li>a</li>
+<li>b
+{.nomarker}</li>
+</ul>
+
+[Markdown]
+- **あ**
+- **い
+{.nomarker}
+[HTML]
+<ul>
+<li><strong>あ</strong></li>
+<li>**い
+{.nomarker}</li>
+</ul>
+
+[Markdown]
+- *aあ
+{.style}
+[HTML:false]
+<ul>
+<li>*aあ
+{.style}</li>
+</ul>
+
+[Markdown]
+- **あい**:aaaあ
+{.style}
+[HTML]
+<ul>
+<li><strong>あい</strong>:aaaあ
+{.style}</li>
+</ul>
+
+[Markdown]
+- **a**: a1
+- **b**: b1
+{.nomarker}
+[HTML]
+<ul>
+<li><strong>a</strong>: a1</li>
+<li><strong>b</strong>: b1
+{.nomarker}</li>
+</ul>
+
+[Markdown]
+- **a**: a1
+- **b**: びーいち
+{.nomarker}
+[HTML]
+<ul>
+<li><strong>a</strong>: a1</li>
+<li><strong>b</strong>: びーいち
+{.nomarker}</li>
+</ul>
+[HTML:true]
+<ul>
+<li><strong>a</strong>: a1</li>
+<li><strong>b</strong>: びーいち
+{.nomarker}</li>
+</ul>
+
+[Markdown]
+- *aあ {.li-style}
+{.ul-style}
+[HTML:false]
+<ul>
+<li>*aあ {.li-style}
+{.ul-style}</li>
+</ul>
+
+[Markdown]
+- *aあ {.li-style}
+{.ul-style} aa
+[HTML:false]
+<ul>
+<li>*aあ {.li-style}
+{.ul-style} aa</li>
+</ul>
+
+[Markdown]
+- *aあ {.li-style}
+\{.ul-style} aa {.next-li-style}
+[HTML:false]
+<ul>
+<li>*aあ {.li-style}
+{.ul-style} aa {.next-li-style}</li>
+</ul>
+[HTML:true]
+<ul>
+<li>*aあ {.li-style}
+{.ul-style} aa {.next-li-style}</li>
+</ul>
+
+[Markdown]
+- *aあ {.li-style}い
+\{.ul-style} aa {.next-li-style}
+[HTML:false]
+<ul>
+<li>*aあ {.li-style}い
+{.ul-style} aa {.next-li-style}</li>
+</ul>
+
+[Markdown]
+- *bい {.li-style}
+\\{.ul-style} bb {.next-li-style}
+[HTML:false]
+<ul>
+<li>*bい {.li-style}
+\{.ul-style} bb {.next-li-style}</li>
+</ul>
+
+[Markdown]
+- *う {.li-style}
+{.ul-style} b*b {}
+[HTML:false]
+<ul>
+<li><em>う {.li-style}
+{.ul-style} b</em>b {}</li>
+</ul>
+
+[Markdown]
+- *う* {.li-style}
+{.ul-style} u }
+[HTML:false]
+<ul>
+<li><em>う</em> {.li-style}
+{.ul-style} u }</li>
+</ul>
+
+[Markdown]
+*う* {.li-style}
+{.ul-style} u }
+[HTML:false]
+<p><em>う</em> {.li-style}
+{.ul-style} u }</p>
+
+[Markdown]
+*う {.li-style}
+{.ul-style} u }
+[HTML:false]
+<p>*う {.li-style}
+{.ul-style} u }</p>
+
+[Markdown]
+*{.s}*
+[HTML:false]
+<p><em>{.s}</em></p>
+
+[Markdown]
+a
+*{.s}*
+[HTML:false]
+<p>a
+<em>{.s}</em></p>
+
+[Markdown]
+a
+*b{.s}*
+[HTML:false]
+<p>a
+<em>b{.s}</em></p>
+
+[Markdown]
+- e {.li-style}
+*{.ul-style}*
+[HTML:false]
+<ul>
+<li>e {.li-style}
+<em>{.ul-style}</em></li>
+</ul>
+
+
+[Markdown]
+**\{}**
+[HTML]
+<p><strong>{}</strong></p>
+
+[Markdown]
+**\{a}**
+[HTML]
+<p><strong>{a}</strong></p>
+
+[Markdown]
+**\\{a}**
+[HTML]
+<p><strong>\{a}</strong></p>
+
+[Markdown]
+**\\\{a}**
+[HTML]
+<p><strong>\{a}</strong></p>
+
+[Markdown]
+**\\\\{a}**
+[HTML]
+<p><strong>\\{a}</strong></p>
+
+
+[Markdown]
+**\a\{a}**
+[HTML]
+<p><strong>\a{a}</strong></p>
+
+[Markdown]
+*<span>a</span>b{.style}*
+[HTML:false]
+<p><em>&lt;span&gt;a&lt;/span&gt;b{.style}</em></p>
+[HTML:true]
+<p><em><span>a</span>b{.style}</em></p>
+
+[Markdown]
+*<span>ab{.style}*
+[HTML:false]
+<p><em>&lt;span&gt;ab{.style}</em></p>
+[HTML:true]
+<p><em><span>ab{.style}</em></p>
+
+[Markdown]
+*b{.style}**
+[HTML]
+<p><em>b{.style}</em>*</p>
+
+[Markdown]
+**う {.li-style}
+{.ul-style} u }
+[HTML:false]
+<p>**う {.li-style}
+{.ul-style} u }</p>
+
+[Markdown]
+**{.s}**
+[HTML:false]
+<p><strong>{.s}</strong></p>
+
+[Markdown]
+a
+**{.s}**
+[HTML:false]
+<p>a
+<strong>{.s}</strong></p>
+
+[Markdown]
+a
+**b{.s}**
+[HTML:false]
+<p>a
+<strong>b{.s}</strong></p>
+
+[Markdown]
+- e {.li-style}
+**{.ul-style}***
+[HTML:false]
+<ul>
+<li>e {.li-style}
+<strong>{.ul-style}</strong>*</li>
+</ul>
+
+[Markdown]
+**<span>a</span>b{.style}**
+[HTML:false]
+<p><strong>&lt;span&gt;a&lt;/span&gt;b{.style}</strong></p>
+[HTML:true]
+<p><strong><span>a</span>b{.style}</strong></p>
+
+[Markdown]
+**<span>ab{.style}**
+[HTML:false]
+<p><strong>&lt;span&gt;ab{.style}</strong></p>
+[HTML:true]
+<p><strong><span>ab{.style}</strong></p>
+
+[Markdown]
+**b{.style}***
+[HTML]
+<p><strong>b{.style}</strong>*</p>
+
+[Markdown]
+*a
+{.s}*
+[HTML]
+<p><em>a
+{.s}</em></p>

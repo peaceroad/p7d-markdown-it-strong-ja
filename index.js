@@ -73,12 +73,17 @@ const setToken = (state, inlines, opt) => {
 
       const childTokens = state.md.parseInline(content, state.env)
       //console.log(childTokens)
+      //console.log(childTokens[0].children)
       if (childTokens[0] && childTokens[0].children) {
         let j = 0
         while (j < childTokens[0].children.length) {
           const t = childTokens[0].children[j]
           if (t.type === 'softbreak') {
             t.type = 'text'
+            t.tag = ''
+            t.content = '\n'
+          }
+          if (!opt.mditAttrs && t.tag === 'br') {
             t.tag = ''
             t.content = '\n'
           }
@@ -148,6 +153,7 @@ const createInlines = (state, start, max, opt) => {
   let noMark = ''
   let textStart = n
   while (n < max) {
+    //console.log('n: ' + n + ', state.src[n]: ' + state.src[n] + ', noMark: ' + noMark)
     let nextSymbolPos = -1;
     [nextSymbolPos, noMark] = hasNextSymbol(state, n, max, 0x60, noMark)  // '`'
     if (nextSymbolPos !== -1) {
@@ -176,7 +182,9 @@ const createInlines = (state, start, max, opt) => {
         while (i < max) {
           if (state.src.charCodeAt(i) === 0x3E && !hasBackslash(state, i)) { // '>'
             if (noMark.length !== 0) {
+              // Add the text before the tag to inlines
               inlinesPush(inlines, textStart, n - 1, n - textStart, 'text')
+              noMark = ''
             }
             let tag = state.src.slice(n + 1, i)
             let tagType = ''
@@ -196,9 +204,20 @@ const createInlines = (state, start, max, opt) => {
         continue
       }
     }
+
     if (state.src.charCodeAt(n) === 0x2A && !hasBackslash(state, n)) { // '*'
+      /*
+      if (/[!-)+-/:-@[-`{-~]/.test(state.src[n + 1])) {
+        inlinesPush(inlines, textStart, n, n - textStart + 1, 'text')
+        noMark = ''
+        n++
+        textStart = n
+        continue
+      }*/
       if (n !== 0) {
+        //Add text before asterisk to inlines
         inlinesPush(inlines, textStart, n - 1, n - textStart, 'text')
+        noMark = ''
       }
       if (n === max - 1) {
         inlinesPush(inlines, n,  n, 1 , '')
@@ -218,6 +237,7 @@ const createInlines = (state, start, max, opt) => {
       n = i
       continue
     }
+
     noMark += state.src[n]
     if (n === max - 1) {
       inlinesPush(inlines, textStart, n, n - textStart + 1, 'text')
@@ -252,11 +272,12 @@ const setStrong = (state, inlines, marks, n, memo, opt) => {
   let j = 0
   let nest = 0
   let insideTagsIsClose = 1
+  let prevHtmlTags = {...memo.htmlTags}
   while (i < inlines.length) {
     if (inlines[i].len === 0) { i++; continue }
     if (memo.html) {
       if (inlines[i].type === 'html_inline') {
-        insideTagsIsClose = isJumpTag(inlines, i, memo)
+        insideTagsIsClose = isJumpTag(inlines, i, memo, prevHtmlTags)
         //console.log('insideTagsIsClose: ' + insideTagsIsClose )
         if (insideTagsIsClose === -1) return n, nest, memo
         if (insideTagsIsClose === 0) { i++; continue }
@@ -332,30 +353,31 @@ const setStrong = (state, inlines, marks, n, memo, opt) => {
   return n, nest, memo
 }
 
-const isJumpTag = (inlines, n, memo) => {
+const isJumpTag = (inlines, n, memo, prevHtmlTags) => {
   //console.log(n, 'before::memo.htmlTags: ' + JSON.stringify(memo.htmlTags))
-  const hasSet = Object.keys(memo.htmlTags).some(tag => {
-    if (tag === inlines[n].tag[0]) {
-      if (inlines[n].tag[1] === 'open') {
-        memo.htmlTags[tag]++ }
-      else {
-        memo.htmlTags[tag]--
-      }
-      return true
-    }
-    return false
-  })
-  if (!hasSet && !memo.htmlTags[inlines[n].tag[0]]) {
-    if (inlines[n].tag[1] === 'close') {
-      memo.htmlTags = {}
-      return -1
-    }
-    memo.htmlTags[inlines[n].tag[0]] = 1
+  if (inlines[n].tag === undefined) return 0
+  if (memo.htmlTags[inlines[n].tag[0]] === undefined) {
+    memo.htmlTags[inlines[n].tag[0]] = 0
+  }
+  //console.log('prevHtmlTags: ' + JSON.stringify(prevHtmlTags))
+  //console.log('memo.htmlTags: ' + JSON.stringify(memo.htmlTags) + ', inlines[n].tag[1]: ' + inlines[n].tag[1])
+  if (inlines[n].tag[1] === 'open') {
+    memo.htmlTags[inlines[n].tag[0]] += 1
+  }
+  if (inlines[n].tag[1] === 'close') {
+    memo.htmlTags[inlines[n].tag[0]] -= 1
+  }
+  //console.log('prevHtmlTags: ' + JSON.stringify(prevHtmlTags))
+  //console.log('memo.htmlTags: ' + JSON.stringify(memo.htmlTags))
+  if (prevHtmlTags[inlines[n].tag[0]] === undefined) prevHtmlTags[inlines[n].tag[0]] = 0
+  if (memo.htmlTags[inlines[n].tag[0]] < prevHtmlTags[inlines[n].tag[0]]) {
+    return -1
   }
   //console.log(n, 'after::memo.htmlTags: ' + JSON.stringify(memo.htmlTags))
   const closeAllTags = Object.values(memo.htmlTags).every(val => val === 0)
   //console.log('closeAllTags: ' + closeAllTags)
   if (closeAllTags) return 1
+  // if (inlines[n].tag[1] === 'close') return -1
   //memo.htmlTags = {}
   return 0
 }
@@ -364,17 +386,23 @@ const setEm = (state, inlines, marks, n, memo, opt, sNest) => {
   let i = n + 1
   let nest = 0
   let strongPNum = 0
-  let insideTagsIsClose = 1
+  let insideTagsIsClose = 1 //true
+  let prevHtmlTags = {...memo.htmlTags}
+  //console.log('memo.prevHtmlTags: ' + JSON.stringify(memo.prevHtmlTags))
   while (i < inlines.length) {
+    //console.log('i: ' + i + ', src: ' + state.src.slice(inlines[i].sp, inlines[i].ep + 1) + ', inlines[i]: ' + JSON.stringify(inlines[i]))
     if (inlines[i].len === 0) { i++; continue }
+   //console.log('      memo.isEm: ' + memo.isEm + ', memo.html: ' + memo.html + ', inlines[i].type: ' + inlines[i].type)
     if (memo.isEm && memo.html) {
       if (inlines[i].type === 'html_inline') {
-        insideTagsIsClose = isJumpTag(inlines, i, memo)
-        //console.log('insideTagsIsClose: ' + insideTagsIsClose )
+        insideTagsIsClose = isJumpTag(inlines, i, memo, prevHtmlTags)
+        //console.log('insideTagsIsClose: ' + insideTagsIsClose)
         if (insideTagsIsClose === -1) return n, nest, memo
         if (insideTagsIsClose === 0) { i++; continue }
       }
     }
+
+
     if (inlines[i].type !== '') { i++; continue }
 
     const emNum = Math.min(inlines[n].len, inlines[i].len)
@@ -382,7 +410,6 @@ const setEm = (state, inlines, marks, n, memo, opt, sNest) => {
     //console.log('n: ' + n +  ' [em]: inlines[n].len: ' + inlines[n].len + ', i: ' + i,  ', inlines[i].len: ' + inlines[i].len + ', isEm: ' + memo.isEm)
     //console.log(marks)
 
-    //if (memo.isEm && inlines[i].len === 2) {
     let curlyProcess = false
     if (opt.mditAttrs) {
       const checkText = state.src.slice(inlines[i-1].sp, inlines[i-1].ep + 1)
@@ -390,7 +417,16 @@ const setEm = (state, inlines, marks, n, memo, opt, sNest) => {
         curlyProcess = true
       }
     }
-    if (memo.isEm && !curlyProcess && inlines[i].len === 2) {
+    //if (memo.isEm && !curlyProcess && inlines[i].len === 2 && !memo.inlineMarkStart) {
+    const hasMarkersAtStartAndEnd = (i) => {
+      let flag =  memo.inlineMarkStart
+      if (!flag) return false
+      inlines.length - 1 === i ? flag = true : flag = false
+      if (!flag) return false
+      inlines[i].len > 1 ? flag = true : flag = false
+      return flag
+    }
+    if (memo.isEm && !curlyProcess && inlines[i].len === 2 && !hasMarkersAtStartAndEnd(i)) {
       strongPNum++
       i++
       continue
@@ -410,8 +446,7 @@ const setEm = (state, inlines, marks, n, memo, opt, sNest) => {
         i++; continue;
       }
 
-      //console.log('n: ' + n +  ' [em]: normal push, nest: ' + nest)
-      //console.log('strongPNum: ' + strongPNum)
+      //console.log('n: ' + n +  ' [em]: Normal push, nest: ' + nest, ', strongPNum: ' + strongPNum)
       //console.log(inlines[n].ep, inlines[n].sp, inlines[n].s)
 
       marksPush(marks, nest, inlines[n].ep, inlines[n].ep, 1, inlines[n].len - 1, 'em_open')
@@ -497,7 +532,7 @@ const createMarks = (state, inlines, start, end, memo, opt) => {
     memo.isEm = inlines[n].len === 1 ? true : false
     memo.wrapEm = 0
     let nest = 0
-    //console.log('n: ' + n +  ' ----- inlines.length: ' + inlines.length + ', memo.isEm: ' + memo.isEm)
+    //console.log('n: ' + n +  ' ----- inlines:: src: ' + state.src.slice(inlines[n].sp, inlines[n].ep + 1) + ', inlines[n].sp: ' + inlines[n].sp + ', inlines.length: ' + inlines.length + ', memo.isEm: ' + memo.isEm)
     if (!memo.isEm) {
       n, nest, memo = setStrong(state, inlines, marks, n, memo, opt)
     }
@@ -564,7 +599,6 @@ const strongJa = (state, silent, opt) => {
     }
   }
 
-
   //console.log('state.src.length(max): ' + state.src.length + (state.src.length === max ? '' : '(' + max + ')') + ', start: ' + start +  ', state.src: ' + state.src)
   let inlines = createInlines(state, start, max, opt)
   //console.log('inlines: ')
@@ -590,12 +624,14 @@ const strongJa = (state, silent, opt) => {
 
   setToken(state, inlines, opt)
 
+  //console.log ('End process:: max:' + max + ', state.posMax: ' + state.posMax + ', opt.mditAttrs: ' + opt.mditAttrs)
+
   if (opt.mditAttrs && max !== state.posMax) {
     if (!attributesSrc) {
       state.pos = max
       return true
     }
-    //console.log('start: ' + start + ', attributesSrc[0]::' + attributesSrc[0] + ', attributesSrc[1].length: ' + attributesSrc[1].length)
+   //console.log('start: ' + start + ', attributesSrc[0]::' + attributesSrc[0] + ', attributesSrc[1].length: ' + attributesSrc[1].length)
     if (attributesSrc[1].length > 1) {
       state.pos = max + attributesSrc[1].length
     } else {

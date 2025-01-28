@@ -85,6 +85,7 @@ HTMLは**「*HyperText* Markup *Language*」**の略です。
 [HTML]
 <p><em>a<strong>b</strong>c<strong>d</strong>e</em></p>
 
+
 [Markdown]
 *aa**
 [HTML]
@@ -157,32 +158,32 @@ a[*](https://example*.com)*b*
 [Markdown]
 **test** {.style}
 [HTML]
-<p class="style"><strong>test</strong></p>
+<p><strong>test</strong> {.style}</p>
 
 [Markdown]
 a**test**b {.style}
 [HTML]
-<p class="style">a<strong>test</strong>b</p>
+<p>a<strong>test</strong>b {.style}</p>
 
 [Markdown]
 z*a**test**{.style}b*c*d
 [HTML]
-<p>z<em>a<strong class="style">test</strong>b</em>c*d</p>
+<p>z<em>a<strong>test</strong>{.style}b</em>c*d</p>
 
 [Markdown]
 a**b**c{.style}
 [HTML]
-<p class="style">a<strong>b</strong>c</p>
+<p>a<strong>b</strong>c{.style}</p>
 
 [Markdown]
 a**b**{.style}
 [HTML]
-<p>a<strong class="style">b</strong></p>
+<p>a<strong>b</strong>{.style}</p>
 
 [Markdown]
 a**b**c  {.style}
 [HTML]
-<p class="style">a<strong>b</strong>c</p>
+<p>a<strong>b</strong>c  {.style}</p>
 
 [Markdown]
 z*a<span>b*c</span>d*e
@@ -361,3 +362,32 @@ b<span>c</span>*
 <p>**&lt;br&gt;</p>
 [HTML:true]
 <p>**<br></p>
+
+
+[Markdown]
+a*b<>c*d*e
+[HTML:false]
+<p>a<em>b&lt;&gt;c</em>d*e</p>
+[HTML:true]
+<p>a<em>b&lt;&gt;c</em>d*e</p>
+
+[Markdown]
+z*<>*a*b
+[HTML:false]
+<p>z*&lt;&gt;<em>a</em>b</p>
+[HTML:true]
+<p>z*&lt;&gt;<em>a</em>b</p>
+
+[Markdown]
+z*<span>*a*b
+[HTML:false]
+<p>z*&lt;span&gt;<em>a</em>b</p>
+[HTML:true]
+<p>z*<span><em>a</em>b</p>
+
+[Markdown]
+z*<span>*a*b</span>
+[HTML:false]
+<p>z*&lt;span&gt;<em>a</em>b&lt;/span&gt;</p>
+[HTML:true]
+<p>z*<span><em>a</em>b</span></p>
