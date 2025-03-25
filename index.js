@@ -414,7 +414,7 @@ const isJumpTag = (inlines, i, memo, prevHtmlTags) => {
 }
 
 const isPunctuation = (ch) => {
-  return /[!-/:-@[-`{-~]/.test(ch)
+  return /[!-/:-@[-`{-~ ]/.test(ch)
 }
 
 const hasPunctuation = (state, inlines, n, i, memo) => {
