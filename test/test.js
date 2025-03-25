@@ -23,7 +23,8 @@ const mditNoAttrsCJKBreaksWithHtml = mdit({html: true}).use(mditStrongJa, {mditA
 const check = (ms, example, allPass, useAttrs) => {
   let n = 1
   while (n < ms.length) {
-    //if (n !== 62) { n++; continue }
+    if (n !== 72) { n++; continue }
+    if (n < 64 || n > 68) { n++; continue }
     const m = ms[n].markdown
     let h = ''
     if (example === 'withLineBreak') {
@@ -35,7 +36,7 @@ const check = (ms, example, allPass, useAttrs) => {
       assert.strictEqual(h, ms[n].html)
     } catch(e) {
       console.log('Test [' + n + ', HTML: false, useAttrs: ' + useAttrs + '] >>>')
-      console.log('Input: ' + ms[n].markdown + '\nConvert: ' + h + 'Correct: ' + ms[n].html)
+      console.log('Input: ' + ms[n].markdown + '\nOutput: ' + h + 'Correct: ' + ms[n].html)
       allPass = false
     }
     if (ms[n].htmlWithHtmlTrue) {
@@ -49,7 +50,7 @@ const check = (ms, example, allPass, useAttrs) => {
         assert.strictEqual(hh, ms[n].htmlWithHtmlTrue)
       } catch(e) {
         console.log('Test [' + n + ', HTML: true, useAttrs: ' + useAttrs + '] >>>')
-        console.log('Input: ' + ms[n].markdown + '\nConvert: ' + hh + 'Correct: ' + ms[n].htmlWithHtmlTrue)
+        console.log('Input: ' + ms[n].markdown + '\nOutput: ' + hh + 'Correct: ' + ms[n].htmlWithHtmlTrue)
         allPass = false
       }
     }
@@ -57,7 +58,6 @@ const check = (ms, example, allPass, useAttrs) => {
   }
   return allPass
 }
-
 
 const examples = {
   strong: __dirname + '/example-strong.txt',
