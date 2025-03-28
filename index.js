@@ -1,5 +1,6 @@
-const REG_ASTERISKS    = /^\*+$/;
-const REG_ATTRS = /{[^{}\n!@#%^&*()]+?}$/;
+const REG_ASTERISKS = /^\*+$/
+const REG_ATTRS = /{[^{}\n!@#%^&*()]+?}$/
+const REG_PUNCTUATION = /[!-/:-@[-`{-~ ]/
 
 const hasBackslash = (state, start) => {
   let slashNum = 0
@@ -129,6 +130,7 @@ const pushInlines = (inlines, s, e, len, type, tag, tagType) => {
     ep: e,
     len: len,
     type: type,
+    check: false,
   }
   if (tag) inline.tag = [tag, tagType]
   inlines.push(inline)
@@ -213,7 +215,7 @@ const createInlines = (state, start, max, opt) => {
     }
 
     if (src.charCodeAt(n) === 0x2A && !hasBackslash(state, n)) { // '*'
-      if (n !== 0) {
+      if (n !== 0 && noMark.length !== 0) {
         pushInlines(inlines, textStart, n - 1, n - textStart, 'text')
         noMark = ''
       }
@@ -261,13 +263,13 @@ const setStrong = (state, inlines, marks, n, memo, opt) => {
   let i = n + 1
   let j = 0
   let nest = 0
-  let insideTagsIsClose = 1
-  let prevHtmlTags = {...memo.htmlTags}
+  let insideTagsIsClose = 1 // 1: closed, 0: open still, -1: error
   while (i < inlines.length) {
-    //console.log('[strong] i: ' + i + ', inlines[i].len: ' + inlines[i].len + ', inlines[i].type: ' + inlines[i].type)
-    //if (inlines[i].len === 0) { i++; continue }
-    if (memo.html && inlines[i].type === 'html_inline') {
-      insideTagsIsClose = isJumpTag(inlines, i, memo, prevHtmlTags)
+   //console.log('[strong] i: ' + i + ', inlines[i].len: ' + inlines[i].len + ', inlines[i].type: ' + inlines[i].type)
+    if (inlines[i].len === 0 || inlines[i].check) { i++; continue }
+    if (inlines[i].type === 'html_inline') {
+      inlines[i].check = true
+      insideTagsIsClose = checkInsideTags(inlines, i, memo)
       //console.log('    nest: ' + nest + ', insideTagsIsClose: ' + insideTagsIsClose )
       if (insideTagsIsClose === -1) return n, nest, memo
       if (insideTagsIsClose === 0) { i++; continue }
@@ -279,7 +281,7 @@ const setStrong = (state, inlines, marks, n, memo, opt) => {
     if (nest === -1) return n, nest, memo
 
     if (inlines[i].len === 1 && inlines[n].len > 2) {
-      //console.log('    check em inside strong: ' + nest)
+     //console.log('    check em inside strong:: i: ' + i)
       pushMark(marks, {
         nest: nest,
         s: inlines[n].ep,
@@ -298,37 +300,33 @@ const setStrong = (state, inlines, marks, n, memo, opt) => {
       })
       inlines[n].len -= 1
       inlines[n].ep -= 1
-      inlines[i].len = 0
-      inlines[i].sp += 1
-      //console.log('    i: ' + i + ', inlines.length: ' + inlines.length + ', nest: ' + nest)
-      if (i++ < inlines.length) {
-        i++
-        nest++
-      } else {
-        return n, nest, memo
+      inlines[i].len -= 1
+      if (inlines[i].len > 0) inlines[i].sp += 1
+      if (insideTagsIsClose === 1) {
+        n, nest, memo = setEm(state, inlines, marks, n, memo, opt)
       }
-      if (i > inlines.length - 1) return n, nest, memo
-        //console.log('memo.html: ' + memo.html + ', inlines[i].type !== \'\': ' + (inlines[i].type !== ''))
-      continue
+      //console.log(marks)
     }
-
     //console.log('    check len:: inlines[n].len: ' + inlines[n].len + ', inlines[i].len: ' + inlines[i].len)
     let strongNum = Math.trunc(Math.min(inlines[n].len, inlines[i].len) / 2)
 
     if (inlines[i].len > 1) {
-      //console.log('n: ' + n +  ' [strong]: normal push, nest: ' + nest + ',strongNum: ' + strongNum)
-
-      if (hasPunctuation(state, inlines, n, i, memo)) {
+     //console.log('    hasPunctuation: ' + hasPunctuation(state, inlines, n, i) + ', memo.inlineMarkEnd: ' + memo.inlineMarkEnd)
+      if (hasPunctuation(state, inlines, n, i)) {
         if (memo.inlineMarkEnd) {
-          //console.log('check nest em.')
+         //console.log('check nest em.')
+         //console.log('~~~~~~~~~~~~~~~~~')
           marks.push(...createMarks(state, inlines, i, inlines.length - 1, memo, opt))
+         //console.log('~~~~~~~~~~~~~~~~~')
           //console.log(marks)
           //console.log(inlines)
+         //console.log(i, inlines[i])
           if (inlines[i].len === 0) { i++; continue }
         } else {
           return n, nest, memo
         }
       }
+     //console.log('    ===> strong normal push. n: ' + n + ', i: ' + i +  ' , nest: ' + nest + ',strongNum: ' + strongNum)
 
       j = 0
       while (j < strongNum) {
@@ -359,7 +357,7 @@ const setStrong = (state, inlines, marks, n, memo, opt) => {
     }
 
     if (inlines[n].len === 1 && inlines[i].len > 0) {
-      //console.log('    check em that warp strong.')
+     //console.log('    check em that warp strong.')
       nest++
       n, nest, memo = setEm(state, inlines, marks, n, memo, opt, nest)
       if (memo.hasEmThatWrapStrong) {
@@ -382,51 +380,56 @@ const setStrong = (state, inlines, marks, n, memo, opt) => {
     if (inlines[n].len === 0) return n, nest, memo
     i++
   }
+
+  if (n == 0 && memo.inlineMarkEnd) {
+   //console.log('check nest em(inlineMarkEnd).')
+    //console.log('===============================')
+    marks.push(...createMarks(state, inlines, n + 1 , inlines.length - 1, memo, opt))
+    //console.log(marks)
+    //console.log('===============================')
+  }
   return n, nest, memo
 }
 
-const isJumpTag = (inlines, i, memo, prevHtmlTags) => {
-  //console.log('   isJumpTag:: i: ' + i + ', before::memo.htmlTags: ' + JSON.stringify(memo.htmlTags))
-  //console.log('prevHtmlTags: ' + JSON.stringify(prevHtmlTags))
+const checkInsideTags = (inlines, i, memo) => {
+  //console.log('isJumTag before::memo.htmlTags: ' + JSON.stringify(memo.htmlTags))
   if (inlines[i].tag === undefined) return 0
   const tagName = inlines[i].tag[0].toLowerCase()
   if (memo.htmlTags[tagName] === undefined) {
     memo.htmlTags[tagName] = 0
   }
-  //console.log('memo.htmlTags: ' + JSON.stringify(memo.htmlTags) + ', inlines[i].tag[1]: ' + inlines[i].tag[1])
+  //console.log('memo.htmlTags: ' + JSON.stringify(memo.htmlTags) + ', inlines[i]: ' + JSON.stringify(inlines[i]) + ', inlines[i]')
   if (inlines[i].tag[1] === 'open') {
     memo.htmlTags[tagName] += 1
   }
   if (inlines[i].tag[1] === 'close') {
     memo.htmlTags[tagName] -= 1
   }
-  //console.log('memo.htmlTags: ' + JSON.stringify(memo.htmlTags))
-  if (prevHtmlTags[tagName] === undefined) prevHtmlTags[tagName] = 0
   //console.log('    i: ' + i + ', tagName: ' + tagName + ', memo.htmlTags[tagName]: ' + memo.htmlTags[tagName] + ', prevHtmlTags[tagName]: ' + prevHtmlTags[tagName])
-  //if (memo.htmlTags[tagName] < prevHtmlTags[tagName]) {
-    if (memo.htmlTags[tagName] < 0) {
+  if (memo.htmlTags[tagName] < 0) {
     return -1
   }
-  //console.log(i, 'after::memo.htmlTags: ' + JSON.stringify(memo.htmlTags))
+  //console.log('isJumTag after::memo.htmlTags: ' + JSON.stringify(memo.htmlTags))
   const closeAllTags = Object.values(memo.htmlTags).every(val => val === 0)
   if (closeAllTags) return 1
   return 0
 }
 
 const isPunctuation = (ch) => {
-  return /[!-/:-@[-`{-~ ]/.test(ch)
+  return REG_PUNCTUATION.test(ch);
 }
 
-const hasPunctuation = (state, inlines, n, i, memo) => {
-  const openNextChar = isPunctuation(state.src[inlines[n].e + 1] || '')
-  const openPrevChar = isPunctuation(state.src[inlines[n].s - 1] || '') || n === 0
-  let closePrevChar = isPunctuation(state.src[inlines[i].s - 1] || '')
+const hasPunctuation = (state, inlines, n, i) => {
+  const src = state.src
+  const openNextChar = isPunctuation(src[inlines[n].e + 1] || '')
+  //const openPrevChar = isPunctuation(src[inlines[n].s - 1] || '') || n === 0
+  let closePrevChar = isPunctuation(src[inlines[i].s - 1] || '')
   if (i + 1 < inlines.length) {
     //closePrevChar = closePrevChar && inlines[i+1] !== 'html_inline'
   }
-  let closeNextChar = isPunctuation(state.src[inlines[i].e + 1] || '') || i === inlines.length - 1
-  const lastCharIsAsterisk = memo.inlineMarkEnd
-  const firstCharIsAsterisk = memo.inlineMarkStart
+  let closeNextChar = isPunctuation(src[inlines[i].e + 1] || '') || i === inlines.length - 1
+  //const lastCharIsAsterisk = memo.inlineMarkEnd
+  //const firstCharIsAsterisk = memo.inlineMarkStart
 
   //console.log('openPrevChar: ' + openPrevChar + ', openNextChar: ' + openNextChar + ', closePrevChar: ' + closePrevChar + ', closeNextChar: ' + closeNextChar + ', lastCharIsAsterisk: ' + lastCharIsAsterisk + ', firstCharIsAsterisk: ' + firstCharIsAsterisk + ', next condition: ' + ((openNextChar || closePrevChar) && !closeNextChar))
   //if ((openNextChar || closePrevChar) && !closeNextChar) {
@@ -441,13 +444,14 @@ const setEm = (state, inlines, marks, n, memo, opt, sNest) => {
   let i = n + 1
   let nest = 0
   let strongPNum = 0
-  let insideTagsIsClose = 1 //true
-  let prevHtmlTags = {...memo.htmlTags}
+  let insideTagsIsClose = 1
   while (i < inlines.length) {
     //console.log('[em] i: ' + i + ', src: ' + state.src.slice(inlines[i].sp, inlines[i].ep + 1) + ', inlines[i]: ' + JSON.stringify(inlines[i]))
-    if (inlines[i].len === 0) { i++; continue }
-    if (!sNest && memo.html && inlines[i].type === 'html_inline') {
-      insideTagsIsClose = isJumpTag(inlines, i, memo, prevHtmlTags)
+    //console.log(inlines[i].type, JSON.stringify(memo.htmlTags))
+    if (inlines[i].len === 0 || inlines[i].check) { i++; continue }
+    if (!sNest && inlines[i].type === 'html_inline') {
+      inlines.check = true
+      insideTagsIsClose = checkInsideTags(inlines, i, memo)
       //console.log('    i: ' + i + ', insideTagsIsClose: ' + insideTagsIsClose)
       if (insideTagsIsClose === -1) return n, nest, memo
       if (insideTagsIsClose === 0) { i++; continue }
@@ -455,6 +459,8 @@ const setEm = (state, inlines, marks, n, memo, opt, sNest) => {
     if (inlines[i].type !== '') { i++; continue }
 
     const emNum = Math.min(inlines[n].len, inlines[i].len)
+
+    //console.log('sNest: ' + sNest + ', emNum: ' + emNum)
     if (!sNest && emNum !== 1) return n, sNest, memo
 
     let curlyProcess = false
@@ -484,28 +490,29 @@ const setEm = (state, inlines, marks, n, memo, opt, sNest) => {
     } else {
       nest = checkNest(inlines, marks, n, i)
     }
-    //console.log('    nest: ' + nest + ', emNum: ' + emNum + ', hasMark')
+    //console.log('    nest: ' + nest + ', emNum: ' + emNum)
     if (nest === -1) return n, nest, memo
 
     if (emNum === 1) {
-      //console.log(hasPunctuation(state, inlines, n, i, memo))
-      if (hasPunctuation(state, inlines, n, i, memo)) {
+      //console.log('    hasPunctuation: ' + hasPunctuation(state, inlines, n, i) + ', memo.inlineMarkEnd: ' + memo.inlineMarkEnd)
+      if (hasPunctuation(state, inlines, n, i)) {
         if (memo.inlineMarkEnd) {
           //console.log('check nest em.')
+          //console.log('~~~~~~~~~~~~~~~~~')
           marks.push(...createMarks(state, inlines, i, inlines.length - 1, memo, opt))
-          //console.log(marks)
-          //console.log(inlines)
+          //console.log('~~~~~~~~~~~~~~~~~')
+
           if (inlines[i].len === 0) { i++; continue }
         } else {
           return n, nest, memo
         }
       }
       //console.log('inlines[i].len: ' + inlines[i].len)
-      if (memo.html && inlines[i].len < 1) {
+      if (inlines[i].len < 1) { // memo.html
         i++; continue;
       }
 
-      //console.log('[em::Normal push] n: ' + n + ', i: ' + i + ', nest: ' + nest, ', strongPNum: ' + strongPNum)
+      //console.log('    ===> em Normal push. n: ' + n + ', i: ' + i + ', nest: ' + nest, ', strongPNum: ' + strongPNum)
       //console.log(inlines[n].ep, inlines[n].sp, inlines[n].s)
       pushMark(marks, {
         nest: nest,
@@ -589,7 +596,6 @@ const checkNest = (inlines, marks, n, i) => {
   if (parentCloseN < marks.length) {
     while (parentCloseN < marks.length) {
       if (marks[parentCloseN].nest === parentNest) break
-      //if (marks.length - 1 == parentCloseN) break
       parentCloseN++
     }
     //console.log('parentCloseN: ' + parentCloseN)
@@ -615,10 +621,9 @@ const createMarks = (state, inlines, start, end, memo, opt) => {
   let n = start
   while (n < end) {
     if (inlines[n].type !== '') { n++; continue }
-    memo.isEm = inlines[n].len === 1 ? true : false
     let nest = 0
-    //console.log('n: ' + n +  ' ----- inlines:: src: ' + state.src.slice(inlines[n].sp, inlines[n].ep + 1) + ', inlines[n].sp: ' + inlines[n].sp + ', inlines[n].len: ' + inlines[n].len + ', memo.isEm: ' + memo.isEm)
-    if (!memo.isEm) {
+   //console.log('n: ' + n +  ' ----- inlines:: src: ' + state.src.slice(inlines[n].sp, inlines[n].ep + 1) + ', inlines[n].sp: ' + inlines[n].sp + ', inlines[n].len: ' + inlines[n].len + ', memo.isEm: ' + memo.isEm)
+    if (inlines[n].len > 1) {
       n, nest, memo = setStrong(state, inlines, marks, n, memo, opt)
     }
     if (inlines[n].len !== 0) {
@@ -687,7 +692,6 @@ const strongJa = (state, silent, opt) => {
   //console.log(inlines)
 
   const memo = {
-    isEm: false,
     hasEmThatWrapStrong: false,
     noSetStrongEnd: false,
     html: state.md.options.html,

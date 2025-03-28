@@ -462,3 +462,19 @@ e*z<span> *a*b*
 <p>e<em>z&lt;span&gt; <em>a</em>b</em></p>
 [HTML:true]
 <p>e<em>z<span> <em>a</em>b</em></p>
+
+
+
+[Markdown]
+***eee*z<span>a*b</span>**
+[HTML:false]
+<p><em><em><em>eee</em>z&lt;span&gt;a</em>b&lt;/span&gt;</em>*</p>
+[HTML:true]
+<p><em><em><em>eee</em>z<span>a</em>b</span></em>*</p>
+
+[Markdown]
+***<sPan>a</spaN>b**
+[HTML:false]
+<p>*<strong>&lt;sPan&gt;a&lt;/spaN&gt;b</strong></p>
+[HTML:true]
+<p>*<strong><sPan>a</spaN>b</strong></p>

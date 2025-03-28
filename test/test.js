@@ -24,7 +24,6 @@ const check = (ms, example, allPass, useAttrs) => {
   let n = 1
   while (n < ms.length) {
     //if (n !== 72) { n++; continue }
-    //if (n < 64 || n > 68) { n++; continue }
     const m = ms[n].markdown
     let h = ''
     if (example === 'withLineBreak') {
