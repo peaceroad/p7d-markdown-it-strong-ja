@@ -130,7 +130,7 @@ const pushInlines = (inlines, s, e, len, type, tag, tagType) => {
     ep: e,
     len: len,
     type: type,
-    check: false,
+    check: type === 'text' ? true : false,
   }
   if (tag) inline.tag = [tag, tagType]
   inlines.push(inline)
@@ -249,14 +249,17 @@ const createInlines = (state, start, max, opt) => {
 }
 
 const pushMark = (marks, opts) => {
-  // opts: { nest, s, e, len, oLen, type }
-  const np = { ...opts }
-  let i = marks.findIndex(o => o.s > opts.s)
-  if (i === -1) {
-    marks.push(np)
-  } else {
-    marks.splice(i, 0, np)
+  //binary search
+  let left = 0, right = marks.length
+  while (left < right) {
+    const mid = (left + right) >> 1
+    if (marks[mid].s > opts.s) {
+      right = mid
+    } else {
+      left = mid + 1
+    }
   }
+  marks.splice(left, 0, { ...opts });
 }
 
 const setStrong = (state, inlines, marks, n, memo, opt) => {
@@ -271,14 +274,14 @@ const setStrong = (state, inlines, marks, n, memo, opt) => {
       inlines[i].check = true
       insideTagsIsClose = checkInsideTags(inlines, i, memo)
       //console.log('    nest: ' + nest + ', insideTagsIsClose: ' + insideTagsIsClose )
-      if (insideTagsIsClose === -1) return n, nest, memo
+      if (insideTagsIsClose === -1) return n, nest
       if (insideTagsIsClose === 0) { i++; continue }
     }
     if (inlines[i].type !== '') { i++; continue }
 
     nest = checkNest(inlines, marks, n, i)
     //console.log('    check nest: ' + nest)
-    if (nest === -1) return n, nest, memo
+    if (nest === -1) return n, nest
 
     if (inlines[i].len === 1 && inlines[n].len > 2) {
      //console.log('    check em inside strong:: i: ' + i)
@@ -303,7 +306,7 @@ const setStrong = (state, inlines, marks, n, memo, opt) => {
       inlines[i].len -= 1
       if (inlines[i].len > 0) inlines[i].sp += 1
       if (insideTagsIsClose === 1) {
-        n, nest, memo = setEm(state, inlines, marks, n, memo, opt)
+        n, nest = setEm(state, inlines, marks, n, memo, opt)
       }
       //console.log(marks)
     }
@@ -318,12 +321,9 @@ const setStrong = (state, inlines, marks, n, memo, opt) => {
          //console.log('~~~~~~~~~~~~~~~~~')
           marks.push(...createMarks(state, inlines, i, inlines.length - 1, memo, opt))
          //console.log('~~~~~~~~~~~~~~~~~')
-          //console.log(marks)
-          //console.log(inlines)
-         //console.log(i, inlines[i])
           if (inlines[i].len === 0) { i++; continue }
         } else {
-          return n, nest, memo
+          return n, nest
         }
       }
      //console.log('    ===> strong normal push. n: ' + n + ', i: ' + i +  ' , nest: ' + nest + ',strongNum: ' + strongNum)
@@ -353,31 +353,15 @@ const setStrong = (state, inlines, marks, n, memo, opt) => {
         inlines[i].len -= 2
         j++
       }
-      if (inlines[n].len === 0) return n, nest, memo
+      if (inlines[n].len === 0) return n, nest
     }
 
     if (inlines[n].len === 1 && inlines[i].len > 0) {
      //console.log('    check em that warp strong.')
       nest++
-      n, nest, memo = setEm(state, inlines, marks, n, memo, opt, nest)
-      if (memo.hasEmThatWrapStrong) {
-        //console.log('set em that wrap strong.')
-        let k = 0
-        while (k < strongNum) {
-          marks[marks.length - 2 - k * 2 - 1].nest += 1
-          marks[marks.length - 2 - k * 2].nest += 1
-          k++
-        }
-      }
+      n, nest = setEm(state, inlines, marks, n, memo, opt, nest)
     }
 
-    if (i === inlines.length - 1 && insideTagsIsClose === 0) {
-      //console.log('last i process. insideTagsClose: ' + insideTagsIsClose)
-      inlines[n].type = 'text'
-      inlines[n].len = 0
-      return n, nest, memo
-    }
-    if (inlines[n].len === 0) return n, nest, memo
     i++
   }
 
@@ -388,7 +372,7 @@ const setStrong = (state, inlines, marks, n, memo, opt) => {
     //console.log(marks)
     //console.log('===============================')
   }
-  return n, nest, memo
+  return n, nest
 }
 
 const checkInsideTags = (inlines, i, memo) => {
@@ -453,7 +437,7 @@ const setEm = (state, inlines, marks, n, memo, opt, sNest) => {
       inlines.check = true
       insideTagsIsClose = checkInsideTags(inlines, i, memo)
       //console.log('    i: ' + i + ', insideTagsIsClose: ' + insideTagsIsClose)
-      if (insideTagsIsClose === -1) return n, nest, memo
+      if (insideTagsIsClose === -1) return n, nest
       if (insideTagsIsClose === 0) { i++; continue }
     }
     if (inlines[i].type !== '') { i++; continue }
@@ -463,14 +447,6 @@ const setEm = (state, inlines, marks, n, memo, opt, sNest) => {
     //console.log('sNest: ' + sNest + ', emNum: ' + emNum)
     if (!sNest && emNum !== 1) return n, sNest, memo
 
-    let curlyProcess = false
-    if (opt.mditAttrs) {
-      const checkText = state.src.slice(inlines[i-1].sp, inlines[i-1].ep + 1)
-      if (/{[^{}\n!@#%^&*()]+?}$/.test(checkText)) {
-        curlyProcess = true
-      }
-    }
-
     const hasMarkersAtStartAndEnd = (i) => {
       let flag =  memo.inlineMarkStart
       if (!flag) return false
@@ -479,7 +455,7 @@ const setEm = (state, inlines, marks, n, memo, opt, sNest) => {
       inlines[i].len > 1 ? flag = true : flag = false
       return flag
     }
-    if (!sNest && !curlyProcess && inlines[i].len === 2 && !hasMarkersAtStartAndEnd(i)) {
+    if (!sNest && inlines[i].len === 2 && !hasMarkersAtStartAndEnd(i)) {
       strongPNum++
       i++
       continue
@@ -491,7 +467,7 @@ const setEm = (state, inlines, marks, n, memo, opt, sNest) => {
       nest = checkNest(inlines, marks, n, i)
     }
     //console.log('    nest: ' + nest + ', emNum: ' + emNum)
-    if (nest === -1) return n, nest, memo
+    if (nest === -1) return n, nest
 
     if (emNum === 1) {
       //console.log('    hasPunctuation: ' + hasPunctuation(state, inlines, n, i) + ', memo.inlineMarkEnd: ' + memo.inlineMarkEnd)
@@ -504,7 +480,7 @@ const setEm = (state, inlines, marks, n, memo, opt, sNest) => {
 
           if (inlines[i].len === 0) { i++; continue }
         } else {
-          return n, nest, memo
+          return n, nest
         }
       }
       //console.log('inlines[i].len: ' + inlines[i].len)
@@ -549,13 +525,12 @@ const setEm = (state, inlines, marks, n, memo, opt, sNest) => {
       }
       inlines[i].len -= 1
       //console.log(marks)
-      if (!sNest) memo.hasEmThatWrapStrong = true
-      if (inlines[n].len === 0) return n, nest, memo
+      if (inlines[n].len === 0) return n, nest
     }
 
     i++
   }
-  return n, nest, memo
+  return n, nest
 }
 
 const setText = (inlines, marks, n, nest) => {
@@ -624,10 +599,10 @@ const createMarks = (state, inlines, start, end, memo, opt) => {
     let nest = 0
    //console.log('n: ' + n +  ' ----- inlines:: src: ' + state.src.slice(inlines[n].sp, inlines[n].ep + 1) + ', inlines[n].sp: ' + inlines[n].sp + ', inlines[n].len: ' + inlines[n].len + ', memo.isEm: ' + memo.isEm)
     if (inlines[n].len > 1) {
-      n, nest, memo = setStrong(state, inlines, marks, n, memo, opt)
+      n, nest = setStrong(state, inlines, marks, n, memo, opt)
     }
     if (inlines[n].len !== 0) {
-      n, nest, memo = setEm(state, inlines, marks, n, memo, opt)
+      n, nest = setEm(state, inlines, marks, n, memo, opt)
     }
     if (inlines[n].len !== 0) {
       setText(inlines, marks, n, nest)
@@ -692,8 +667,6 @@ const strongJa = (state, silent, opt) => {
   //console.log(inlines)
 
   const memo = {
-    hasEmThatWrapStrong: false,
-    noSetStrongEnd: false,
     html: state.md.options.html,
     htmlTags: {},
     inlineMarkStart: src.charCodeAt(0) === 0x2A ? true : false,
@@ -741,4 +714,4 @@ const mditStrongJa = (md, option) => {
     return strongJa(state, silent, opt)
   })
 }
-export default mditStrongJa
+  export default mditStrongJa
