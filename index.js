@@ -400,7 +400,7 @@ const checkInsideTags = (inlines, i, memo) => {
 }
 
 const isPunctuation = (ch) => {
-  return REG_PUNCTUATION.test(ch);
+  return REG_PUNCTUATION.test(ch)
 }
 
 const hasPunctuation = (state, inlines, n, i) => {
