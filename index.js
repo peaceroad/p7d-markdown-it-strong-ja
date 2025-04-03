@@ -1,6 +1,7 @@
 const REG_ASTERISKS = /^\*+$/
 const REG_ATTRS = /{[^{}\n!@#%^&*()]+?}$/
 const REG_PUNCTUATION = /[!-/:-@[-`{-~ ]/
+const REG_JAPANESE = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\uFF66-\uFF9F\uFF10-\uFF19\uFF21-\uFF3A\uFF41-\uFF5A\uFF01-\uFF60\uFFE0-\uFFE6]/ //漢字、ひらがな、カタカナ（半角含む）、全角英数字、絵文字、全角記号：/(?:[\p{Hiragana}\p{Katakana}\p{Han}]|[\uFF66-\uFF9F]|[Ａ-Ｚａ-ｚ０-９]|[\p{Emoji}]|[\uFF01-\uFF60\uFFE0-\uFFE6])/u;/(?:[\p{Hiragana}\p{Katakana}\p{Han}]|[\uFF66-\uFF9F]|[Ａ-Ｚａ-ｚ０-９]|[\p{Emoji}])/u
 
 const hasBackslash = (state, start) => {
   let slashNum = 0
@@ -314,19 +315,20 @@ const setStrong = (state, inlines, marks, n, memo, opt) => {
     let strongNum = Math.trunc(Math.min(inlines[n].len, inlines[i].len) / 2)
 
     if (inlines[i].len > 1) {
-     //console.log('    hasPunctuation: ' + hasPunctuation(state, inlines, n, i) + ', memo.inlineMarkEnd: ' + memo.inlineMarkEnd)
-      if (hasPunctuation(state, inlines, n, i)) {
+      //console.log('    hasPunctuationOrNonJapanese: ' + hasPunctuationOrNonJapanese(state, inlines, n, i) + ', memo.inlineMarkEnd: ' + memo.inlineMarkEnd)
+
+      if (hasPunctuationOrNonJapanese(state, inlines, n, i)) {
         if (memo.inlineMarkEnd) {
          //console.log('check nest em.')
          //console.log('~~~~~~~~~~~~~~~~~')
-          marks.push(...createMarks(state, inlines, i, inlines.length - 1, memo, opt))
+         marks.push(...createMarks(state, inlines, i, inlines.length - 1, memo, opt))
          //console.log('~~~~~~~~~~~~~~~~~')
           if (inlines[i].len === 0) { i++; continue }
         } else {
           return n, nest
         }
       }
-     //console.log('    ===> strong normal push. n: ' + n + ', i: ' + i +  ' , nest: ' + nest + ',strongNum: ' + strongNum)
+      //console.log('    ===> strong normal push. n: ' + n + ', i: ' + i +  ' , nest: ' + nest + ',strongNum: ' + strongNum)
 
       j = 0
       while (j < strongNum) {
@@ -357,7 +359,7 @@ const setStrong = (state, inlines, marks, n, memo, opt) => {
     }
 
     if (inlines[n].len === 1 && inlines[i].len > 0) {
-     //console.log('    check em that warp strong.')
+      //console.log('    check em that warp strong.')
       nest++
       n, nest = setEm(state, inlines, marks, n, memo, opt, nest)
     }
@@ -402,26 +404,22 @@ const checkInsideTags = (inlines, i, memo) => {
 const isPunctuation = (ch) => {
   return REG_PUNCTUATION.test(ch)
 }
+const isJapanese = (ch) => {
+  return REG_JAPANESE.test(ch)
+}
 
-const hasPunctuation = (state, inlines, n, i) => {
+const hasPunctuationOrNonJapanese = (state, inlines, n, i) => {
   const src = state.src
-  const openNextChar = isPunctuation(src[inlines[n].e + 1] || '')
-  //const openPrevChar = isPunctuation(src[inlines[n].s - 1] || '') || n === 0
-  let closePrevChar = isPunctuation(src[inlines[i].s - 1] || '')
-  if (i + 1 < inlines.length) {
-    //closePrevChar = closePrevChar && inlines[i+1] !== 'html_inline'
-  }
-  let closeNextChar = isPunctuation(src[inlines[i].e + 1] || '') || i === inlines.length - 1
-  //const lastCharIsAsterisk = memo.inlineMarkEnd
-  //const firstCharIsAsterisk = memo.inlineMarkStart
-
-  //console.log('openPrevChar: ' + openPrevChar + ', openNextChar: ' + openNextChar + ', closePrevChar: ' + closePrevChar + ', closeNextChar: ' + closeNextChar + ', lastCharIsAsterisk: ' + lastCharIsAsterisk + ', firstCharIsAsterisk: ' + firstCharIsAsterisk + ', next condition: ' + ((openNextChar || closePrevChar) && !closeNextChar))
-  //if ((openNextChar || closePrevChar) && !closeNextChar) {
-  if ((openNextChar || closePrevChar) && !closeNextChar) {
-    return true
-  } else {
-    return false
-  }
+  const openPrevChar = src[inlines[n].s - 1] || ''
+  //const checkOpenPrevChar = 
+  const openNextChar = src[inlines[n].e + 1]  || ''
+  const checkOpenNextChar = isPunctuation(openNextChar)
+  const closePrevChar = src[inlines[i].s - 1] || ''
+  const checkClosePrevChar = isPunctuation(closePrevChar)
+  const closeNextChar = src[inlines[i].e + 1] || ''
+  const checkCloseNextChar = (isPunctuation(closeNextChar) || i === inlines.length - 1) 
+  if ((checkOpenNextChar || checkClosePrevChar) && !checkCloseNextChar && !(isJapanese(openPrevChar) || isJapanese(closeNextChar)))  return true
+  return false
 }
 
 const setEm = (state, inlines, marks, n, memo, opt, sNest) => {
@@ -470,8 +468,8 @@ const setEm = (state, inlines, marks, n, memo, opt, sNest) => {
     if (nest === -1) return n, nest
 
     if (emNum === 1) {
-      //console.log('    hasPunctuation: ' + hasPunctuation(state, inlines, n, i) + ', memo.inlineMarkEnd: ' + memo.inlineMarkEnd)
-      if (hasPunctuation(state, inlines, n, i)) {
+      //console.log('    hasPunctuationOrNonJapanese: ' + hasPunctuationOrNonJapanese(state, inlines, n, i) + ', memo.inlineMarkEnd: ' + memo.inlineMarkEnd)
+      if (hasPunctuationOrNonJapanese(state, inlines, n, i)) {
         if (memo.inlineMarkEnd) {
           //console.log('check nest em.')
           //console.log('~~~~~~~~~~~~~~~~~')
