@@ -1,0 +1,46 @@
+[Markdown]
+吾輩は猫である。名前は<span>まだ</span>無い。
+どこで生れたか*とんと見当*が<span>つかぬ</span>。
+何でも薄暗い*じめじめした所*でニャーニャー泣いていた事だけは記憶している。
+[HTML:false]
+<p>吾輩は猫である。名前は&lt;span&gt;まだ&lt;/span&gt;無い。<br>
+どこで生れたか<em>とんと見当</em>が&lt;span&gt;つかぬ&lt;/span&gt;。<br>
+何でも薄暗い<em>じめじめした所</em>でニャーニャー泣いていた事だけは記憶している。</p>
+[HTML:true]
+<p>吾輩は猫である。名前は<span>まだ</span>無い。<br>
+どこで生れたか<em>とんと見当</em>が<span>つかぬ</span>。<br>
+何でも薄暗い<em>じめじめした所</em>でニャーニャー泣いていた事だけは記憶している。</p>
+
+[Markdown]
+a*b
+c*d
+[HTML:false]
+<p>a<em>b<br>
+c</em>d</p>
+[HTML:true]
+<p>a<em>b<br>
+c</em>d</p>
+
+[Markdown]
+a**b
+c*d*e**f
+[HTML:false]
+<p>a<strong>b<br>
+c<em>d</em>e</strong>f</p>
+[HTML:true]
+<p>a<strong>b<br>
+c<em>d</em>e</strong>f</p>
+
+[Markdown]
+- *aあ {.li-style}
+\{.ul-style} aa {.next-li-style}
+[HTML:false]
+<ul>
+<li>*aあ {.li-style}<br>
+{.ul-style} aa {.next-li-style}</li>
+</ul>
+[HTML:true]
+<ul>
+<li>*aあ {.li-style}<br>
+{.ul-style} aa {.next-li-style}</li>
+</ul>

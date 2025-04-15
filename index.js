@@ -85,7 +85,7 @@ const setToken = (state, inlines, opt) => {
         let j = 0
         while (j < childTokens[0].children.length) {
           const t = childTokens[0].children[j]
-          if (t.type === 'softbreak') {
+          if (t.type === 'softbreak' && !opt.mdBreaks) {
             t.type = 'text'
             t.tag = ''
             t.content = '\n'
@@ -705,6 +705,7 @@ const mditStrongJa = (md, option) => {
   const opt = {
     dollarMath: true, //inline math $...$
     mditAttrs: true, //markdown-it-attrs
+    mdBreaks: md.options.breaks,
   }
   if (option) Object.assign(opt, option)
 
