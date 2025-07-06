@@ -23,6 +23,11 @@ const mditNoAttrsCJKBreaksWithHtml = mdit({html: true}).use(mditStrongJa, {mditA
 const mditNoAttrsLinebreak = mdit({breaks: true}).use(mditStrongJa, {mditAttrs: false})
 const mditNoAttrsLinebreakWithHtml = mdit({html: true, breaks: true}).use(mditStrongJa, {mditAttrs: false})
 
+// For disallowMixed: true tests
+const mdDisallowMixed = mdit().use(mditStrongJa, {disallowMixed: true}).use(mditAttrs)
+const mdDisallowMixedWithHtml = mdit({html: true}).use(mditStrongJa, {disallowMixed: true}).use(mditAttrs)
+const mditNoAttrsDisallowMixed = mdit().use(mditStrongJa, {mditAttrs: false, disallowMixed: true})
+const mditNoAttrsDisallowMixedWithHtml = mdit({html: true}).use(mditStrongJa, {mditAttrs: false, disallowMixed: true})
 
 const check = (ms, example, allPass, useAttrs) => {
   let n = 1
@@ -90,6 +95,33 @@ const checkBreaks = (ms, example, allPass, useAttrs) => {
   return allPass
 }
 
+const checkDisallowMixed = (ms, example, allPass, useAttrs) => {
+  let n = 1
+  while (n < ms.length) {
+    const m = ms[n].markdown
+    const h = useAttrs ? mdDisallowMixed.render(m) : mditNoAttrsDisallowMixed.render(m)
+    try {
+      assert.strictEqual(h, ms[n].html)
+    } catch(e) {
+      console.log('Test [disallowMixed: true, ' + n + ', HTML: false, useAttrs: ' + useAttrs + '] >>>')
+      console.log('Input: ' + ms[n].markdown + '\nOutput: ' + h + 'Correct: ' + ms[n].html)
+      allPass = false
+    }
+    if (ms[n].htmlWithHtmlTrue) {
+      const hh = useAttrs ? mdDisallowMixedWithHtml.render(m) : mditNoAttrsDisallowMixedWithHtml.render(m)
+      try {
+        assert.strictEqual(hh, ms[n].htmlWithHtmlTrue)
+      } catch(e) {
+        console.log('Test [disallowMixed: true, ' + n + ', HTML: true, useAttrs: ' + useAttrs + '] >>>')
+        console.log('Input: ' + ms[n].markdown + '\nOutput: ' + hh + 'Correct: ' + ms[n].htmlWithHtmlTrue)
+        allPass = false
+      }
+    }
+    n++
+  }
+  return allPass
+}
+
 const examples = {
   strong: __dirname + '/example-strong.txt',
   em: __dirname + '/example-em.txt',
@@ -106,6 +138,10 @@ const examplesMditNoAttrs = {
 
 const examplesMditBreaks = {
   linebreak: __dirname + '/mditNoAttrs/example-mdit-linebrek.txt',
+}
+
+const examplesDisallowMixed = {
+  disallowMixed: __dirname + '/example-disallow-mixed.txt',
 }
 
 const runTests = (examples, checkFunction, useAttrs) => {
@@ -140,7 +176,9 @@ const runTests = (examples, checkFunction, useAttrs) => {
 }
 
 let allPass = runTests(examples, check, true)
+allPass = runTests(examplesDisallowMixed, checkDisallowMixed, true) && allPass
 allPass = runTests(examplesMditNoAttrs, check, false) && allPass
 allPass = runTests(examplesMditBreaks, checkBreaks, false) && allPass
+allPass = runTests(examplesDisallowMixed, checkDisallowMixed, false) && allPass
 
 if (allPass) console.log('Passed all tests.')

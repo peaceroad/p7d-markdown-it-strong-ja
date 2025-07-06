@@ -1,0 +1,128 @@
+[Markdown]
+**[text](url)**
+[HTML:false]
+<p><strong><a href="url">text</a></strong></p>
+
+[Markdown]
+string**[text](url)**
+[HTML:false]
+<p>string**<a href="url">text</a>**</p>
+
+[Markdown]
+**[text](url)**string
+[HTML:false]
+<p>**<a href="url">text</a>**string</p>
+
+[Markdown]
+ああ**[text](url)**いい
+[HTML:false :: commommark output: <p>ああ**<a href="url">text</a>**いい</p>]
+<p>ああ<strong><a href="url">text</a></strong>いい</p>
+
+
+[Markdown]
+**<span>text</span>**
+[HTML:false]
+<p><strong>&lt;span&gt;text&lt;/span&gt;</strong></p>
+[HTML:true]
+<p><strong><span>text</span></strong></p>
+
+[Markdown]
+string**<span>text</span>**
+[HTML:false]
+<p>string**&lt;span&gt;text&lt;/span&gt;**</p>
+[HTML:true]
+<p>string**<span>text</span>**</p>
+
+[Markdown]
+**<span>text</span>**string
+[HTML:false]
+<p>**&lt;span&gt;text&lt;/span&gt;**string</p>
+[HTML:true]
+<p>**<span>text</span>**string</p>
+
+
+[Markdown]
+**`text`**string
+[HTML:false]
+<p>**<code>text</code>**string</p>
+[HTML:true]
+<p>**<code>text</code>**string</p>
+
+[Markdown]
+**`text`**いい
+[HTML:false :: commommark output: <p>**<code>text</code>**いい</p>]
+<p><strong><code>text</code></strong>いい</p>
+[HTML:true]
+<p><strong><code>text</code></strong>いい</p>
+
+[Markdown]
+a**`b`**a
+[HTML:false :: markdown-it default: <p>a**<code>b</code>**a</p>]
+<p>a**<code>b</code>**a</p>
+[HTML:true]
+<p>a**<code>b</code>**a</p>
+
+
+[Markdown]
+*[text](url)*
+[HTML:false]
+<p><em><a href="url">text</a></em></p>
+
+[Markdown]
+string*[text](url)*
+[HTML:false]
+<p>string*<a href="url">text</a>*</p>
+
+[Markdown]
+*[text](url)*string
+[HTML:false]
+<p>*<a href="url">text</a>*string</p>
+
+[Markdown]
+ああ*[text](url)*いい
+[HTML:false :: commommark output: <p>ああ*<a href="url">text</a>*いい</p>]
+<p>ああ<em><a href="url">text</a></em>いい</p>
+
+
+[Markdown]
+*<span>text</span>*
+[HTML:false]
+<p><em>&lt;span&gt;text&lt;/span&gt;</em></p>
+[HTML:true]
+<p><em><span>text</span></em></p>
+
+[Markdown]
+string*<span>text</span>*
+[HTML:false]
+<p>string*&lt;span&gt;text&lt;/span&gt;*</p>
+[HTML:true]
+<p>string*<span>text</span>*</p>
+
+[Markdown]
+*<span>text</span>*string
+[HTML:false]
+<p>*&lt;span&gt;text&lt;/span&gt;*string</p>
+[HTML:true]
+<p>*<span>text</span>*string</p>
+
+
+[Markdown]
+*`text`*string
+[HTML:false]
+<p>*<code>text</code>*string</p>
+[HTML:true]
+<p>*<code>text</code>*string</p>
+
+[Markdown]
+*`text`*いい
+[HTML:false :: commommark output: <p>*<code>text</code>*いい</p>]
+<p><em><code>text</code></em>いい</p>
+[HTML:true]
+<p><em><code>text</code></em>いい</p>
+
+[Markdown]
+a*`b`*a
+[HTML:false :: markdown-it default: <p>a*<code>b</code>*a</p>]
+<p>a*<code>b</code>*a</p>
+[HTML:true]
+<p>a*<code>b</code>*a</p>

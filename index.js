@@ -1,14 +1,27 @@
+// Character code constants
+const CHAR_ASTERISK = 0x2A    // *
+const CHAR_UNDERSCORE = 0x5F  // _
+const CHAR_BACKSLASH = 0x5C   // \
+const CHAR_BACKTICK = 0x60    // `
+const CHAR_DOLLAR = 0x24      // $
+const CHAR_LT = 0x3C          // <
+const CHAR_GT = 0x3E          // >
+const CHAR_SLASH = 0x2F       // /
+const CHAR_SPACE = 0x20       // ' ' (space)
+
 const REG_ASTERISKS = /^\*+$/
 const REG_ATTRS = /{[^{}\n!@#%^&*()]+?}$/
 const REG_PUNCTUATION = /[!-/:-@[-`{-~ ]/
-const REG_JAPANESE = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\uFF66-\uFF9F\uFF10-\uFF19\uFF21-\uFF3A\uFF41-\uFF5A\uFF01-\uFF60\uFFE0-\uFFE6]/ //漢字、ひらがな、カタカナ（半角含む）、全角英数字、絵文字、全角記号：/(?:[\p{Hiragana}\p{Katakana}\p{Han}]|[\uFF66-\uFF9F]|[Ａ-Ｚａ-ｚ０-９]|[\p{Emoji}]|[\uFF01-\uFF60\uFFE0-\uFFE6])/u;/(?:[\p{Hiragana}\p{Katakana}\p{Han}]|[\uFF66-\uFF9F]|[Ａ-Ｚａ-ｚ０-９]|[\p{Emoji}])/u
+const REG_JAPANESE = /\p{Script=Hiragana}|\p{Script=Katakana}|\p{Script=Han}|\p{General_Category=Punctuation}|\p{General_Category=Symbol}|\p{General_Category=Format}|\p{Emoji}/u // ひらがな|カタカナ|漢字|句読点|記号|フォーマット文字|絵文字
+
+const REG_MARKDOWN_HTML = /^\[[^\[\]]+\]\([^)]+\)$|^<([a-zA-Z][a-zA-Z0-9]*)[^>]*>([^<]+<\/\1>)$|^`[^`]+`$|^\$[^$]+\$$/ // for mixed-language context detection
 
 const hasBackslash = (state, start) => {
   let slashNum = 0
   let i = start - 1
   const src = state.src
   while(i >= 0) {
-    if (src.charCodeAt(i) === 0x5C) { slashNum++; i--; continue }
+    if (src.charCodeAt(i) === CHAR_BACKSLASH) { slashNum++; i--; continue }
     break
   }
   return slashNum % 2 === 1
@@ -23,7 +36,6 @@ const setToken = (state, inlines, opt) => {
   }
   while (i < inlines.length) {
     let type = inlines[i].type
-    //console.log(i, type)
     const tag = type.replace(/(?:_open|_close)$/, '')
 
     if (/_open$/.test(type)) {
@@ -40,9 +52,7 @@ const setToken = (state, inlines, opt) => {
     }
     if (type === 'text') {
       let content = src.slice(inlines[i].s, inlines[i].e + 1)
-      //console.log('content: ' + content)
       if (REG_ASTERISKS.test(content)) {
-        //console.log('asterisk process::')
         const asteriskToken = state.push(type, '', 0)
         asteriskToken.content = content
         i++
@@ -50,7 +60,6 @@ const setToken = (state, inlines, opt) => {
       }
       if (opt.mditAttrs && attrsIsText.val && i + 1 < inlines.length) {
         const hasImmediatelyAfterAsteriskClose = inlines[i+1].type === attrsIsText.tag + '_close'
-        //console.log(hasImmediatelyAfterAsteriskClose, inlines[i+1].type, /^[\s\S]*{[^{}\n!@#%^&*()]+?}$/.test(content))
         if (hasImmediatelyAfterAsteriskClose && REG_ATTRS.test(content)) {
           const attrsToken = state.push(type, '', 0)
 
@@ -66,7 +75,6 @@ const setToken = (state, inlines, opt) => {
                 backSlash +=  '\\'
                 k++
               }
-              //console.log(backSlashNum, backSlash)
               attrsToken.content = content.replace(/\\+{/, backSlash + '{')
             }
           } else {
@@ -79,8 +87,6 @@ const setToken = (state, inlines, opt) => {
       }
 
       const childTokens = state.md.parseInline(content, state.env)
-      //console.log(childTokens)
-      //console.log(childTokens[0].children)
       if (childTokens[0] && childTokens[0].children) {
         let j = 0
         while (j < childTokens[0].children.length) {
@@ -131,7 +137,7 @@ const pushInlines = (inlines, s, e, len, type, tag, tagType) => {
     ep: e,
     len: len,
     type: type,
-    check: type === 'text' ? true : false,
+    check: type === 'text',
   }
   if (tag) inline.tag = [tag, tagType]
   inlines.push(inline)
@@ -141,16 +147,13 @@ const hasNextSymbol = (state, n, max, symbol, noMark) => {
   let nextSymbolPos = -1
   const src = state.src
   if (src.charCodeAt(n) === symbol && !hasBackslash(state, n)) {
-    let i = n + 1
-    let tempNoMark = noMark
-    while (i < max) {
-      tempNoMark += src[i]
+    for (let i = n + 1; i < max; i++) {
+      noMark += src[i]
       if (src.charCodeAt(i) === symbol && !hasBackslash(state, i)) {
         noMark += src.substring(n, i + 1)
         nextSymbolPos = i
         break
       }
-      i++
     }
   }
   return [nextSymbolPos, noMark]
@@ -158,25 +161,20 @@ const hasNextSymbol = (state, n, max, symbol, noMark) => {
 
 const createInlines = (state, start, max, opt) => {
   const src = state.src
-  const srcLen = max;
+  const srcLen = max
+  const htmlEnabled = state.md.options.html
   let n = start
   let inlines = []
   let noMark = ''
   let textStart = n
+  
   while (n < srcLen) {
-    //console.log('n: ' + n + ', state.src[n]: ' + state.src[n] + ', noMark: ' + noMark)
-    let nextSymbolPos = -1;
-    [nextSymbolPos, noMark] = hasNextSymbol(state, n, srcLen, 0x60, noMark)  // '`'
-    if (nextSymbolPos !== -1) {
-      if (nextSymbolPos === srcLen - 1) {
-        pushInlines(inlines, textStart, nextSymbolPos, nextSymbolPos - textStart + 1, 'text')
-        break
-      }
-      n = nextSymbolPos + 1
-      continue
-    }
-    if (opt.dollarMath) {
-      [nextSymbolPos, noMark] = hasNextSymbol(state, n, srcLen, 0x24, noMark)  // '$'
+    const currentChar = src.charCodeAt(n)
+    let nextSymbolPos = -1
+
+    // Inline code (backticks)
+    if (currentChar === CHAR_BACKTICK && !hasBackslash(state, n)) {
+      [nextSymbolPos, noMark] = hasNextSymbol(state, n, srcLen, CHAR_BACKTICK, noMark)
       if (nextSymbolPos !== -1) {
         if (nextSymbolPos === srcLen - 1) {
           pushInlines(inlines, textStart, nextSymbolPos, nextSymbolPos - textStart + 1, 'text')
@@ -187,58 +185,69 @@ const createInlines = (state, start, max, opt) => {
       }
     }
 
-    if (state.md.options.html) {
-      if (src.charCodeAt(n) === 0x3C && !hasBackslash(state, n)) { // '<'
-        let i = n + 1
-        while (i < srcLen) {
-          if (src.charCodeAt(i) === 0x3E && !hasBackslash(state, i)) { // '>'
-            if (noMark.length !== 0) {
-              pushInlines(inlines, textStart, n - 1, n - textStart, 'text')
-              noMark = ''
-            }
-            let tag = src.slice(n + 1, i)
-            let tagType = ''
-            if (/^\//.test(tag)) {
-              tag = tag.slice(1)
-              tagType = 'close'
-            } else {
-              tagType = 'open'
-            }
-            pushInlines(inlines, n, i, i - n + 1, 'html_inline', tag, tagType)
-            textStart = i + 1
-            break
-          }
-          i++
+    // Inline math ($...$)
+    if (opt.dollarMath && currentChar === CHAR_DOLLAR && !hasBackslash(state, n)) {
+      [nextSymbolPos, noMark] = hasNextSymbol(state, n, srcLen, CHAR_DOLLAR, noMark)
+      if (nextSymbolPos !== -1) {
+        if (nextSymbolPos === srcLen - 1) {
+          pushInlines(inlines, textStart, nextSymbolPos, nextSymbolPos - textStart + 1, 'text')
+          break
         }
-        n = i + 1
+        n = nextSymbolPos + 1
         continue
       }
     }
 
-    if (src.charCodeAt(n) === 0x2A && !hasBackslash(state, n)) { // '*'
+    // HTML tags
+    if (htmlEnabled && currentChar === CHAR_LT && !hasBackslash(state, n)) {
+      for (let i = n + 1; i < srcLen; i++) {
+        if (src.charCodeAt(i) === CHAR_GT && !hasBackslash(state, i)) {
+          if (noMark.length !== 0) {
+            pushInlines(inlines, textStart, n - 1, n - textStart, 'text')
+            noMark = ''
+          }
+          let tag = src.slice(n + 1, i)
+          let tagType
+          if (tag.charCodeAt(0) === CHAR_SLASH) {
+            tag = tag.slice(1)
+            tagType = 'close'
+          } else {
+            tagType = 'open'
+          }
+          pushInlines(inlines, n, i, i - n + 1, 'html_inline', tag, tagType)
+          textStart = i + 1
+          n = i + 1
+          break
+        }
+      }
+      continue
+    }
+
+    // Asterisk handling
+    if (currentChar === CHAR_ASTERISK && !hasBackslash(state, n)) {
       if (n !== 0 && noMark.length !== 0) {
         pushInlines(inlines, textStart, n - 1, n - textStart, 'text')
         noMark = ''
       }
       if (n === srcLen - 1) {
-        pushInlines(inlines, n,  n, 1 , '')
+        pushInlines(inlines, n, n, 1, '')
         break
       }
       let i = n + 1
-      while (i < srcLen) {
-        if (src.charCodeAt(i) === 0x2A) {
-          if (i === srcLen - 1) pushInlines(inlines, n,  i, i - n + 1 , '')
-          i++
-          continue
-        }
-        pushInlines(inlines, n,  i - 1, i - n, '')
+      while (i < srcLen && src.charCodeAt(i) === CHAR_ASTERISK) {
+        i++
+      }
+      if (i === srcLen) {
+        pushInlines(inlines, n, i - 1, i - n, '')
+      } else {
+        pushInlines(inlines, n, i - 1, i - n, '')
         textStart = i
-        break
       }
       n = i
       continue
     }
 
+    // Regular character
     noMark += src[n]
     if (n === srcLen - 1) {
       pushInlines(inlines, textStart, n, n - textStart + 1, 'text')
@@ -250,7 +259,6 @@ const createInlines = (state, start, max, opt) => {
 }
 
 const pushMark = (marks, opts) => {
-  //binary search
   let left = 0, right = marks.length
   while (left < right) {
     const mid = (left + right) >> 1
@@ -264,28 +272,43 @@ const pushMark = (marks, opts) => {
 }
 
 const setStrong = (state, inlines, marks, n, memo, opt) => {
+  if (opt.disallowMixed === true) {
+    let i = n + 1
+    const inlinesLength = inlines.length
+    while (i < inlinesLength) {
+      if (inlines[i].len === 0 || inlines[i].check) { i++; continue }
+      if (inlines[i].type !== '') { i++; continue }
+      
+      if (inlines[i].len > 1) {
+        const mixedCheck = checkMixedLanguagePattern(state, inlines, n, i, opt)
+        if (mixedCheck.shouldBlock) {
+          return [n, 0]
+        }
+        break
+      }
+      i++
+    }
+  }
+  
   let i = n + 1
   let j = 0
   let nest = 0
-  let insideTagsIsClose = 1 // 1: closed, 0: open still, -1: error
-  while (i < inlines.length) {
-   //console.log('[strong] i: ' + i + ', inlines[i].len: ' + inlines[i].len + ', inlines[i].type: ' + inlines[i].type)
+  let insideTagsIsClose = 1
+  const inlinesLength = inlines.length
+  while (i < inlinesLength) {
+    if (inlines[i].type !== '') { i++; continue }
     if (inlines[i].len === 0 || inlines[i].check) { i++; continue }
     if (inlines[i].type === 'html_inline') {
       inlines[i].check = true
       insideTagsIsClose = checkInsideTags(inlines, i, memo)
-      //console.log('    nest: ' + nest + ', insideTagsIsClose: ' + insideTagsIsClose )
-      if (insideTagsIsClose === -1) return n, nest
+      if (insideTagsIsClose === -1) return [n, nest]
       if (insideTagsIsClose === 0) { i++; continue }
     }
-    if (inlines[i].type !== '') { i++; continue }
 
     nest = checkNest(inlines, marks, n, i)
-    //console.log('    check nest: ' + nest)
-    if (nest === -1) return n, nest
+    if (nest === -1) return [n, nest]
 
     if (inlines[i].len === 1 && inlines[n].len > 2) {
-     //console.log('    check em inside strong:: i: ' + i)
       pushMark(marks, {
         nest: nest,
         s: inlines[n].ep,
@@ -307,32 +330,25 @@ const setStrong = (state, inlines, marks, n, memo, opt) => {
       inlines[i].len -= 1
       if (inlines[i].len > 0) inlines[i].sp += 1
       if (insideTagsIsClose === 1) {
-        n, nest = setEm(state, inlines, marks, n, memo, opt)
+        const [newN, newNest] = setEm(state, inlines, marks, n, memo, opt)
+        n = newN
+        nest = newNest
       }
-      //console.log(marks)
     }
-    //console.log('    check len:: inlines[n].len: ' + inlines[n].len + ', inlines[i].len: ' + inlines[i].len)
     let strongNum = Math.trunc(Math.min(inlines[n].len, inlines[i].len) / 2)
 
     if (inlines[i].len > 1) {
-      //console.log('    hasPunctuationOrNonJapanese: ' + hasPunctuationOrNonJapanese(state, inlines, n, i) + ', memo.inlineMarkEnd: ' + memo.inlineMarkEnd)
-
-      if (hasPunctuationOrNonJapanese(state, inlines, n, i)) {
+      if (hasPunctuationOrNonJapanese(state, inlines, n, i, opt)) {
         if (memo.inlineMarkEnd) {
-         //console.log('check nest em.')
-         //console.log('~~~~~~~~~~~~~~~~~')
-         marks.push(...createMarks(state, inlines, i, inlines.length - 1, memo, opt))
-         //console.log('~~~~~~~~~~~~~~~~~')
+          marks.push(...createMarks(state, inlines, i, inlinesLength - 1, memo, opt))
           if (inlines[i].len === 0) { i++; continue }
         } else {
-          return n, nest
+          return [n, nest]
         }
       }
-      //console.log('    ===> strong normal push. n: ' + n + ', i: ' + i +  ' , nest: ' + nest + ',strongNum: ' + strongNum)
 
       j = 0
       while (j < strongNum) {
-        //console.log('    - j: ' + j + ', inlines[i].sp: ' + inlines[i].sp)
         pushMark(marks, {
           nest: nest + strongNum - 1 - j,
           s: inlines[n].ep - 1,
@@ -355,47 +371,40 @@ const setStrong = (state, inlines, marks, n, memo, opt) => {
         inlines[i].len -= 2
         j++
       }
-      if (inlines[n].len === 0) return n, nest
+      if (inlines[n].len === 0) return [n, nest]
     }
 
     if (inlines[n].len === 1 && inlines[i].len > 0) {
-      //console.log('    check em that warp strong.')
       nest++
-      n, nest = setEm(state, inlines, marks, n, memo, opt, nest)
+      const [newN, newNest] = setEm(state, inlines, marks, n, memo, opt, nest)
+      n = newN
+      nest = newNest
     }
 
     i++
   }
 
   if (n == 0 && memo.inlineMarkEnd) {
-   //console.log('check nest em(inlineMarkEnd).')
-    //console.log('===============================')
-    marks.push(...createMarks(state, inlines, n + 1 , inlines.length - 1, memo, opt))
-    //console.log(marks)
-    //console.log('===============================')
+    marks.push(...createMarks(state, inlines, n + 1, inlinesLength - 1, memo, opt))
   }
-  return n, nest
+  return [n, nest]
 }
 
 const checkInsideTags = (inlines, i, memo) => {
-  //console.log('isJumTag before::memo.htmlTags: ' + JSON.stringify(memo.htmlTags))
   if (inlines[i].tag === undefined) return 0
   const tagName = inlines[i].tag[0].toLowerCase()
   if (memo.htmlTags[tagName] === undefined) {
     memo.htmlTags[tagName] = 0
   }
-  //console.log('memo.htmlTags: ' + JSON.stringify(memo.htmlTags) + ', inlines[i]: ' + JSON.stringify(inlines[i]) + ', inlines[i]')
   if (inlines[i].tag[1] === 'open') {
     memo.htmlTags[tagName] += 1
   }
   if (inlines[i].tag[1] === 'close') {
     memo.htmlTags[tagName] -= 1
   }
-  //console.log('    i: ' + i + ', tagName: ' + tagName + ', memo.htmlTags[tagName]: ' + memo.htmlTags[tagName] + ', prevHtmlTags[tagName]: ' + prevHtmlTags[tagName])
   if (memo.htmlTags[tagName] < 0) {
     return -1
   }
-  //console.log('isJumTag after::memo.htmlTags: ' + JSON.stringify(memo.htmlTags))
   const closeAllTags = Object.values(memo.htmlTags).every(val => val === 0)
   if (closeAllTags) return 1
   return 0
@@ -408,47 +417,107 @@ const isJapanese = (ch) => {
   return REG_JAPANESE.test(ch)
 }
 
-const hasPunctuationOrNonJapanese = (state, inlines, n, i) => {
+const isEnglish = (ch) => {
+  if (!ch) return false
+  const code = ch.charCodeAt(0)
+  if ((code >= 65 && code <= 90) || (code >= 97 && code <= 122) || (code >= 48 && code <= 57)) {
+    return true
+  }
+  if (code < 128) {
+    return code === CHAR_SPACE || (code > 126)
+  }
+  return !REG_JAPANESE.test(ch) && !REG_PUNCTUATION.test(ch)
+}
+
+const checkMixedLanguagePattern = (state, inlines, n, i, opt) => {
   const src = state.src
   const openPrevChar = src[inlines[n].s - 1] || ''
-  //const checkOpenPrevChar = 
+  const closeNextChar = src[inlines[i].e + 1] || ''
+  
+  const isEnglishPrefix = isEnglish(openPrevChar)
+  const isEnglishSuffix = isEnglish(closeNextChar)
+  if (!isEnglishPrefix && !isEnglishSuffix) {
+    return { hasEnglishContext: false, hasMarkdownOrHtml: false, shouldBlock: false }
+  }
+  
+  const contentBetween = src.slice(inlines[n].e + 1, inlines[i].s)
+  const hasMarkdownOrHtml = REG_MARKDOWN_HTML.test(contentBetween)
+  
+  return {
+    hasEnglishContext: true,
+    hasMarkdownOrHtml,
+    shouldBlock: hasMarkdownOrHtml
+  }
+}
+
+const hasPunctuationOrNonJapanese = (state, inlines, n, i, opt) => {
+  const src = state.src
+  const openPrevChar = src[inlines[n].s - 1] || ''
   const openNextChar = src[inlines[n].e + 1]  || ''
   const checkOpenNextChar = isPunctuation(openNextChar)
   const closePrevChar = src[inlines[i].s - 1] || ''
   const checkClosePrevChar = isPunctuation(closePrevChar)
   const closeNextChar = src[inlines[i].e + 1] || ''
-  const checkCloseNextChar = (isPunctuation(closeNextChar) || i === inlines.length - 1) 
-  if ((checkOpenNextChar || checkClosePrevChar) && !checkCloseNextChar && !(isJapanese(openPrevChar) || isJapanese(closeNextChar)))  return true
-  return false
+  const checkCloseNextChar = (isPunctuation(closeNextChar) || i === inlines.length - 1)
+
+  if (opt.disallowMixed === false) {
+    const openPrevChar = src[inlines[n].s - 1] || ''
+    const closeNextChar = src[inlines[i].e + 1] || ''
+    
+    if (isEnglish(openPrevChar) || isEnglish(closeNextChar)) {
+      const contentBetween = src.slice(inlines[n].e + 1, inlines[i].s)
+      if (REG_MARKDOWN_HTML.test(contentBetween)) {
+        return false
+      }
+    }
+  }
+
+  const result = (checkOpenNextChar || checkClosePrevChar) && !checkCloseNextChar && !(isJapanese(openPrevChar) || isJapanese(closeNextChar))
+  return result
 }
 
 const setEm = (state, inlines, marks, n, memo, opt, sNest) => {
+  if (opt.disallowMixed === true && !sNest) {
+    let i = n + 1
+    const inlinesLength = inlines.length
+    while (i < inlinesLength) {
+      if (inlines[i].len === 0 || inlines[i].check) { i++; continue }
+      if (inlines[i].type !== '') { i++; continue }
+      
+      if (inlines[i].len > 0) {
+        const mixedCheck = checkMixedLanguagePattern(state, inlines, n, i, opt)
+        if (mixedCheck.shouldBlock) {
+          return [n, 0]
+        }
+        break
+      }
+      i++
+    }
+  }
+  
   let i = n + 1
   let nest = 0
   let strongPNum = 0
   let insideTagsIsClose = 1
-  while (i < inlines.length) {
-    //console.log('[em] i: ' + i + ', src: ' + state.src.slice(inlines[i].sp, inlines[i].ep + 1) + ', inlines[i]: ' + JSON.stringify(inlines[i]))
-    //console.log(inlines[i].type, JSON.stringify(memo.htmlTags))
+  const inlinesLength = inlines.length
+  while (i < inlinesLength) {
     if (inlines[i].len === 0 || inlines[i].check) { i++; continue }
     if (!sNest && inlines[i].type === 'html_inline') {
       inlines.check = true
       insideTagsIsClose = checkInsideTags(inlines, i, memo)
-      //console.log('    i: ' + i + ', insideTagsIsClose: ' + insideTagsIsClose)
-      if (insideTagsIsClose === -1) return n, nest
+      if (insideTagsIsClose === -1) return [n, nest]
       if (insideTagsIsClose === 0) { i++; continue }
     }
     if (inlines[i].type !== '') { i++; continue }
 
     const emNum = Math.min(inlines[n].len, inlines[i].len)
 
-    //console.log('sNest: ' + sNest + ', emNum: ' + emNum)
-    if (!sNest && emNum !== 1) return n, sNest, memo
+    if (!sNest && emNum !== 1) return [n, sNest, memo]
 
     const hasMarkersAtStartAndEnd = (i) => {
       let flag =  memo.inlineMarkStart
       if (!flag) return false
-      inlines.length - 1 === i ? flag = true : flag = false
+      inlinesLength - 1 === i ? flag = true : flag = false
       if (!flag) return false
       inlines[i].len > 1 ? flag = true : flag = false
       return flag
@@ -464,30 +533,22 @@ const setEm = (state, inlines, marks, n, memo, opt, sNest) => {
     } else {
       nest = checkNest(inlines, marks, n, i)
     }
-    //console.log('    nest: ' + nest + ', emNum: ' + emNum)
-    if (nest === -1) return n, nest
+    if (nest === -1) return [n, nest]
 
     if (emNum === 1) {
-      //console.log('    hasPunctuationOrNonJapanese: ' + hasPunctuationOrNonJapanese(state, inlines, n, i) + ', memo.inlineMarkEnd: ' + memo.inlineMarkEnd)
-      if (hasPunctuationOrNonJapanese(state, inlines, n, i)) {
+      if (hasPunctuationOrNonJapanese(state, inlines, n, i, opt)) {
         if (memo.inlineMarkEnd) {
-          //console.log('check nest em.')
-          //console.log('~~~~~~~~~~~~~~~~~')
-          marks.push(...createMarks(state, inlines, i, inlines.length - 1, memo, opt))
-          //console.log('~~~~~~~~~~~~~~~~~')
+          marks.push(...createMarks(state, inlines, i, inlinesLength - 1, memo, opt))
 
           if (inlines[i].len === 0) { i++; continue }
         } else {
-          return n, nest
+          return [n, nest]
         }
       }
-      //console.log('inlines[i].len: ' + inlines[i].len)
-      if (inlines[i].len < 1) { // memo.html
+      if (inlines[i].len < 1) {
         i++; continue;
       }
 
-      //console.log('    ===> em Normal push. n: ' + n + ', i: ' + i + ', nest: ' + nest, ', strongPNum: ' + strongPNum)
-      //console.log(inlines[n].ep, inlines[n].sp, inlines[n].s)
       pushMark(marks, {
         nest: nest,
         s: inlines[n].ep,
@@ -522,17 +583,15 @@ const setEm = (state, inlines, marks, n, memo, opt, sNest) => {
         inlines[i].ep -= 1
       }
       inlines[i].len -= 1
-      //console.log(marks)
-      if (inlines[n].len === 0) return n, nest
+      if (inlines[n].len === 0) return [n, nest]
     }
 
     i++
   }
-  return n, nest
+  return [n, nest]
 }
 
 const setText = (inlines, marks, n, nest) => {
-  //console.log('n: ' + n + ' [text]: inlines[n].len: ' + inlines[n].len)
   pushMark(marks, {
     nest: nest,
     s: inlines[n].sp,
@@ -551,10 +610,8 @@ const checkNest = (inlines, marks, n, i) => {
   let strongNest = 0
   let emNest = 0
   let j = 0
-  //console.log(inlines)
-  //console.log(marks)
-  //console.log('n: ' + n + ', i: ' + i + ', inlines[n].s: ' + inlines[n].s + ', inlines[i].s: ' + inlines[i].s)
-  while (j < marks.length) {
+  const marksLength = marks.length
+  while (j < marksLength) {
     if (marks[j].s <= inlines[n].s) {
       if (marks[j].type === 'strong_open') strongNest++
       if (marks[j].type === 'strong_close') strongNest--
@@ -565,21 +622,17 @@ const checkNest = (inlines, marks, n, i) => {
   }
   let parentNest = strongNest + emNest
   let parentCloseN = j
-  //console.log('strongNest: ' + strongNest + ', emNest: ' + emNest + ', parentNest: ' + parentNest + ', parentCloseN: ' + parentCloseN)
-  if (parentCloseN < marks.length) {
-    while (parentCloseN < marks.length) {
+  if (parentCloseN < marksLength) {
+    while (parentCloseN < marksLength) {
       if (marks[parentCloseN].nest === parentNest) break
       parentCloseN++
     }
-    //console.log('parentCloseN: ' + parentCloseN)
-    if (parentCloseN >  marks.length - 1) {
+    if (parentCloseN > marksLength - 1) {
       isRange = true
     } else {
-      //console.log(marks[parentCloseN].s, i, inlines[i].s)
       if (marks[parentCloseN].s < inlines[i].s) isRange = false
     }
   }
-  //console.log('isRange: ' + isRange)
 
   if (isRange) {
     nest = parentNest + 1
@@ -592,15 +645,20 @@ const checkNest = (inlines, marks, n, i) => {
 const createMarks = (state, inlines, start, end, memo, opt) => {
   let marks = []
   let n = start
+  
   while (n < end) {
     if (inlines[n].type !== '') { n++; continue }
     let nest = 0
-   //console.log('n: ' + n +  ' ----- inlines:: src: ' + state.src.slice(inlines[n].sp, inlines[n].ep + 1) + ', inlines[n].sp: ' + inlines[n].sp + ', inlines[n].len: ' + inlines[n].len + ', memo.isEm: ' + memo.isEm)
+    
     if (inlines[n].len > 1) {
-      n, nest = setStrong(state, inlines, marks, n, memo, opt)
+      const [newN, newNest] = setStrong(state, inlines, marks, n, memo, opt)
+      n = newN
+      nest = newNest
     }
     if (inlines[n].len !== 0) {
-      n, nest = setEm(state, inlines, marks, n, memo, opt)
+      const [newN2, newNest2] = setEm(state, inlines, marks, n, memo, opt)
+      n = newN2
+      nest = newNest2
     }
     if (inlines[n].len !== 0) {
       setText(inlines, marks, n, nest)
@@ -638,7 +696,7 @@ const strongJa = (state, silent, opt) => {
   const src = state.src
   let attributesSrc
   if (start > max) return false
-  if (src.charCodeAt(start) !== 0x2A) return false
+  if (src.charCodeAt(start) !== CHAR_ASTERISK) return false
   if (hasBackslash(state, start)) return false
 
   if (opt.mditAttrs) {
@@ -659,36 +717,26 @@ const strongJa = (state, silent, opt) => {
     }
   }
 
-  //console.log('state.src.length(max): ' + state.src.length + (state.src.length === max ? '' : '(' + max + ')') + ', start: ' + start +  ', state.src: ' + state.src)
   let inlines = createInlines(state, start, max, opt)
-  //console.log('inlines: ')
-  //console.log(inlines)
 
   const memo = {
     html: state.md.options.html,
     htmlTags: {},
-    inlineMarkStart: src.charCodeAt(0) === 0x2A ? true : false,
-    inlineMarkEnd: src.charCodeAt(max - 1) === 0x2A ? true : false,
+    inlineMarkStart: src.charCodeAt(0) === CHAR_ASTERISK,
+    inlineMarkEnd: src.charCodeAt(max - 1) === CHAR_ASTERISK,
   }
 
   let marks = createMarks(state, inlines, 0, inlines.length, memo, opt)
-  //console.log('marks: ')
-  //console.log(marks)
 
   inlines = mergeInlinesAndMarks(inlines, marks)
-  //console.log('fix inlines:')
-  //console.log(inlines)
 
   setToken(state, inlines, opt)
-
-  //console.log ('End process:: max:' + max + ', state.posMax: ' + state.posMax + ', opt.mditAttrs: ' + opt.mditAttrs)
 
   if (opt.mditAttrs && max !== state.posMax) {
     if (!attributesSrc) {
       state.pos = max
       return true
     }
-   //console.log('start: ' + start + ', attributesSrc[0]::' + attributesSrc[0] + ', attributesSrc[1].length: ' + attributesSrc[1].length)
     if (attributesSrc[1].length > 1) {
       state.pos = max + attributesSrc[1].length
     } else {
@@ -697,7 +745,6 @@ const strongJa = (state, silent, opt) => {
   } else {
     state.pos = max
   }
-  //console.log(state.tokens)
   return true
 }
 
@@ -706,6 +753,7 @@ const mditStrongJa = (md, option) => {
     dollarMath: true, //inline math $...$
     mditAttrs: true, //markdown-it-attrs
     mdBreaks: md.options.breaks,
+    disallowMixed: false, //Non-Japanese text handling
   }
   if (option) Object.assign(opt, option)
 

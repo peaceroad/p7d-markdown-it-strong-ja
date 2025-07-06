@@ -482,8 +482,8 @@ e*z<span> *a*b*
 
 [Markdown]
 a**`b`**a
-[HTML:false]
-<p>a**<code>b</code>**a</p>
+[HTML:false :: markdown-it default: <p>a**<code>b</code>**a</p>]
+<p>a<strong><code>b</code></strong>a</p>
 
 [Markdown]
 a(**`b`**)a
@@ -506,7 +506,130 @@ a(**`b`**)a
 <p>（<strong><code>b</code></strong>）あ</p>
 
 
+[Markdown]
+**[text](url)**
+[HTML:false]
+<p><strong><a href="url">text</a></strong></p>
+
+[Markdown]
+string**[text](url)**
+[HTML:false :: markdown-it default: <p>string**<a href="url">text</a>**</p>]
+<p>string<strong><a href="url">text</a></strong></p>
+
+[Markdown]
+**[text](url)**string
+[HTML:false :: markdown-it default: <p>**<a href="url">text</a>**string</p>]
+<p><strong><a href="url">text</a></strong>string</p>
+
+[Markdown]
+ああ**[text](url)**
+[HTML:false]
+<p>ああ<strong><a href="url">text</a></strong></p>
+
+[Markdown]
+**[text](url)**いい
+[HTML:false]
+<p><strong><a href="url">text</a></strong>いい</p>
 
 
+[Markdown]
+**<span>text</span>**
+[HTML:false]
+<p><strong>&lt;span&gt;text&lt;/span&gt;</strong></p>
+[HTML:true]
+<p><strong><span>text</span></strong></p>
 
+[Markdown]
+string**<span>text</span>**
+[HTML:false :: markdown-it default: <p>string**&lt;span&gt;text&lt;/span&gt;**</p>]
+<p>string<strong>&lt;span&gt;text&lt;/span&gt;</strong></p>
+[HTML:true :: markdown-it default: <p>string**<span>text</span>**</p>]
+<p>string<strong><span>text</span></strong></p>
+
+[Markdown]
+**<span>text</span>**string
+[HTML:false :: markdown-it default: <p>**&lt;span&gt;text&lt;/span&gt;**string</p>]
+<p><strong>&lt;span&gt;text&lt;/span&gt;</strong>string</p>
+[HTML:true :: markdown-it default: <p>**<span>text</span>**string</p>]
+<p><strong><span>text</span></strong>string</p>
+
+[Markdown]
+ああ**<span>text</span>**
+[HTML:false]
+<p>ああ<strong>&lt;span&gt;text&lt;/span&gt;</strong></p>
+[HTML:true]
+<p>ああ<strong><span>text</span></strong></p>
+
+[Markdown]
+**<span>text</span>**いい
+[HTML:false]
+<p><strong>&lt;span&gt;text&lt;/span&gt;</strong>いい</p>
+[HTML:true]
+<p><strong><span>text</span></strong>いい</p>
+
+[Markdown]
+『**[text](url)**』
+[HTML:false]
+<p>『<strong><a href="url">text</a></strong>』</p>
+
+
+[Markdown]
+*[text](url)*
+[HTML:false]
+<p><em><a href="url">text</a></em></p>
+
+[Markdown]
+string*[text](url)*
+[HTML:false]
+<p>string<em><a href="url">text</a></em></p>
+
+[Markdown]
+*[text](url)*string
+[HTML:false]
+<p><em><a href="url">text</a></em>string</p>
+
+[Markdown]
+ああ*[text](url)*いい
+[HTML:false]
+<p>ああ<em><a href="url">text</a></em>いい</p>
+
+[Markdown]
+*<span>text</span>*
+[HTML:false]
+<p><em>&lt;span&gt;text&lt;/span&gt;</em></p>
+[HTML:true]
+<p><em><span>text</span></em></p>
+
+[Markdown]
+string*<span>text</span>*
+[HTML:false]
+<p>string<em>&lt;span&gt;text&lt;/span&gt;</em></p>
+[HTML:true]
+<p>string<em><span>text</span></em></p>
+
+[Markdown]
+*<span>text</span>*string
+[HTML:false]
+<p><em>&lt;span&gt;text&lt;/span&gt;</em>string</p>
+[HTML:true]
+<p><em><span>text</span></em>string</p>
+
+[Markdown]
+*`text`*string
+[HTML:false]
+<p><em><code>text</code></em>string</p>
+[HTML:true]
+<p><em><code>text</code></em>string</p>
+
+[Markdown]
+*`text`*いい
+[HTML:false]
+<p><em><code>text</code></em>いい</p>
+[HTML:true]
+<p><em><code>text</code></em>いい</p>
+
+[Markdown]
+a*`b`*a
+[HTML:false]
+<p>a<em><code>b</code></em>a</p>
 
