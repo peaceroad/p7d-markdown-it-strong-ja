@@ -153,3 +153,22 @@ a****
 [HTML]
 <p>a****</p>
 ~~~
+
+## Options
+
+### disallowMixed
+
+When `disallowMixed: true`, emphasis is blocked in English contexts that contain markdown links, HTML tags, inline code, or math expressions to maintain better compatibility with standard markdown-it behavior.
+
+```js
+const md = mdit.use(mditStrongJa)
+md.render('string**[text](url)**')
+// <p>string<strong><a href="url">text</a></strong></p>
+```
+
+```js
+const md = mdit.use(mditStrongJa, { disallowMixed: true })
+md.render('string**[text](url)**')
+// <p>string**<a href="url">text</a>**</p>
+```
+
