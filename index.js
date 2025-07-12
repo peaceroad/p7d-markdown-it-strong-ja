@@ -168,7 +168,21 @@ const createInlines = (state, start, max, opt) => {
   let noMark = ''
   let textStart = n
   
+  // Infinite loop prevention
+  const maxIterations = srcLen * 2 // Safe upper bound
+  let iterations = 0
+  
   while (n < srcLen) {
+    // Prevent infinite loops
+    iterations++
+    if (iterations > maxIterations) {
+      // Add remaining text as-is and exit safely
+      if (textStart < srcLen) {
+        pushInlines(inlines, textStart, srcLen - 1, srcLen - textStart, 'text')
+      }
+      break
+    }
+    
     const currentChar = src.charCodeAt(n)
     let nextSymbolPos = -1
 
@@ -200,6 +214,7 @@ const createInlines = (state, start, max, opt) => {
 
     // HTML tags
     if (htmlEnabled && currentChar === CHAR_LT && !hasBackslash(state, n)) {
+      let foundClosingTag = false
       for (let i = n + 1; i < srcLen; i++) {
         if (src.charCodeAt(i) === CHAR_GT && !hasBackslash(state, i)) {
           if (noMark.length !== 0) {
@@ -217,10 +232,14 @@ const createInlines = (state, start, max, opt) => {
           pushInlines(inlines, n, i, i - n + 1, 'html_inline', tag, tagType)
           textStart = i + 1
           n = i + 1
+          foundClosingTag = true
           break
         }
       }
-      continue
+      if (foundClosingTag) {
+        continue
+      }
+      // If no closing tag found, treat as regular character to prevent infinite loops
     }
 
     // Asterisk handling

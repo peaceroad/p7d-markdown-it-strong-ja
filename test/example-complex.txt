@@ -727,3 +727,13 @@ _**text**_
 「**テスト**」
 [HTML]
 <p>「<strong>テスト</strong>」</p>
+
+
+[Markdown]
+<span>**テスト**<
+[HTML]
+<p>&lt;span&gt;<strong>テスト</strong>&lt;</p>
+[HTML:true]
+<p><span><strong>テスト</strong>&lt;</p>
+
+
