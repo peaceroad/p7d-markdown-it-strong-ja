@@ -1,6 +1,5 @@
-// Character code constants
 const CHAR_ASTERISK = 0x2A    // *
-const CHAR_UNDERSCORE = 0x5F  // _
+//const CHAR_UNDERSCORE = 0x5F  // _
 const CHAR_BACKSLASH = 0x5C   // \
 const CHAR_BACKTICK = 0x60    // `
 const CHAR_DOLLAR = 0x24      // $
@@ -20,9 +19,14 @@ const hasBackslash = (state, start) => {
   let slashNum = 0
   let i = start - 1
   const src = state.src
-  while(i >= 0) {
-    if (src.charCodeAt(i) === CHAR_BACKSLASH) { slashNum++; i--; continue }
-    break
+  // Early exit if no backslash at all
+  if (i < 0 || src.charCodeAt(i) !== CHAR_BACKSLASH) {
+    return false
+  }
+  // Count consecutive backslashes efficiently
+  while (i >= 0 && src.charCodeAt(i) === CHAR_BACKSLASH) {
+    slashNum++
+    i--
   }
   return slashNum % 2 === 1
 }
@@ -159,6 +163,26 @@ const hasNextSymbol = (state, n, max, symbol, noMark) => {
   return [nextSymbolPos, noMark]
 }
 
+const processSymbolPair = (state, n, srcLen, symbol, noMark, textStart, pushInlines) => {
+  const [nextSymbolPos, newNoMark] = hasNextSymbol(state, n, srcLen, symbol, noMark)
+  if (nextSymbolPos !== -1) {
+    if (nextSymbolPos === srcLen - 1) {
+      pushInlines(textStart, nextSymbolPos, nextSymbolPos - textStart + 1, 'text')
+      return { shouldBreak: true, newN: nextSymbolPos + 1, newNoMark }
+    }
+    return { shouldBreak: false, shouldContinue: true, newN: nextSymbolPos + 1, newNoMark }
+  }
+  return { shouldBreak: false, shouldContinue: false, newN: n, newNoMark }
+}
+
+const processTextSegment = (inlines, textStart, n, noMark) => {
+  if (n !== 0 && noMark.length !== 0) {
+    pushInlines(inlines, textStart, n - 1, n - textStart, 'text')
+    return ''
+  }
+  return noMark
+}
+
 const createInlines = (state, start, max, opt) => {
   const src = state.src
   const srcLen = max
@@ -184,86 +208,95 @@ const createInlines = (state, start, max, opt) => {
     }
     
     const currentChar = src.charCodeAt(n)
-    let nextSymbolPos = -1
+    
+    // Unified escape check
+    let isEscaped = false
+    if (currentChar === CHAR_ASTERISK || currentChar === CHAR_BACKTICK || 
+        (opt.dollarMath && currentChar === CHAR_DOLLAR) || 
+        (htmlEnabled && currentChar === CHAR_LT)) {
+      isEscaped = hasBackslash(state, n)
+    }
 
-    // Inline code (backticks)
-    if (currentChar === CHAR_BACKTICK && !hasBackslash(state, n)) {
-      [nextSymbolPos, noMark] = hasNextSymbol(state, n, srcLen, CHAR_BACKTICK, noMark)
-      if (nextSymbolPos !== -1) {
-        if (nextSymbolPos === srcLen - 1) {
-          pushInlines(inlines, textStart, nextSymbolPos, nextSymbolPos - textStart + 1, 'text')
+    // Asterisk handling
+    if (currentChar === CHAR_ASTERISK) {
+      if (!isEscaped) {
+        noMark = processTextSegment(inlines, textStart, n, noMark)
+        if (n === srcLen - 1) {
+          pushInlines(inlines, n, n, 1, '')
           break
         }
-        n = nextSymbolPos + 1
+        let i = n + 1
+        while (i < srcLen && src.charCodeAt(i) === CHAR_ASTERISK) {
+          i++
+        }
+        if (i === srcLen) {
+          pushInlines(inlines, n, i - 1, i - n, '')
+        } else {
+          pushInlines(inlines, n, i - 1, i - n, '')
+          textStart = i
+        }
+        n = i
         continue
+      }
+    }
+
+    // Inline code (backticks)
+    if (currentChar === CHAR_BACKTICK) {
+      if (!isEscaped) {
+        const result = processSymbolPair(state, n, srcLen, CHAR_BACKTICK, noMark, textStart, 
+          (start, end, len, type) => pushInlines(inlines, start, end, len, type))
+        if (result.shouldBreak) break
+        if (result.shouldContinue) {
+          n = result.newN
+          noMark = result.newNoMark
+          continue
+        }
+        noMark = result.newNoMark
       }
     }
 
     // Inline math ($...$)
-    if (opt.dollarMath && currentChar === CHAR_DOLLAR && !hasBackslash(state, n)) {
-      [nextSymbolPos, noMark] = hasNextSymbol(state, n, srcLen, CHAR_DOLLAR, noMark)
-      if (nextSymbolPos !== -1) {
-        if (nextSymbolPos === srcLen - 1) {
-          pushInlines(inlines, textStart, nextSymbolPos, nextSymbolPos - textStart + 1, 'text')
-          break
+    if (opt.dollarMath && currentChar === CHAR_DOLLAR) {
+      if (!isEscaped) {
+        const result = processSymbolPair(state, n, srcLen, CHAR_DOLLAR, noMark, textStart, 
+          (start, end, len, type) => pushInlines(inlines, start, end, len, type))
+        if (result.shouldBreak) break
+        if (result.shouldContinue) {
+          n = result.newN
+          noMark = result.newNoMark
+          continue
         }
-        n = nextSymbolPos + 1
-        continue
+        noMark = result.newNoMark
       }
     }
 
     // HTML tags
-    if (htmlEnabled && currentChar === CHAR_LT && !hasBackslash(state, n)) {
-      let foundClosingTag = false
-      for (let i = n + 1; i < srcLen; i++) {
-        if (src.charCodeAt(i) === CHAR_GT && !hasBackslash(state, i)) {
-          if (noMark.length !== 0) {
-            pushInlines(inlines, textStart, n - 1, n - textStart, 'text')
-            noMark = ''
+    if (htmlEnabled && currentChar === CHAR_LT) {
+      if (!isEscaped) {
+        let foundClosingTag = false
+        for (let i = n + 1; i < srcLen; i++) {
+          if (src.charCodeAt(i) === CHAR_GT && !hasBackslash(state, i)) {
+            noMark = processTextSegment(inlines, textStart, n, noMark)
+            let tag = src.slice(n + 1, i)
+            let tagType
+            if (tag.charCodeAt(0) === CHAR_SLASH) {
+              tag = tag.slice(1)
+              tagType = 'close'
+            } else {
+              tagType = 'open'
+            }
+            pushInlines(inlines, n, i, i - n + 1, 'html_inline', tag, tagType)
+            textStart = i + 1
+            n = i + 1
+            foundClosingTag = true
+            break
           }
-          let tag = src.slice(n + 1, i)
-          let tagType
-          if (tag.charCodeAt(0) === CHAR_SLASH) {
-            tag = tag.slice(1)
-            tagType = 'close'
-          } else {
-            tagType = 'open'
-          }
-          pushInlines(inlines, n, i, i - n + 1, 'html_inline', tag, tagType)
-          textStart = i + 1
-          n = i + 1
-          foundClosingTag = true
-          break
         }
+        if (foundClosingTag) {
+          continue
+        }
+        // If no closing tag found, treat as regular character to prevent infinite loops
       }
-      if (foundClosingTag) {
-        continue
-      }
-      // If no closing tag found, treat as regular character to prevent infinite loops
-    }
-
-    // Asterisk handling
-    if (currentChar === CHAR_ASTERISK && !hasBackslash(state, n)) {
-      if (n !== 0 && noMark.length !== 0) {
-        pushInlines(inlines, textStart, n - 1, n - textStart, 'text')
-        noMark = ''
-      }
-      if (n === srcLen - 1) {
-        pushInlines(inlines, n, n, 1, '')
-        break
-      }
-      let i = n + 1
-      while (i < srcLen && src.charCodeAt(i) === CHAR_ASTERISK) {
-        i++
-      }
-      if (i === srcLen) {
-        pushInlines(inlines, n, i - 1, i - n, '')
-      } else {
-        pushInlines(inlines, n, i - 1, i - n, '')
-        textStart = i
-      }
-      n = i
-      continue
     }
 
     // Regular character
@@ -278,19 +311,31 @@ const createInlines = (state, start, max, opt) => {
 }
 
 const pushMark = (marks, opts) => {
-  let left = 0, right = marks.length
+  // Maintain sorted order during insertion
+  const newMark = {
+    nest: opts.nest,
+    s: opts.s,
+    e: opts.e,
+    len: opts.len,
+    oLen: opts.oLen,
+    type: opts.type
+  }
+  // Binary search for insertion point to maintain sorted order
+  let left = 0
+  let right = marks.length
   while (left < right) {
-    const mid = (left + right) >> 1
-    if (marks[mid].s > opts.s) {
-      right = mid
-    } else {
+    const mid = Math.floor((left + right) / 2)
+    if (marks[mid].s <= newMark.s) {
       left = mid + 1
+    } else {
+      right = mid
     }
   }
-  marks.splice(left, 0, { ...opts });
+  
+  marks.splice(left, 0, newMark)
 }
 
-const setStrong = (state, inlines, marks, n, memo, opt) => {
+const setStrong = (state, inlines, marks, n, memo, opt, nestTracker) => {
   if (opt.disallowMixed === true) {
     let i = n + 1
     const inlinesLength = inlines.length
@@ -324,7 +369,7 @@ const setStrong = (state, inlines, marks, n, memo, opt) => {
       if (insideTagsIsClose === 0) { i++; continue }
     }
 
-    nest = checkNest(inlines, marks, n, i)
+    nest = checkNest(inlines, marks, n, i, nestTracker)
     if (nest === -1) return [n, nest]
 
     if (inlines[i].len === 1 && inlines[n].len > 2) {
@@ -349,7 +394,7 @@ const setStrong = (state, inlines, marks, n, memo, opt) => {
       inlines[i].len -= 1
       if (inlines[i].len > 0) inlines[i].sp += 1
       if (insideTagsIsClose === 1) {
-        const [newN, newNest] = setEm(state, inlines, marks, n, memo, opt)
+        const [newN, newNest] = setEm(state, inlines, marks, n, memo, opt, null, nestTracker)
         n = newN
         nest = newNest
       }
@@ -395,7 +440,7 @@ const setStrong = (state, inlines, marks, n, memo, opt) => {
 
     if (inlines[n].len === 1 && inlines[i].len > 0) {
       nest++
-      const [newN, newNest] = setEm(state, inlines, marks, n, memo, opt, nest)
+      const [newN, newNest] = setEm(state, inlines, marks, n, memo, opt, nest, nestTracker)
       n = newN
       nest = newNest
     }
@@ -424,18 +469,41 @@ const checkInsideTags = (inlines, i, memo) => {
   if (memo.htmlTags[tagName] < 0) {
     return -1
   }
-  const closeAllTags = Object.values(memo.htmlTags).every(val => val === 0)
-  if (closeAllTags) return 1
-  return 0
+  
+  // Direct check instead of Object.values().every()
+  for (const count of Object.values(memo.htmlTags)) {
+    if (count !== 0) return 0
+  }
+  return 1
 }
 
+// Check if character is ASCII punctuation or space
+// Covers: !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~ and space
 const isPunctuation = (ch) => {
-  return REG_PUNCTUATION.test(ch)
-}
-const isJapanese = (ch) => {
-  return REG_JAPANESE.test(ch)
+  if (!ch) return false
+  const code = ch.charCodeAt(0)
+  // ASCII punctuation: !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
+  return (code >= 33 && code <= 47) || (code >= 58 && code <= 64) || 
+         (code >= 91 && code <= 96) || (code >= 123 && code <= 126) || code === 32
 }
 
+// Check if character is Japanese (hiragana, katakana, kanji, punctuation, symbols, format chars, emoji)
+// Uses fast Unicode range checks for common cases, falls back to REG_JAPANESE for complex Unicode
+const isJapanese = (ch) => {
+  if (!ch) return false
+  const code = ch.charCodeAt(0)
+  // Fast ASCII check first
+  if (code < 128) return false
+  // Hiragana: U+3040-U+309F, Katakana: U+30A0-U+30FF, Kanji: U+4E00-U+9FAF
+  return (code >= 0x3040 && code <= 0x309F) || 
+         (code >= 0x30A0 && code <= 0x30FF) || 
+         (code >= 0x4E00 && code <= 0x9FAF) ||
+         // Fallback to regex for complex Unicode cases
+         REG_JAPANESE.test(ch)
+}
+
+// Check if character is English (letters, numbers) or other non-Japanese characters
+// Uses REG_JAPANESE and REG_PUNCTUATION to exclude Japanese and punctuation characters
 const isEnglish = (ch) => {
   if (!ch) return false
   const code = ch.charCodeAt(0)
@@ -480,9 +548,6 @@ const hasPunctuationOrNonJapanese = (state, inlines, n, i, opt) => {
   const checkCloseNextChar = (isPunctuation(closeNextChar) || i === inlines.length - 1)
 
   if (opt.disallowMixed === false) {
-    const openPrevChar = src[inlines[n].s - 1] || ''
-    const closeNextChar = src[inlines[i].e + 1] || ''
-    
     if (isEnglish(openPrevChar) || isEnglish(closeNextChar)) {
       const contentBetween = src.slice(inlines[n].e + 1, inlines[i].s)
       if (REG_MARKDOWN_HTML.test(contentBetween)) {
@@ -495,7 +560,7 @@ const hasPunctuationOrNonJapanese = (state, inlines, n, i, opt) => {
   return result
 }
 
-const setEm = (state, inlines, marks, n, memo, opt, sNest) => {
+const setEm = (state, inlines, marks, n, memo, opt, sNest, nestTracker) => {
   if (opt.disallowMixed === true && !sNest) {
     let i = n + 1
     const inlinesLength = inlines.length
@@ -550,7 +615,7 @@ const setEm = (state, inlines, marks, n, memo, opt, sNest) => {
     if (sNest) {
       nest  = sNest - 1
     } else {
-      nest = checkNest(inlines, marks, n, i)
+      nest = checkNest(inlines, marks, n, i, nestTracker)
     }
     if (nest === -1) return [n, nest]
 
@@ -622,60 +687,60 @@ const setText = (inlines, marks, n, nest) => {
   inlines[n].len = 0
 }
 
-const checkNest = (inlines, marks, n, i) => {
-  let nest = 1
-  let isRange = true
-  if (marks.length === 0) return nest
-  let strongNest = 0
-  let emNest = 0
-  let j = 0
-  const marksLength = marks.length
-  while (j < marksLength) {
-    if (marks[j].s <= inlines[n].s) {
-      if (marks[j].type === 'strong_open') strongNest++
-      if (marks[j].type === 'strong_close') strongNest--
-      if (marks[j].type === 'em_open') emNest++
-      if (marks[j].type === 'em_close') emNest--
-    } else { break }
-    j++
+// Nest state management
+const createNestTracker = () => {
+  return {
+    strongNest: 0,
+    emNest: 0,
+    markIndex: 0
   }
-  let parentNest = strongNest + emNest
-  let parentCloseN = j
-  if (parentCloseN < marksLength) {
-    while (parentCloseN < marksLength) {
-      if (marks[parentCloseN].nest === parentNest) break
-      parentCloseN++
-    }
-    if (parentCloseN > marksLength - 1) {
-      isRange = true
-    } else {
-      if (marks[parentCloseN].s < inlines[i].s) isRange = false
-    }
-  }
+}
 
-  if (isRange) {
-    nest = parentNest + 1
-  } else {
-    nest = -1
+const updateNestTracker = (tracker, marks, targetPos) => {
+  while (tracker.markIndex < marks.length && marks[tracker.markIndex].s <= targetPos) {
+    const mark = marks[tracker.markIndex]
+    if (mark.type === 'strong_open') tracker.strongNest++
+    else if (mark.type === 'strong_close') tracker.strongNest--
+    else if (mark.type === 'em_open') tracker.emNest++
+    else if (mark.type === 'em_close') tracker.emNest--
+    tracker.markIndex++
   }
-  return nest
+}
+
+const checkNest = (inlines, marks, n, i, nestTracker) => {
+  if (marks.length === 0) return 1
+  // Update nest state up to current position
+  updateNestTracker(nestTracker, marks, inlines[n].s)
+
+  const parentNest = nestTracker.strongNest + nestTracker.emNest
+  // Check if there's a conflicting close mark before the end position
+  let parentCloseN = nestTracker.markIndex
+  while (parentCloseN < marks.length) {
+    if (marks[parentCloseN].nest === parentNest) break
+    parentCloseN++
+  }
+  if (parentCloseN < marks.length && marks[parentCloseN].s < inlines[i].s) {
+    return -1
+  }
+  return parentNest + 1
 }
 
 const createMarks = (state, inlines, start, end, memo, opt) => {
   let marks = []
   let n = start
+  const nestTracker = createNestTracker()
   
   while (n < end) {
     if (inlines[n].type !== '') { n++; continue }
     let nest = 0
     
     if (inlines[n].len > 1) {
-      const [newN, newNest] = setStrong(state, inlines, marks, n, memo, opt)
+      const [newN, newNest] = setStrong(state, inlines, marks, n, memo, opt, nestTracker)
       n = newN
       nest = newNest
     }
     if (inlines[n].len !== 0) {
-      const [newN2, newNest2] = setEm(state, inlines, marks, n, memo, opt)
+      const [newN2, newNest2] = setEm(state, inlines, marks, n, memo, opt, null, nestTracker)
       n = newN2
       nest = newNest2
     }
@@ -687,9 +752,8 @@ const createMarks = (state, inlines, start, end, memo, opt) => {
   return marks
 }
 
-
 const mergeInlinesAndMarks = (inlines, marks) => {
-  marks.sort((a, b) => a.s - b.s)
+  // marks array is already sorted, skip sorting
   const merged = []
   let markIndex = 0
   for (const token of inlines) {
@@ -780,4 +844,5 @@ const mditStrongJa = (md, option) => {
     return strongJa(state, silent, opt)
   })
 }
-  export default mditStrongJa
+
+export default mditStrongJa
