@@ -823,3 +823,37 @@ aa**aa***Text***と*More*bb**bbテストは[aa**aa***Text***と*More*bb**bb][]�
 <p>テストは<a href="https://example.net/">aaaa<strong>T&lt;span&gt;ex&lt;/span&gt;t</strong>と<em>More</em>bbbb</a>です。</p>
 [HTML:true]
 <p>テストは<a href="https://example.net/">aaaa<strong>T<span>ex</span>t</strong>と<em>More</em>bbbb</a>です。</p>
+
+[Markdown]
+テストは「[**One**][]と[**Two**][]と[**Three**][]」です。
+
+[One]: https://example.com/one/
+[Two]: https://example.com/two/
+[Three]: https://example.com/three/
+[HTML:false]
+<p>テストは「<a href="https://example.com/one/"><strong>One</strong></a>と<a href="https://example.com/two/"><strong>Two</strong></a>と<a href="https://example.com/three/"><strong>Three</strong></a>」です。</p>
+
+[Markdown]
+テキスト1「[**One**][]」段落です。
+
+[One]: https://example.com/one/
+
+別段落で「[**Two**][]」と「[**Three**][]」があります。
+
+[Two]: https://example.com/two/
+[Three]: https://example.com/three/
+[HTML:false]
+<p>テキスト1「<a href="https://example.com/one/"><strong>One</strong></a>」段落です。</p>
+<p>別段落で「<a href="https://example.com/two/"><strong>Two</strong></a>」と「<a href="https://example.com/three/"><strong>Three</strong></a>」があります。</p>
+
+[Markdown]
+テキスト1「[**One**][a]」段落です。
+
+別段落で「[**Two**][b]」と「[**Three**][c]」があります。
+
+[a]: https://example.com/one/
+[b]: https://example.com/two/
+[c]: https://example.com/three/
+[HTML:false]
+<p>テキスト1「<a href="https://example.com/one/"><strong>One</strong></a>」段落です。</p>
+<p>別段落で「<a href="https://example.com/two/"><strong>Two</strong></a>」と「<a href="https://example.com/three/"><strong>Three</strong></a>」があります。</p>
