@@ -1,3 +1,5 @@
+import Token from 'markdown-it/lib/token.mjs'
+
 const CHAR_ASTERISK = 0x2A    // *
 //const CHAR_UNDERSCORE = 0x5F  // _
 const CHAR_BACKSLASH = 0x5C   // \
@@ -7,6 +9,8 @@ const CHAR_LT = 0x3C          // <
 const CHAR_GT = 0x3E          // >
 const CHAR_SLASH = 0x2F       // /
 const CHAR_SPACE = 0x20       // ' ' (space)
+const CHAR_OPEN_BRACKET = 0x5B // [
+const CHAR_CLOSE_BRACKET = 0x5D // ]
 
 const REG_ASTERISKS = /^\*+$/
 const REG_ATTRS = /{[^{}\n!@#%^&*()]+?}$/
@@ -29,6 +33,56 @@ const hasBackslash = (state, start) => {
     i--
   }
   return slashNum % 2 === 1
+}
+
+const findMatchingBracket = (state, start, max, openChar, closeChar) => {
+  let depth = 1
+  let pos = start + 1
+  const src = state.src
+  while (pos < max) {
+    const ch = src.charCodeAt(pos)
+    if (ch === openChar && !hasBackslash(state, pos)) {
+      depth++
+    } else if (ch === closeChar && !hasBackslash(state, pos)) {
+      depth--
+      if (depth === 0) return pos
+    }
+    pos++
+  }
+  return -1
+}
+
+const findRefRangeIndex = (pos, refRanges) => {
+  if (!refRanges || refRanges.length === 0) return -1
+  for (let i = 0; i < refRanges.length; i++) {
+    const range = refRanges[i]
+    if (pos >= range.start && pos <= range.end) return i
+  }
+  return -1
+}
+
+// Detect reference-link label ranges within the current inline slice
+const computeReferenceRanges = (state, start, max) => {
+  const ranges = []
+  const src = state.src
+  let pos = start
+  while (pos < max) {
+    if (src.charCodeAt(pos) === CHAR_OPEN_BRACKET && !hasBackslash(state, pos)) {
+      const labelClose = findMatchingBracket(state, pos, max, CHAR_OPEN_BRACKET, CHAR_CLOSE_BRACKET)
+      if (labelClose !== -1) {
+        const nextPos = labelClose + 1
+        if (nextPos < max && src.charCodeAt(nextPos) === CHAR_OPEN_BRACKET && !hasBackslash(state, nextPos)) {
+          const refClose = findMatchingBracket(state, nextPos, max, CHAR_OPEN_BRACKET, CHAR_CLOSE_BRACKET)
+          if (refClose !== -1) {
+            ranges.push({ start: pos, end: labelClose })
+            pos = labelClose
+          }
+        }
+      }
+    }
+    pos++
+  }
+  return ranges
 }
 
 const setToken = (state, inlines, opt) => {
@@ -335,7 +389,7 @@ const pushMark = (marks, opts) => {
   marks.splice(left, 0, newMark)
 }
 
-const setStrong = (state, inlines, marks, n, memo, opt, nestTracker) => {
+const setStrong = (state, inlines, marks, n, memo, opt, nestTracker, refRanges) => {
   if (opt.disallowMixed === true) {
     let i = n + 1
     const inlinesLength = inlines.length
@@ -369,6 +423,10 @@ const setStrong = (state, inlines, marks, n, memo, opt, nestTracker) => {
       if (insideTagsIsClose === 0) { i++; continue }
     }
 
+    const openRange = findRefRangeIndex(inlines[n].s, refRanges)
+    const closeRange = findRefRangeIndex(inlines[i].s, refRanges)
+    if (openRange !== closeRange) { i++; continue }
+
     nest = checkNest(inlines, marks, n, i, nestTracker)
     if (nest === -1) return [n, nest]
 
@@ -394,7 +452,7 @@ const setStrong = (state, inlines, marks, n, memo, opt, nestTracker) => {
       inlines[i].len -= 1
       if (inlines[i].len > 0) inlines[i].sp += 1
       if (insideTagsIsClose === 1) {
-        const [newN, newNest] = setEm(state, inlines, marks, n, memo, opt, null, nestTracker)
+        const [newN, newNest] = setEm(state, inlines, marks, n, memo, opt, null, nestTracker, refRanges)
         n = newN
         nest = newNest
       }
@@ -404,7 +462,7 @@ const setStrong = (state, inlines, marks, n, memo, opt, nestTracker) => {
     if (inlines[i].len > 1) {
       if (hasPunctuationOrNonJapanese(state, inlines, n, i, opt)) {
         if (memo.inlineMarkEnd) {
-          marks.push(...createMarks(state, inlines, i, inlinesLength - 1, memo, opt))
+          marks.push(...createMarks(state, inlines, i, inlinesLength - 1, memo, opt, refRanges))
           if (inlines[i].len === 0) { i++; continue }
         } else {
           return [n, nest]
@@ -440,7 +498,7 @@ const setStrong = (state, inlines, marks, n, memo, opt, nestTracker) => {
 
     if (inlines[n].len === 1 && inlines[i].len > 0) {
       nest++
-      const [newN, newNest] = setEm(state, inlines, marks, n, memo, opt, nest, nestTracker)
+      const [newN, newNest] = setEm(state, inlines, marks, n, memo, opt, nest, nestTracker, refRanges)
       n = newN
       nest = newNest
     }
@@ -449,7 +507,7 @@ const setStrong = (state, inlines, marks, n, memo, opt, nestTracker) => {
   }
 
   if (n == 0 && memo.inlineMarkEnd) {
-    marks.push(...createMarks(state, inlines, n + 1, inlinesLength - 1, memo, opt))
+    marks.push(...createMarks(state, inlines, n + 1, inlinesLength - 1, memo, opt, refRanges))
   }
   return [n, nest]
 }
@@ -560,7 +618,7 @@ const hasPunctuationOrNonJapanese = (state, inlines, n, i, opt) => {
   return result
 }
 
-const setEm = (state, inlines, marks, n, memo, opt, sNest, nestTracker) => {
+const setEm = (state, inlines, marks, n, memo, opt, sNest, nestTracker, refRanges) => {
   if (opt.disallowMixed === true && !sNest) {
     let i = n + 1
     const inlinesLength = inlines.length
@@ -594,6 +652,13 @@ const setEm = (state, inlines, marks, n, memo, opt, sNest, nestTracker) => {
     }
     if (inlines[i].type !== '') { i++; continue }
 
+    const openRange = findRefRangeIndex(inlines[n].s, refRanges)
+    const closeRange = findRefRangeIndex(inlines[i].s, refRanges)
+    if (openRange !== closeRange) {
+      i++
+      continue
+    }
+
     const emNum = Math.min(inlines[n].len, inlines[i].len)
 
     if (!sNest && emNum !== 1) return [n, sNest, memo]
@@ -622,7 +687,7 @@ const setEm = (state, inlines, marks, n, memo, opt, sNest, nestTracker) => {
     if (emNum === 1) {
       if (hasPunctuationOrNonJapanese(state, inlines, n, i, opt)) {
         if (memo.inlineMarkEnd) {
-          marks.push(...createMarks(state, inlines, i, inlinesLength - 1, memo, opt))
+          marks.push(...createMarks(state, inlines, i, inlinesLength - 1, memo, opt, refRanges))
 
           if (inlines[i].len === 0) { i++; continue }
         } else {
@@ -725,7 +790,7 @@ const checkNest = (inlines, marks, n, i, nestTracker) => {
   return parentNest + 1
 }
 
-const createMarks = (state, inlines, start, end, memo, opt) => {
+const createMarks = (state, inlines, start, end, memo, opt, refRanges) => {
   let marks = []
   let n = start
   const nestTracker = createNestTracker()
@@ -735,12 +800,12 @@ const createMarks = (state, inlines, start, end, memo, opt) => {
     let nest = 0
     
     if (inlines[n].len > 1) {
-      const [newN, newNest] = setStrong(state, inlines, marks, n, memo, opt, nestTracker)
+      const [newN, newNest] = setStrong(state, inlines, marks, n, memo, opt, nestTracker, refRanges)
       n = newN
       nest = newNest
     }
     if (inlines[n].len !== 0) {
-      const [newN2, newNest2] = setEm(state, inlines, marks, n, memo, opt, null, nestTracker)
+      const [newN2, newNest2] = setEm(state, inlines, marks, n, memo, opt, null, nestTracker, refRanges)
       n = newN2
       nest = newNest2
     }
@@ -772,6 +837,297 @@ const mergeInlinesAndMarks = (inlines, marks) => {
   return merged
 }
 
+const isWhitespaceToken = (token) => token && token.type === 'text' && token.content.trim() === ''
+
+const mergeBrokenMarksAroundLinks = (tokens) => {
+  let i = 0
+  while (i < tokens.length) {
+    const closeToken = tokens[i]
+    if (!closeToken || !/_close$/.test(closeToken.type)) {
+      i++
+      continue
+    }
+    const openType = closeToken.type.replace('_close', '_open')
+    let j = i + 1
+    while (j < tokens.length && isWhitespaceToken(tokens[j])) j++
+    if (j >= tokens.length || tokens[j].type !== 'link_open') {
+      i++
+      continue
+    }
+    let linkDepth = 1
+    j++
+    while (j < tokens.length && linkDepth > 0) {
+      if (tokens[j].type === 'link_open') linkDepth++
+      if (tokens[j].type === 'link_close') linkDepth--
+      j++
+    }
+    if (linkDepth !== 0) {
+      i++
+      continue
+    }
+    while (j < tokens.length && isWhitespaceToken(tokens[j])) j++
+    if (j >= tokens.length) {
+      i++
+      continue
+    }
+    const reopenToken = tokens[j]
+    if (reopenToken.type !== openType || reopenToken.level !== closeToken.level) {
+      i++
+      continue
+    }
+    tokens.splice(j, 1)
+    tokens.splice(i, 1)
+  }
+}
+
+const buildReferenceLabel = (tokens) => {
+  let label = ''
+  for (const token of tokens) {
+    if (token.type === 'text' || token.type === 'code_inline') {
+      label += token.content
+    } else if (token.type === 'softbreak' || token.type === 'hardbreak') {
+      label += ' '
+    } else if (token.type && token.type.endsWith('_open') && token.markup) {
+      label += token.markup
+    } else if (token.type && token.type.endsWith('_close') && token.markup) {
+      label += token.markup
+    }
+  }
+  return label
+}
+
+const cleanLabelText = (label) => {
+  return label.replace(/^[*_]+/, '').replace(/[*_]+$/, '')
+}
+
+const normalizeRefKey = (state, label) => {
+  const normalize = state.md && state.md.utils && state.md.utils.normalizeReference
+    ? state.md.utils.normalizeReference
+    : (str) => str.trim().replace(/\s+/g, ' ').toUpperCase()
+  return normalize(label)
+}
+
+const adjustTokenLevels = (tokens, startIdx, endIdx, delta) => {
+  for (let i = startIdx; i < endIdx; i++) {
+    if (tokens[i]) tokens[i].level += delta
+  }
+}
+
+const cloneTextToken = (source, content) => {
+  const newToken = new Token('text', '', 0)
+  newToken.content = content
+  newToken.level = source.level
+  newToken.markup = source.markup
+  newToken.info = source.info
+  newToken.meta = source.meta ? {...source.meta} : null
+  newToken.block = source.block
+  newToken.hidden = source.hidden
+  return newToken
+}
+
+// Split only text tokens that actually contain bracket characters
+const splitBracketTextTokens = (tokens) => {
+  let hasBracket = false
+  for (const token of tokens) {
+    if (token && token.type === 'text' && token.content &&
+        (token.content.indexOf('[') !== -1 || token.content.indexOf(']') !== -1)) {
+      hasBracket = true
+      break
+    }
+  }
+  if (!hasBracket) return
+
+  let i = 0
+  while (i < tokens.length) {
+    const token = tokens[i]
+    if (!token || token.type !== 'text' ||
+        (token.content.indexOf('[') === -1 && token.content.indexOf(']') === -1)) {
+      i++
+      continue
+    }
+    const segments = []
+    let buffer = ''
+    const content = token.content
+    let pos = 0
+    while (pos < content.length) {
+      if (content.startsWith('[]', pos)) {
+        if (buffer) {
+          segments.push(buffer)
+          buffer = ''
+        }
+        segments.push('[]')
+        pos += 2
+        continue
+      }
+      const ch = content[pos]
+      if (ch === '[' || ch === ']') {
+        if (buffer) {
+          segments.push(buffer)
+          buffer = ''
+        }
+        segments.push(ch)
+        pos++
+        continue
+      }
+      buffer += ch
+      pos++
+    }
+    if (buffer) segments.push(buffer)
+    if (segments.length <= 1) {
+      token.content = segments[0] || ''
+      i++
+      continue
+    }
+    token.content = segments[0]
+    let insertIdx = i + 1
+    for (let s = 1; s < segments.length; s++) {
+      const newToken = cloneTextToken(token, segments[s])
+      tokens.splice(insertIdx, 0, newToken)
+      insertIdx++
+    }
+    i = insertIdx
+  }
+}
+
+const isBracketToken = (token, bracket) => {
+  return token && token.type === 'text' && token.content === bracket
+}
+
+const convertCollapsedReferenceLinks = (tokens, state) => {
+  const references = state.env && state.env.references
+  if (!references || Object.keys(references).length === 0) return
+
+  splitBracketTextTokens(tokens)
+
+  let i = 0
+  while (i < tokens.length) {
+    if (!isBracketToken(tokens[i], '[')) {
+      i++
+      continue
+    }
+
+    let closeIdx = i + 1
+    while (closeIdx < tokens.length && !isBracketToken(tokens[closeIdx], ']')) {
+      if (tokens[closeIdx].type === 'link_open') {
+        closeIdx = -1
+        break
+      }
+      closeIdx++
+    }
+    if (closeIdx === -1 || closeIdx >= tokens.length) {
+      i++
+      continue
+    }
+
+    const emptyRefIdx = closeIdx + 1
+    if (!isBracketToken(tokens[emptyRefIdx], '[]')) {
+      i++
+      continue
+    }
+
+    if (closeIdx === i + 1) {
+      i++
+      continue
+    }
+
+    const labelTokens = tokens.slice(i + 1, closeIdx)
+    if (process.env.DEBUG_COLLAPSED === '1') {
+      const context = tokens.slice(Math.max(0, i - 2), Math.min(tokens.length, closeIdx + 3))
+      console.log('[collapsed-ref] context:',
+        context.map((t) => t.type + ':' + (t.content || '')))
+    }
+    const labelText = buildReferenceLabel(labelTokens)
+    const normalizedLabel = normalizeRefKey(state, cleanLabelText(labelText))
+    const ref = references[normalizedLabel]
+    if (!ref) {
+      i++
+      continue
+    }
+
+    tokens.splice(emptyRefIdx, 1)
+    tokens.splice(closeIdx, 1)
+    tokens.splice(i, 1)
+
+    let labelStartIdx = i
+    let labelEndIdx = i + labelTokens.length - 1
+    if (labelStartIdx > labelEndIdx) {
+      i++
+      continue
+    }
+
+    const wrapperPairs = []
+    while (labelStartIdx > 0) {
+      const prevToken = tokens[labelStartIdx - 1]
+      const nextToken = tokens[labelEndIdx + 1]
+      if (!prevToken || !nextToken) break
+      if (!/_close$/.test(prevToken.type)) break
+      const expectedOpen = prevToken.type.replace('_close', '_open')
+      if (nextToken.type !== expectedOpen) break
+      if (process.env.DEBUG_COLLAPSED === '1') {
+        console.log('[collapsed-ref] wrapper pair:', prevToken.type, nextToken.type)
+      }
+      wrapperPairs.push({
+        base: prevToken.type.replace('_close', ''),
+        tag: prevToken.tag,
+        markup: prevToken.markup
+      })
+      tokens.splice(labelEndIdx + 1, 1)
+      tokens.splice(labelStartIdx - 1, 1)
+      labelStartIdx -= 1
+      labelEndIdx -= 1
+    }
+
+    if (labelStartIdx > labelEndIdx) {
+      i++
+      continue
+    }
+
+    let labelLength = labelEndIdx - labelStartIdx + 1
+    const firstLabelToken = tokens[labelStartIdx]
+    const linkLevel = firstLabelToken ? Math.max(firstLabelToken.level - 1, 0) : 0
+
+    const linkOpen = new Token('link_open', 'a', 1)
+    linkOpen.attrs = [['href', ref.href]]
+    if (ref.title) linkOpen.attrPush(['title', ref.title])
+    linkOpen.level = linkLevel
+    linkOpen.markup = '[]'
+    linkOpen.info = 'auto'
+    tokens.splice(labelStartIdx, 0, linkOpen)
+
+    const linkClose = new Token('link_close', 'a', -1)
+    linkClose.level = linkLevel
+    linkClose.markup = '[]'
+    linkClose.info = 'auto'
+    tokens.splice(labelStartIdx + labelLength + 1, 0, linkClose)
+
+    adjustTokenLevels(tokens, labelStartIdx + 1, labelStartIdx + labelLength + 1, 1)
+
+    if (wrapperPairs.length > 0) {
+      let insertIdx = labelStartIdx + 1
+      for (let wp = 0; wp < wrapperPairs.length; wp++) {
+        const pair = wrapperPairs[wp]
+        const innerOpen = new Token(pair.base + '_open', pair.tag, 1)
+        innerOpen.markup = pair.markup
+        innerOpen.level = linkLevel + 1 + wp
+        tokens.splice(insertIdx, 0, innerOpen)
+        insertIdx++
+        labelLength++
+      }
+      let linkClosePos = labelStartIdx + labelLength + 1
+      for (let wp = wrapperPairs.length - 1; wp >= 0; wp--) {
+        const pair = wrapperPairs[wp]
+        const innerClose = new Token(pair.base + '_close', pair.tag, -1)
+        innerClose.markup = pair.markup
+        innerClose.level = linkLevel + 1 + wp
+        tokens.splice(linkClosePos, 0, innerClose)
+        labelLength++
+      }
+    }
+
+    i = labelStartIdx + labelLength + 2
+  }
+}
+
 const strongJa = (state, silent, opt) => {
   if (silent) return false
   const start = state.pos
@@ -800,6 +1156,7 @@ const strongJa = (state, silent, opt) => {
     }
   }
 
+  const refRanges = computeReferenceRanges(state, start, max)
   let inlines = createInlines(state, start, max, opt)
 
   const memo = {
@@ -809,7 +1166,7 @@ const strongJa = (state, silent, opt) => {
     inlineMarkEnd: src.charCodeAt(max - 1) === CHAR_ASTERISK,
   }
 
-  let marks = createMarks(state, inlines, 0, inlines.length, memo, opt)
+  let marks = createMarks(state, inlines, 0, inlines.length, memo, opt, refRanges)
 
   inlines = mergeInlinesAndMarks(inlines, marks)
 
@@ -842,6 +1199,19 @@ const mditStrongJa = (md, option) => {
 
   md.inline.ruler.before('emphasis', 'strong_ja', (state, silent) => {
     return strongJa(state, silent, opt)
+  })
+
+  md.core.ruler.after('inline', 'strong_ja_collapsed_refs', (state) => {
+    for (const token of state.tokens) {
+      if (token.type === 'inline' && token.children && token.children.length) {
+        const hasCollapsedRef = token.children.some(
+          (child) => child.type === 'text' && child.content.includes('[]')
+        )
+        if (!hasCollapsedRef) continue
+        convertCollapsedReferenceLinks(token.children, state)
+        mergeBrokenMarksAroundLinks(token.children)
+      }
+    }
   })
 }
 

@@ -1,7 +1,7 @@
 {
   "name": "@peaceroad/markdown-it-strong-ja",
   "description": "This is a plugin for markdown-it. It is an alternative to the standard `**` (strong)  and `*` (em) processing. It also processes strings that cannot be converted by the standard.",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "main": "index.js",
   "type": "module",
   "files": [

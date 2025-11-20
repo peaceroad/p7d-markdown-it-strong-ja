@@ -10,10 +10,13 @@ example_*
 explain_*
 final_*
 fix_*
+index-*
+index.*
 index_*
 optimization_*
 performance_*
 simple_*
 test_*
+test-*
 verify_*
 webapp_*

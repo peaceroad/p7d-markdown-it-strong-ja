@@ -737,3 +737,89 @@ _**text**_
 <p><span><strong>テスト</strong>&lt;</p>
 
 
+[Markdown]
+テストは「[**Text**](https://example.com/)」です。
+[HTML:false]
+<p>テストは「<a href="https://example.com/"><strong>Text</strong></a>」です。</p>
+
+[Markdown]
+テストは「[**Text**][url]」です。
+
+[url]: https://example.com/
+[HTML:false]
+<p>テストは「<a href="https://example.com/"><strong>Text</strong></a>」です。</p>
+
+[Markdown]
+テストは「[**Text**][]」です。
+
+[Text]: https://example.com/
+[HTML:false]
+<p>テストは「<a href="https://example.com/"><strong>Text</strong></a>」です。</p>
+
+[Markdown]
+テストは**「[**Text**][]」**です。
+
+[Text]: https://example.com/
+[HTML:false]
+<p>テストは<strong>「<a href="https://example.com/"><strong>Text</strong></a>」</strong>です。</p>
+
+
+[Markdown]
+テストは「[**Text**][]と[**More**][]」です。
+
+[Text]: https://example.com/
+[More]: https://example.org/
+[HTML:false]
+<p>テストは「<a href="https://example.com/"><strong>Text</strong></a>と<a href="https://example.org/"><strong>More</strong></a>」です。</p>
+
+[Markdown]
+テストは**「[**Text**][]と[**More**][]」**です。
+
+[Text]: https://example.com/
+[More]: https://example.org/
+[HTML:false]
+<p>テストは<strong>「<a href="https://example.com/"><strong>Text</strong></a>と<a href="https://example.org/"><strong>More</strong></a>」</strong>です。</p>
+
+[Markdown]
+テストは[**Text**と**More**][]です。
+
+[**Text**と**More**]: https://example.net/
+[HTML:false]
+<p>テストは<a href="https://example.net/"><strong>Text</strong>と<strong>More</strong></a>です。</p>
+
+[Markdown]
+aa**aa***Text***と*More*bb**bbテストは[aa**aa***Text***と*More*bb**bb][]です。aa**aa***Text***と*More*bb**bb
+
+[aa**aa***Text***と*More*bb**bb]: https://example.net/
+[HTML:false]
+<p>aa<strong>aa</strong><em>Text</em><strong>と<em>More</em>bb</strong>bbテストは<a href="https://example.net/">aa<strong>aa</strong><em>Text</em><strong>と<em>More</em>bb</strong>bb</a>です。aa<strong>aa</strong><em>Text</em><strong>と<em>More</em>bb</strong>bb</p>
+
+[Markdown]
+**テストは[aaaaTextとMorebbbb][]です。**
+
+[aaaaTextとMorebbbb]: https://example.net/
+[HTML:false]
+<p><strong>テストは<a href="https://example.net/">aaaaTextとMorebbbb</a>です。</strong></p>
+
+[Markdown]
+**テストは[aaaa***Text***と*More*bbbb][]です。**
+
+[aaaa***Text***と*More*bbbb]: https://example.net/
+[HTML:false]
+<p><strong>テストは<a href="https://example.net/">aaaa<em><strong>Text</strong></em>と<em>More</em>bbbb</a>です。</strong></p>
+
+[Markdown]
+***テストは[aaaa***Text***と*More*bbbb][]です。***aaaa**bbb**cccc
+
+[aaaa***Text***と*More*bbbb]: https://example.net/
+[HTML:false]
+<p><em><strong>テストは<a href="https://example.net/">aaaa<em><strong>Text</strong></em>と<em>More</em>bbbb</a>です。</strong></em>aaaa<strong>bbb</strong>cccc</p>
+
+[Markdown]
+テストは[aaaa**T<span>ex</span>t**と*More*bbbb][]です。
+
+[aaaa**T<span>ex</span>t**と*More*bbbb]: https://example.net/
+[HTML:false]
+<p>テストは<a href="https://example.net/">aaaa<strong>T&lt;span&gt;ex&lt;/span&gt;t</strong>と<em>More</em>bbbb</a>です。</p>
+[HTML:true]
+<p>テストは<a href="https://example.net/">aaaa<strong>T<span>ex</span>t</strong>と<em>More</em>bbbb</a>です。</p>
