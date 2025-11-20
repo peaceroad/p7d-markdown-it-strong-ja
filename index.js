@@ -100,6 +100,30 @@ const copyInlineTokenFields = (dest, src) => {
   dest.hidden = src.hidden
 }
 
+const inlineHasCollapsedRef = (state) => {
+  if (state.__strongJaHasCollapsedRefs === undefined) {
+    state.__strongJaHasCollapsedRefs = state.src.includes('[]')
+  }
+  return state.__strongJaHasCollapsedRefs
+}
+
+const registerCollapsedRefTarget = (state) => {
+  const env = state.env
+  if (!env.__strongJaCollapsedTargets) {
+    env.__strongJaCollapsedTargets = []
+    env.__strongJaCollapsedTargetSet = typeof WeakSet !== 'undefined' ? new WeakSet() : null
+  }
+  const targets = env.__strongJaCollapsedTargets
+  const targetSet = env.__strongJaCollapsedTargetSet
+  if (targetSet) {
+    if (targetSet.has(state.tokens)) return
+    targetSet.add(state.tokens)
+  } else if (targets.includes(state.tokens)) {
+    return
+  }
+  targets.push(state.tokens)
+}
+
 const setToken = (state, inlines, opt) => {
   const src = state.src
   let i = 0
@@ -888,6 +912,11 @@ const strongJa = (state, silent, opt) => {
 
   setToken(state, inlines, opt)
 
+  if (inlineHasCollapsedRef(state) && !state.__strongJaCollapsedRefRegistered) {
+    registerCollapsedRefTarget(state)
+    state.__strongJaCollapsedRefRegistered = true
+  }
+
   if (opt.mditAttrs && max !== state.posMax) {
     if (!attributesSrc) {
       state.pos = max
@@ -1206,16 +1235,15 @@ const mditStrongJa = (md, option) => {
   })
 
   md.core.ruler.after('inline', 'strong_ja_collapsed_refs', (state) => {
-    for (const token of state.tokens) {
-      if (token.type === 'inline' && token.children && token.children.length) {
-        const hasCollapsedRef = token.children.some(
-          (child) => child.type === 'text' && child.content.includes('[]')
-        )
-        if (!hasCollapsedRef) continue
-        convertCollapsedReferenceLinks(token.children, state)
-        mergeBrokenMarksAroundLinks(token.children)
-      }
+    const targets = state.env.__strongJaCollapsedTargets
+    if (!targets || targets.length === 0) return
+    for (const tokens of targets) {
+      if (!tokens || !tokens.length) continue
+      convertCollapsedReferenceLinks(tokens, state)
+      mergeBrokenMarksAroundLinks(tokens)
     }
+    delete state.env.__strongJaCollapsedTargets
+    delete state.env.__strongJaCollapsedTargetSet
   })
 }
 
