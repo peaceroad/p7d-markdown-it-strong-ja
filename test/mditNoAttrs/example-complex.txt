@@ -737,6 +737,12 @@ aa**aa***Text***と*More*bb**bbテストは[aa**aa***Text***と*More*bb**bb][]�
 <p>別段落で「<a href="https://example.com/two/"><strong>Two</strong></a>」と「<a href="https://example.com/three/"><strong>Three</strong></a>」があります。</p>
 
 [Markdown]
+リンクが未定義の「[**Missing**][]」は強調テキストとして残る。
+
+[HTML:false]
+<p>リンクが未定義の「[<strong>Missing</strong>][]」は強調テキストとして残る。</p>
+
+[Markdown]
 テキスト1「[**One**][a]」段落です。
 
 別段落で「[**Two**][b]」と「[**Three**][c]」があります。
@@ -747,3 +753,97 @@ aa**aa***Text***と*More*bb**bbテストは[aa**aa***Text***と*More*bb**bb][]�
 [HTML:false]
 <p>テキスト1「<a href="https://example.com/one/"><strong>One</strong></a>」段落です。</p>
 <p>別段落で「<a href="https://example.com/two/"><strong>Two</strong></a>」と「<a href="https://example.com/three/"><strong>Three</strong></a>」があります。</p>
+[Markdown]
+テストはAAA**bbb[aaaa][**]cccc**です。
+
+[**]: https://example.com/emref
+[HTML:false]
+<p>テストはAAA<strong>bbb<a href="https://example.com/emref">aaaa</a>cccc</strong>です。</p>
+
+[Markdown]
+テストはAAA**bbb[aa**bb**cc][]cccc**です。
+
+[aa**bb**cc]: https://example.com/nested
+[HTML:false]
+<p>テストはAAA<strong>bbb<a href="https://example.com/nested">aa<strong>bb</strong>cc</a>cccc</strong>です。</p>
+
+[Markdown]
+テストはAAA**bbb[aa**bb**cc][dd]cccc**です。
+
+[dd]: https://example.com/ddref
+[HTML:false]
+<p>テストはAAA<strong>bbb<a href="https://example.com/ddref">aa<strong>bb</strong>cc</a>cccc</strong>です。</p>
+
+[Markdown]
+テストは「[**One**][link-one]と[**Two**][]と[**Three**][link-three]」です。
+
+[link-one]: https://example.com/link-one/
+[**Two**]: https://example.com/link-two/
+[link-three]: https://example.com/link-three/
+[HTML:false]
+<p>テストは「<a href="https://example.com/link-one/"><strong>One</strong></a>と<a href="https://example.com/link-two/"><strong>Two</strong></a>と<a href="https://example.com/link-three/"><strong>Three</strong></a>」です。</p>
+
+[Markdown]
+テストは「[aa**T<span>ex</span>t**と*More*][]」です。
+
+[aa**T<span>ex</span>t**と*More*]: https://example.com/fancy/
+[HTML:false]
+<p>テストは「<a href="https://example.com/fancy/">aa<strong>T&lt;span&gt;ex&lt;/span&gt;t</strong>と<em>More</em></a>」です。</p>
+[HTML:true]
+<p>テストは「<a href="https://example.com/fancy/">aa<strong>T<span>ex</span>t</strong>と<em>More</em></a>」です。</p>
+
+[Markdown]
+テストは「[**Wide**]  []」です。
+
+[**Wide**]: https://example.com/wide/
+[HTML:false]
+<p>テストは「<a href="https://example.com/wide/"><strong>Wide</strong></a>  []」です。</p>
+
+[Markdown]
+テストは「[**Break**]
+[]」です。
+
+[**Break**]: https://example.com/break/
+[HTML:false]
+<p>テストは「<a href="https://example.com/break/"><strong>Break</strong></a>
+[]」です。</p>
+
+[Markdown]
+aaa**eee[a**aaa][]aaaa
+
+[HTML:false]
+<p>aaa<strong>eee[a</strong>aaa][]aaaa</p>
+
+[Markdown]
+aaa***eee[aa**aa][]aaaa
+
+[HTML:false]
+<p>aaa*<strong>eee[aa</strong>aa][]aaaa</p>
+
+[Markdown]
+aaa**eee[aa**b**b**c**c][dd]aa**aa
+
+[HTML:false]
+<p>aaa<strong>eee[aa</strong>b<strong>b</strong>c<strong>c][dd]aa</strong>aa</p>
+[Markdown]
+A par[a**g**r][]aph.
+
+[a**g**r]: https://example.com/agr
+
+* * *
+
+Notice. A [no**ti**ce].
+
+[no**ti**ce]: https://example.com/notice
+
+* * *
+
+A [**para**][pa]graph.
+
+[pa]: https://example.com/paragraph
+[HTML]
+<p>A par<a href="https://example.com/agr">a<strong>g</strong>r</a>aph.</p>
+<section class="sc-notice" role="doc-notice">
+<p><span class="sc-notice-label">Notice<span class="sc-notice-label-joint">.</span></span> A <a href="https://example.com/notice">no<strong>ti</strong>ce</a>.</p>
+</section>
+<p>A <a href="https://example.com/paragraph"><strong>para</strong></a>graph.</p>

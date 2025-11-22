@@ -6,17 +6,18 @@ import url from 'url'
 import mdit from 'markdown-it'
 import mditAttrs from 'markdown-it-attrs'
 import mditCJKBreaks from '@sup39/markdown-it-cjk-breaks'
+import mditSemanticContainer from '@peaceroad/markdown-it-hr-sandwiched-semantic-container'
 import mditStrongJa from '../index.js'
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url)).replace(/\\/g, '/')
 
-const md = mdit().use(mditStrongJa).use(mditAttrs)
-const mdWithHtml = mdit({html: true}).use(mditStrongJa).use(mditAttrs)
+const md = mdit().use(mditStrongJa).use(mditAttrs).use(mditSemanticContainer)
+const mdWithHtml = mdit({html: true}).use(mditStrongJa).use(mditAttrs).use(mditSemanticContainer)
 const mdWithCJKBreaks = mdit().use(mditStrongJa).use(mditAttrs).use(mditCJKBreaks, {either: true})
 const mdWithCJKBreaksWithHtml = mdit({html: true}).use(mditStrongJa).use(mditAttrs).use(mditCJKBreaks, {either: true})
 
-const mditNoAttrs = mdit().use(mditStrongJa, {mditAttrs: false})
-const mditNoAttrsWithHtml = mdit({html: true}).use(mditStrongJa, {mditAttrs: false})
+const mditNoAttrs = mdit().use(mditStrongJa, {mditAttrs: false}).use(mditSemanticContainer)
+const mditNoAttrsWithHtml = mdit({html: true}).use(mditStrongJa, {mditAttrs: false}).use(mditSemanticContainer)
 const mditNoAttrsCJKBreaks = mdit().use(mditStrongJa, {mditAttrs: false}).use(mditCJKBreaks, {either: true})
 const mditNoAttrsCJKBreaksWithHtml = mdit({html: true}).use(mditStrongJa, {mditAttrs: false}).use(mditCJKBreaks, {either: true})
 
