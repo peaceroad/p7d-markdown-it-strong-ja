@@ -966,3 +966,11 @@ A [**para**][pa]graph.
 <p><span class="sc-notice-label">Notice<span class="sc-notice-label-joint">.</span></span> A <a href="https://example.com/notice">no<strong>ti</strong>ce</a>.</p>
 </section>
 <p>A <a href="https://example.com/paragraph"><strong>para</strong></a>graph.</p>
+
+[Markdown]
+ああああ**い[ううう**ええ**お][]か**きき
+
+[ううう**ええ**お]: https://example.com
+[HTML:false]
+<p>ああああ<strong>い<a href="https://example.com">ううう<strong>ええ</strong>お</a>か</strong>きき</p>
+

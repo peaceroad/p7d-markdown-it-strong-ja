@@ -1144,12 +1144,6 @@ const convertCollapsedReferenceLinks = (tokens, state) => {
     let existingLinkOpen = null
     let existingLinkClose = null
     const nextToken = tokens[refRemoveStart]
-    if (process.env.DEBUG_COLLAPSED === 'wide') {
-      const debugSlice = tokens.slice(i, Math.min(tokens.length, refRemoveStart + 3)).map((t) => `${t.type}:${t.content || ''}`)
-      console.log('debug collapsed ctx:', debugSlice)
-      console.log('next token info:', nextToken && nextToken.type, nextToken && JSON.stringify(nextToken.content))
-    }
-
     if (isBracketToken(nextToken, '[]')) {
       refKey = normalizeReferenceCandidate(state, cleanedLabel)
       refRemoveCount = 1
@@ -1182,11 +1176,6 @@ const convertCollapsedReferenceLinks = (tokens, state) => {
     } else {
       i++
       continue
-    }
-    if (process.env.DEBUG_COLLAPSED === '1') {
-      const context = tokens.slice(Math.max(0, i - 2), Math.min(tokens.length, closeIdx + 3))
-      console.log('[collapsed-ref] context:',
-        context.map((t) => t.type + ':' + (t.content || '')))
     }
     let linkOpenToken = null
     let linkCloseToken = null
@@ -1244,9 +1233,6 @@ const convertCollapsedReferenceLinks = (tokens, state) => {
       if (!/_close$/.test(prevToken.type)) break
       const expectedOpen = prevToken.type.replace('_close', '_open')
       if (nextToken.type !== expectedOpen) break
-      if (process.env.DEBUG_COLLAPSED === '1') {
-        console.log('[collapsed-ref] wrapper pair:', prevToken.type, nextToken.type)
-      }
       wrapperPairs.push({
         base: prevToken.type.replace('_close', ''),
         tag: prevToken.tag,
