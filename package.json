@@ -15,9 +15,12 @@
   "repository": "https://github.com/peaceroad/p7d-markdown-it-strong-ja.git",
   "author": "peaceroad <peaceroad@gmail.com>",
   "license": "MIT",
+  "dependencies": {
+    "markdown-it": "^14.1.0"
+  },
   "devDependencies": {
+    "@peaceroad/markdown-it-hr-sandwiched-semantic-container": "^0.7.0",
     "@sup39/markdown-it-cjk-breaks": "^1.2.0",
-    "markdown-it": "^14.1.0",
     "markdown-it-attrs": "^4.2.0"
   }
 }
