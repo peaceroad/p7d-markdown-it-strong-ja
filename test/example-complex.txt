@@ -974,3 +974,213 @@ A [**para**][pa]graph.
 [HTML:false]
 <p>ああああ<strong>い<a href="https://example.com">ううう<strong>ええ</strong>お</a>か</strong>きき</p>
 
+[Markdown]
+[**Strong**Mix](https://example.com/inline-strong)
+[HTML:false]
+<p><a href="https://example.com/inline-strong"><strong>Strong</strong>Mix</a></p>
+
+[Markdown]
+**外枠と[リンク](https://example.com/inline-simple)テキスト**
+[HTML:false]
+<p><strong>外枠と<a href="https://example.com/inline-simple">リンク</a>テキスト</strong></p>
+
+[Markdown]
+[前**中**後](https://example.com/inline-nested-strong)
+[HTML:false]
+<p><a href="https://example.com/inline-nested-strong">前<strong>中</strong>後</a></p>
+
+[Markdown]
+[記号`code`](https://example.com/inline-code)
+[HTML:false]
+<p><a href="https://example.com/inline-code">記号<code>code</code></a></p>
+
+[Markdown]
+**周辺 [link*em*mix](https://example.com/inline-mix) text**
+[HTML:false]
+<p><strong>周辺 <a href="https://example.com/inline-mix">link<em>em</em>mix</a> text</strong></p>
+
+[Markdown]
+**[title](https://example.com/inline-title "title")**
+[HTML:false]
+<p><strong><a href="https://example.com/inline-title" title="title">title</a></strong></p>
+
+[Markdown]
+**a[b**c**d](https://example.com/)f
+[HTML:false]
+<p>**a<a href="https://example.com/">b<strong>c</strong>d</a>f</p>
+
+[Markdown]
+**URL[link](https://example.com/?q=[test]&ref=**)**
+[HTML:false]
+<p><strong>URL<a href="https://example.com/?q=%5Btest%5D&amp;ref=**">link</a></strong></p>
+
+[Markdown]
+[**](https://example.com/path[bracket])**
+[HTML:false]
+<p><a href="https://example.com/path%5Bbracket%5D">**</a>**</p>
+
+[Markdown]
+[**]()**
+[HTML:false]
+<p><a href="">**</a>**</p>
+
+[Markdown]
+***[**]()*
+[HTML:false]
+<p>**<em><a href="">**</a></em></p>
+
+[Markdown]
+（**[Link](https://example.com/paren)**）
+[HTML:false]
+<p>（<strong><a href="https://example.com/paren">Link</a></strong>）</p>
+
+[Markdown]
+**前([Link](https://example.com/paren-tail)と)後**
+[HTML:false]
+<p><strong>前(<a href="https://example.com/paren-tail">Link</a>と)後</strong></p>
+
+[Markdown]
+**[Link](https://example.com/tail)**続き
+[HTML:false]
+<p><strong><a href="https://example.com/tail">Link</a></strong>続き</p>
+
+[Markdown]
+(**[Link*mix*](https://example.com/paren-mix)**)
+[HTML:false]
+<p>(<strong><a href="https://example.com/paren-mix">Link<em>mix</em></a></strong>)</p>
+
+[Markdown]
+**[前リンク*em*](https://example.com/edge-a) と [後リンク](https://example.com/edge-b)**
+[HTML:false]
+<p><strong><a href="https://example.com/edge-a">前リンク<em>em</em></a> と <a href="https://example.com/edge-b">後リンク</a></strong></p>
+
+[Markdown]
+***[😀 emoji link](https://example.com/edge-emoji)*
+[HTML:false]
+<p>**<em><a href="https://example.com/edge-emoji">😀 emoji link</a></em></p>
+
+[Markdown]
+[link*one*](https://example.com/edge-one) と *テキスト[link二](https://example.com/edge-two)*
+[HTML:false]
+<p><a href="https://example.com/edge-one">link<em>one</em></a> と <em>テキスト<a href="https://example.com/edge-two">link二</a></em></p>
+
+[Markdown]
+**前[link\*aster\*](https://example.com/edge-escape)*中*[link2](https://example.com/edge-mid)**
+[HTML:false]
+<p><strong>前<a href="https://example.com/edge-escape">link*aster*</a><em>中</em><a href="https://example.com/edge-mid">link2</a></strong></p>
+
+[Markdown]
+[leading*](https://example.com/edge-leading) **後[link](https://example.com/edge-trail)**
+[HTML:false]
+<p><a href="https://example.com/edge-leading">leading*</a> <strong>後<a href="https://example.com/edge-trail">link</a></strong></p>
+
+[Markdown]
+**[link1](https://example.com/edge-chain)[link2*em*](https://example.com/edge-chain2)**
+[HTML:false]
+<p><strong><a href="https://example.com/edge-chain">link1</a><a href="https://example.com/edge-chain2">link2<em>em</em></a></strong></p>
+
+[Markdown]
+***[先頭](https://example.com/edge-head)***[末尾](https://example.com/edge-tail)
+[HTML:false]
+<p><em><strong><a href="https://example.com/edge-head">先頭</a></strong></em><a href="https://example.com/edge-tail">末尾</a></p>
+
+[Markdown]
+*[plain](https://example.com/edge-plain)と[link**strong**](https://example.com/edge-strong)*
+[HTML:false]
+<p><em><a href="https://example.com/edge-plain">plain</a>と<a href="https://example.com/edge-strong">link<strong>strong</strong></a></em></p>
+
+[Markdown]
+**[link😀mix*em*](https://example.com/edge-emoji-mix)**
+[HTML:false]
+<p><strong><a href="https://example.com/edge-emoji-mix">link😀mix<em>em</em></a></strong></p>
+
+[Markdown]
+[link](https://example.com/edge-mid)*テキスト*[link](https://example.com/edge-mid2)
+[HTML:false]
+<p><a href="https://example.com/edge-mid">link</a><em>テキスト</em><a href="https://example.com/edge-mid2">link</a></p>
+
+[Markdown]
+**参照[多段リンクA][ref-a]と[参照リンクB][ref-b]を含む通常[inline-one](https://example.com/inline-one)** と [inline-two](https://example.com/inline-two) と [参照リンクC][ref-c]
+
+[ref-a]: https://example.com/ref-a
+[ref-b]: https://example.com/ref-b
+[ref-c]: https://example.com/ref-c
+[HTML:false]
+<p><strong>参照<a href="https://example.com/ref-a">多段リンクA</a>と<a href="https://example.com/ref-b">参照リンクB</a>を含む通常<a href="https://example.com/inline-one">inline-one</a></strong> と <a href="https://example.com/inline-two">inline-two</a> と <a href="https://example.com/ref-c">参照リンクC</a></p>
+
+[Markdown]
+**段落一で[参照リンクD][ref-d]と[inline-three](https://example.com/inline-three)** を繋ぎ、[参照リンクE][ref-e]と[inline-four](https://example.com/inline-four)も続けます。
+
+**段落二でも[参照リンクF][ref-f]と[inline-five](https://example.com/inline-five)** を混在させ、[参照リンクG][ref-g]と[inline-six](https://example.com/inline-six)が登場します。
+
+[ref-d]: https://example.com/ref-d
+[ref-e]: https://example.com/ref-e
+[ref-f]: https://example.com/ref-f
+[ref-g]: https://example.com/ref-g
+[HTML:false]
+<p><strong>段落一で<a href="https://example.com/ref-d">参照リンクD</a>と<a href="https://example.com/inline-three">inline-three</a></strong> を繋ぎ、<a href="https://example.com/ref-e">参照リンクE</a>と<a href="https://example.com/inline-four">inline-four</a>も続けます。</p>
+<p><strong>段落二でも<a href="https://example.com/ref-f">参照リンクF</a>と<a href="https://example.com/inline-five">inline-five</a></strong> を混在させ、<a href="https://example.com/ref-g">参照リンクG</a>と<a href="https://example.com/inline-six">inline-six</a>が登場します。</p>
+
+[Markdown]
+**🐻‍❄️[北極参照][ref-polar]と[🐻‍❄️inline](https://example.com/bear-inline)** と [🐻‍❄️追加参照][ref-polar-extra]
+
+[ref-polar]: https://example.com/ref-polar
+[ref-polar-extra]: https://example.com/ref-polar-extra
+[HTML:false]
+<p><strong>🐻‍❄️<a href="https://example.com/ref-polar">北極参照</a>と<a href="https://example.com/bear-inline">🐻‍❄️inline</a></strong> と <a href="https://example.com/ref-polar-extra">🐻‍❄️追加参照</a></p>
+
+[Markdown]
+**崩れた[参照*リンクラベル][ref-star と [inline*link*broken](https://example.com/in*complete) と [urlwithstar](https://example.com/path*with) の組み合わせ**
+
+[ref-star]: https://example.com/ref*star
+[HTML:false]
+<p><strong>崩れた[参照<em>リンクラベル][ref-star と [inline</em>link<em>broken](https://example.com/in</em>complete) と <a href="https://example.com/path*with">urlwithstar</a> の組み合わせ</strong></p>
+
+[Markdown]
+[リンク内で *強調* と `*code*` と **太字** *終端*](https://example.com/foo*bar)の後ろに*補足*があります。
+[HTML]
+<p><a href="https://example.com/foo*bar">リンク内で <em>強調</em> と <code>*code*</code> と <strong>太字</strong> <em>終端</em></a>の後ろに<em>補足</em>があります。</p>
+
+[Markdown]
+[リンク内で *強調 と `code*` と **太字** *終端*](https://example.com/foo*bar)の後ろに*補足*があります。
+[HTML]
+<p><a href="https://example.com/foo*bar">リンク内で <em>強調 と <code>code*</code> と <strong>太字</strong> </em>終端*</a>の後ろに<em>補足</em>があります。</p>
+
+
+[Markdown]
+***<span>強調</span> [HTMLREF][]***
+
+[HTMLREF]: https://example.com/htmlref
+
+[HTML]
+<p><em><strong>&lt;span&gt;強調&lt;/span&gt; <a href="https://example.com/htmlref">HTMLREF</a></strong></em></p>
+[HTML:true]
+<p><em><strong><span>強調</span> <a href="https://example.com/htmlref">HTMLREF</a></strong></em></p>
+
+[Markdown]
+段落: [**参照
+`code`**][multi-ref] を確認。
+
+[multi-ref]: https://example.com/multi
+[HTML]
+<p>段落: <a href="https://example.com/multi"><strong>参照
+<code>code</code></strong></a> を確認。</p>
+
+[Markdown]
+*前置き<https://example.com/path>*あと
+[HTML]
+<p><em>前置き<a href="https://example.com/path">https://example.com/path</a></em>あと</p>
+
+[Markdown]
+なんとなく [*先行*][first-ref] を参照。
+
+[first-ref]: https://example.com/first
+
+次の段落で [**遅延**][second-ref] を参照。
+
+[second-ref]: https://example.com/second
+[HTML]
+<p>なんとなく <a href="https://example.com/first"><em>先行</em></a> を参照。</p>
+<p>次の段落で <a href="https://example.com/second"><strong>遅延</strong></a> を参照。</p>
+
+
