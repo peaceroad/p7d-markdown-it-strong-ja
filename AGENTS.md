@@ -11,7 +11,8 @@
    - 段落先頭で `__strongJaBackslashCache` / `__strongJaRefRangeCache` / `__strongJaInlineLinkRangeCache` をクリアし、`state.__strongJaReferenceCount` と `state.__strongJaHasCollapsedRefs` を更新する。  
    - markdown-it-attrs の末尾 `{.class}` を検出した場合は `max` を調整し、インライン処理対象から除外する。
 2. **参照範囲とインラインリンク範囲の検出**  
-   - `computeReferenceRanges` が `[label][key]` / `[label][]` を高速に走査し、参照が定義済みの区間だけを `refRanges` に保存。`findRefRangeIndex` は `refRanges.__cache` と `__lastIndexState` でメモ化する。  
+   - `state.__strongJaReferenceCount` が 0 の場合は参照定義が無いと見なし、`computeReferenceRanges` 呼び出しをスキップして不要な走査を抑える。  
+   - 参照定義がある場合のみ `computeReferenceRanges` が `[label][key]` / `[label][]` を高速に走査し、参照が定義済みの区間だけを `refRanges` に保存。`findRefRangeIndex` は `refRanges.__cache` と `__lastIndexState` でメモ化する。  
    - `computeInlineLinkRanges` は `[]()` のラベル/宛先ペアを抽出して `hasInlineLinkLabelCrossing` 判定に使う。
 3. **文字列から `inlines` を構築 (`createInlines`)**  
    - 1文字ずつ走査し、`*` 連続列・バックティック・ドル記法・HTML タグを専用ロジックでグルーピング。  
@@ -38,10 +39,7 @@
    - 後処理終了後に `__strongJaPostProcessTargets` / `__strongJaInlineLabelSources` などの作業用フラグを必ず破棄する。
 
 ## 最適化と補助関数
-- `splitBracketToken` は必要なテキストトークンのみ分割するため、1段落全量をコピーせずに済む。`convertInlineLinks` / `convertCollapsedReferenceLinks` のどちらでも再利用する。
-- 参照キー正規化は markdown-it 標準の `md.utils.normalizeReference` があればそれを使い、なければ大文字化＋空白圧縮で代替する。
-- `normalizeReferenceCandidate` は collapsed reference のラベル内に含まれる `*` / `_` を取り除き、マークアップに影響されないキーを生成する。結果は段落単位の `Map` にキャッシュし、同じラベルの正規化を繰り返さない。
-- `hasBackslash` / `findRefRangeIndex` / `findInlineLinkRange` などのホットパスは `Map` や `__lastIndexState` を併用し、同じ位置を何度も走査しない。
 - `coreRulesBeforePostprocess` の正規化は `Set` で一括重複排除し、初期化時のみ計算してランタイムコストを発生させない。
-- ベンチマークは `test/material/performance_compare.mjs` / `performance_final.mjs` で確認可能。
+- `normalizeReferenceCandidate` から呼ばれる正規化関数は `state.__strongJaNormalizeRef` にキャッシュし、毎回 `state.md.utils.normalizeReference` を辿らない。
+- `splitBracketToken` は一度分割したトークンに `__strongJaHasBracket` / `__strongJaBracketAtomic` を埋め込み、再走査が不要なケースを即座に判定する。
 

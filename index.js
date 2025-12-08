@@ -15,6 +15,10 @@ const CHAR_OPEN_BRACKET = 0x5B // [
 const CHAR_CLOSE_BRACKET = 0x5D // ]
 const CHAR_OPEN_PAREN = 0x28 // (
 const CHAR_CLOSE_PAREN = 0x29 // )
+const CHAR_NEWLINE = 0x0A     // \n
+const CHAR_TAB = 0x09        // tab
+//const CHAR_OPEN_CURLY = 0x7B // {
+const CHAR_CLOSE_CURLY = 0x7D // }
 
 const REG_ASTERISKS = /^\*+$/
 const REG_ATTRS = /{[^{}\n!@#%^&*()]+?}$/
@@ -1104,6 +1108,7 @@ const strongJa = (state, silent, opt) => {
   if (silent) return false
   const start = state.pos
   let max = state.posMax
+  const originalMax = max
   const src = state.src
   let attributesSrc
   if (start > max) return false
@@ -1114,23 +1119,40 @@ const strongJa = (state, silent, opt) => {
     state.__strongJaRefRangeCache = null
     state.__strongJaInlineLinkRangeCache = null
     state.__strongJaBackslashCache = undefined
-    state.__strongJaNormalizedRefCache = undefined
   }
 
   if (opt.mditAttrs) {
-    attributesSrc = src.match(/((\n)? *){([^{}\n!@#%^&*()]+?)} *$/)
-    if (attributesSrc && attributesSrc[3] !== '.') {
-      max = src.slice(0, attributesSrc.index).length
-      if (attributesSrc[2] === '\n') {
-        max = src.slice(0, attributesSrc.index - 1).length
+    let attrCandidate = false
+    let probe = originalMax - 1
+    while (probe >= start) {
+      const code = src.charCodeAt(probe)
+      if (code === CHAR_CLOSE_CURLY) {
+        attrCandidate = true
+        break
       }
-      if(hasBackslash(state, attributesSrc.index) && attributesSrc[2] === '' && attributesSrc[1].length === 0) {
-        max = state.posMax
+      if (code === CHAR_SPACE || code === CHAR_TAB || code === CHAR_NEWLINE) {
+        probe--
+        continue
       }
-    } else {
-      let endCurlyKet = src.match(/(\n *){([^{}\n!@#%^&*()]*?)}.*(} *?)$/)
-      if (endCurlyKet) {
-        max -= endCurlyKet[3].length
+      break
+    }
+
+    if (attrCandidate) {
+      const attrScanTarget = originalMax === src.length ? src : src.slice(0, originalMax)
+      attributesSrc = attrScanTarget.match(/((\n)? *){([^{}\n!@#%^&*()]+?)} *$/)
+      if (attributesSrc && attributesSrc[3] !== '.') {
+        max = attrScanTarget.slice(0, attributesSrc.index).length
+        if (attributesSrc[2] === '\n') {
+          max = attrScanTarget.slice(0, attributesSrc.index - 1).length
+        }
+        if (hasBackslash(state, attributesSrc.index) && attributesSrc[2] === '' && attributesSrc[1].length === 0) {
+          max = state.posMax
+        }
+      } else {
+        const endCurlyKet = attrScanTarget.match(/(\n *){([^{}\n!@#%^&*()]*?)}.*(} *?)$/)
+        if (endCurlyKet) {
+          max -= endCurlyKet[3].length
+        }
       }
     }
   }
@@ -1144,13 +1166,16 @@ const strongJa = (state, silent, opt) => {
     state.__strongJaReferenceCount = references ? Object.keys(references).length : 0
   }
 
-  let refRanges
-  const refCache = state.__strongJaRefRangeCache
-  if (refCache && refCache.max === max && refCache.start <= start) {
-    refRanges = refCache.ranges
-  } else {
-    refRanges = computeReferenceRanges(state, start, max)
-    state.__strongJaRefRangeCache = { start, max, ranges: refRanges }
+  let refRanges = []
+  const hasReferenceDefinitions = state.__strongJaReferenceCount > 0
+  if (hasReferenceDefinitions) {
+    const refCache = state.__strongJaRefRangeCache
+    if (refCache && refCache.max === max && refCache.start <= start) {
+      refRanges = refCache.ranges
+    } else {
+      refRanges = computeReferenceRanges(state, start, max)
+      state.__strongJaRefRangeCache = { start, max, ranges: refRanges }
+    }
   }
   if (refRanges.length > 0) {
     state.__strongJaHasCollapsedRefs = true
@@ -1240,27 +1265,21 @@ const cleanLabelText = (label) => {
 }
 
 const normalizeReferenceCandidate = (state, text, { useClean = false } = {}) => {
-  const cacheKeyPrefix = useClean ? '1:' : '0:'
-  const cacheKey = cacheKeyPrefix + text
-  let cache = state.__strongJaNormalizedRefCache
-  if (cache && cache.has(cacheKey)) {
-    return cache.get(cacheKey)
-  }
   const source = useClean ? cleanLabelText(text) : text.replace(/\s+/g, ' ').trim()
-  const normalized = normalizeRefKey(state, source)
-  if (cache) {
-    cache.set(cacheKey, normalized)
-  } else {
-    state.__strongJaNormalizedRefCache = new Map([[cacheKey, normalized]])
-  }
-  return normalized
+  return normalizeRefKey(state, source)
 }
 
-const normalizeRefKey = (state, label) => {
+const getNormalizeRef = (state) => {
+  if (state.__strongJaNormalizeRef) return state.__strongJaNormalizeRef
   const normalize = state.md && state.md.utils && state.md.utils.normalizeReference
     ? state.md.utils.normalizeReference
     : (str) => str.trim().replace(/\s+/g, ' ').toUpperCase()
-  return normalize(label)
+  state.__strongJaNormalizeRef = normalize
+  return normalize
+}
+
+const normalizeRefKey = (state, label) => {
+  return getNormalizeRef(state)(label)
 }
 
 const adjustTokenLevels = (tokens, startIdx, endIdx, delta) => {
@@ -1285,9 +1304,21 @@ const cloneTextToken = (source, content) => {
 const splitBracketToken = (tokens, index, options) => {
   const token = tokens[index]
   if (!token || token.type !== 'text') return false
+  if (token.__strongJaBracketAtomic) return false
+  if (token.__strongJaHasBracket === false) return false
   const content = token.content
-  if (!content || (content.indexOf('[') === -1 && content.indexOf(']') === -1)) {
+  if (!content) {
+    token.__strongJaHasBracket = false
+    token.__strongJaBracketAtomic = false
     return false
+  }
+  if (token.__strongJaHasBracket !== true) {
+    if (content.indexOf('[') === -1 && content.indexOf(']') === -1) {
+      token.__strongJaHasBracket = false
+      token.__strongJaBracketAtomic = false
+      return false
+    }
+    token.__strongJaHasBracket = true
   }
   const splitEmptyPair = options && options.splitEmptyPair
   const segments = []
@@ -1317,11 +1348,49 @@ const splitBracketToken = (tokens, index, options) => {
     pos++
   }
   if (buffer) segments.push(buffer)
-  if (segments.length <= 1) return false
+  if (segments.length <= 1) {
+    if (segments.length === 0) {
+      token.__strongJaHasBracket = false
+      token.__strongJaBracketAtomic = false
+    } else {
+      const seg = segments[0]
+      if (seg === '[' || seg === ']') {
+        token.__strongJaHasBracket = true
+        token.__strongJaBracketAtomic = true
+      } else if (seg === '[]') {
+        token.__strongJaHasBracket = true
+        token.__strongJaBracketAtomic = false
+      } else {
+        token.__strongJaHasBracket = false
+        token.__strongJaBracketAtomic = false
+      }
+    }
+    return false
+  }
   token.content = segments[0]
+  if (token.content === '[' || token.content === ']') {
+    token.__strongJaHasBracket = true
+    token.__strongJaBracketAtomic = true
+  } else if (token.content === '[]') {
+    token.__strongJaHasBracket = true
+    token.__strongJaBracketAtomic = false
+  } else {
+    token.__strongJaHasBracket = false
+    token.__strongJaBracketAtomic = false
+  }
   let insertIdx = index + 1
   for (let s = 1; s < segments.length; s++) {
     const newToken = cloneTextToken(token, segments[s])
+    if (segments[s] === '[' || segments[s] === ']') {
+      newToken.__strongJaHasBracket = true
+      newToken.__strongJaBracketAtomic = true
+    } else if (segments[s] === '[]') {
+      newToken.__strongJaHasBracket = true
+      newToken.__strongJaBracketAtomic = false
+    } else {
+      newToken.__strongJaHasBracket = false
+      newToken.__strongJaBracketAtomic = false
+    }
     tokens.splice(insertIdx, 0, newToken)
     insertIdx++
   }
@@ -1803,7 +1872,13 @@ const mditStrongJa = (md, option) => {
     coreRulesBeforePostprocess: [] // e.g. ['cjk_breaks'] when CJK line-break plugins are active
   }
   if (option) Object.assign(opt, option)
-  const coreRulesBeforePostprocess = normalizeCoreRulesBeforePostprocess(opt.coreRulesBeforePostprocess)
+  const rawCoreRules = opt.coreRulesBeforePostprocess
+  const hasCoreRuleConfig = Array.isArray(rawCoreRules)
+    ? rawCoreRules.length > 0
+    : !!rawCoreRules
+  const coreRulesBeforePostprocess = hasCoreRuleConfig
+    ? normalizeCoreRulesBeforePostprocess(rawCoreRules)
+    : []
 
   md.inline.ruler.before('emphasis', 'strong_ja', (state, silent) => {
     return strongJa(state, silent, opt)
@@ -1824,7 +1899,9 @@ const mditStrongJa = (md, option) => {
     delete state.env.__strongJaPostProcessTargetSet
   })
 
-  ensureCoreRuleOrder(md, coreRulesBeforePostprocess)
+  if (coreRulesBeforePostprocess.length > 0) {
+    ensureCoreRuleOrder(md, coreRulesBeforePostprocess)
+  }
 }
 
 export default mditStrongJa
