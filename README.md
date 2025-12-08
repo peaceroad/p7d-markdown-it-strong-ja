@@ -172,3 +172,18 @@ md.render('string**[text](url)**')
 // <p>string**<a href="url">text</a>**</p>
 ```
 
+### coreRulesBeforePostprocess
+
+`strong_ja_postprocess` runs inside the markdown-it core pipeline. When other plugins register core rules, you can keep their rules ahead of `strong_ja_postprocess` by listing them in `coreRulesBeforePostprocess`. Each name is normalized, deduplicated, and re-ordered once during plugin setup.
+
+```js
+const md = mdit()
+  .use(cjkBreaks)
+  .use(mditStrongJa, {
+    coreRulesBeforePostprocess: ['cjk_breaks', 'my_custom_rule']
+  })
+```
+
+- Default: `[]`
+- Specify `['cjk_breaks']` (or other rule names) when you rely on plugins such as `@peaceroad/markdown-it-cjk-breaks-mod` and need them to run first.
+- Pass an empty array if you do not want `mditStrongJa` to reorder any core rules.

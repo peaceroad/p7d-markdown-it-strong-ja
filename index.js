@@ -1114,6 +1114,7 @@ const strongJa = (state, silent, opt) => {
     state.__strongJaRefRangeCache = null
     state.__strongJaInlineLinkRangeCache = null
     state.__strongJaBackslashCache = undefined
+    state.__strongJaNormalizedRefCache = undefined
   }
 
   if (opt.mditAttrs) {
@@ -1239,8 +1240,20 @@ const cleanLabelText = (label) => {
 }
 
 const normalizeReferenceCandidate = (state, text, { useClean = false } = {}) => {
+  const cacheKeyPrefix = useClean ? '1:' : '0:'
+  const cacheKey = cacheKeyPrefix + text
+  let cache = state.__strongJaNormalizedRefCache
+  if (cache && cache.has(cacheKey)) {
+    return cache.get(cacheKey)
+  }
   const source = useClean ? cleanLabelText(text) : text.replace(/\s+/g, ' ').trim()
-  return normalizeRefKey(state, source)
+  const normalized = normalizeRefKey(state, source)
+  if (cache) {
+    cache.set(cacheKey, normalized)
+  } else {
+    state.__strongJaNormalizedRefCache = new Map([[cacheKey, normalized]])
+  }
+  return normalized
 }
 
 const normalizeRefKey = (state, label) => {
@@ -1787,8 +1800,10 @@ const mditStrongJa = (md, option) => {
     mditAttrs: true, //markdown-it-attrs
     mdBreaks: md.options.breaks,
     disallowMixed: false, //Non-Japanese text handling
+    coreRulesBeforePostprocess: [] // e.g. ['cjk_breaks'] when CJK line-break plugins are active
   }
   if (option) Object.assign(opt, option)
+  const coreRulesBeforePostprocess = normalizeCoreRulesBeforePostprocess(opt.coreRulesBeforePostprocess)
 
   md.inline.ruler.before('emphasis', 'strong_ja', (state, silent) => {
     return strongJa(state, silent, opt)
@@ -1808,6 +1823,52 @@ const mditStrongJa = (md, option) => {
     delete state.env.__strongJaPostProcessTargets
     delete state.env.__strongJaPostProcessTargetSet
   })
+
+  ensureCoreRuleOrder(md, coreRulesBeforePostprocess)
 }
 
 export default mditStrongJa
+
+
+function normalizeCoreRulesBeforePostprocess(value) {
+  if (!value) return []
+  const list = Array.isArray(value) ? value : [value]
+  const normalized = []
+  const seen = new Set()
+  for (let idx = 0; idx < list.length; idx++) {
+    const raw = list[idx]
+    if (typeof raw !== 'string') continue
+    const trimmed = raw.trim()
+    if (!trimmed || seen.has(trimmed)) continue
+    seen.add(trimmed)
+    normalized.push(trimmed)
+  }
+  return normalized
+}
+
+
+function ensureCoreRuleOrder(md, ruleNames) {
+  if (!md || !md.core || !md.core.ruler) return
+  if (!ruleNames || ruleNames.length === 0) return
+  for (let idx = 0; idx < ruleNames.length; idx++) {
+    moveRuleBefore(md.core.ruler, ruleNames[idx], 'strong_ja_postprocess')
+  }
+}
+
+
+function moveRuleBefore(ruler, ruleName, beforeName) {
+  if (!ruler || !ruler.__rules__) return
+  const rules = ruler.__rules__
+  let fromIdx = -1
+  let beforeIdx = -1
+  for (let idx = 0; idx < rules.length; idx++) {
+    if (rules[idx].name === ruleName) fromIdx = idx
+    if (rules[idx].name === beforeName) beforeIdx = idx
+    if (fromIdx !== -1 && beforeIdx !== -1) break
+  }
+  if (fromIdx === -1 || beforeIdx === -1 || fromIdx < beforeIdx) return
+
+  const rule = rules.splice(fromIdx, 1)[0]
+  rules.splice(beforeIdx, 0, rule)
+  ruler.__cache__ = null
+}

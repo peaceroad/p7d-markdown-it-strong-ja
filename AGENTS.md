@@ -4,6 +4,7 @@
 - エクスポートされる `mditStrongJa` は `strong_ja` インラインルールを `md.inline.ruler.before('emphasis')` に差し込み、markdown-it 標準の強調処理より前で日本語向け判定を実行する。
 - 同期オプション `dollarMath`, `mditAttrs`, `mdBreaks`, `disallowMixed` を1か所でまとめ、`strongJa` 内全体に渡す。
 - インライン処理の結果に collapsed reference もしくはインラインリンクの後処理が必要な場合のみ `registerPostProcessTarget` を呼び、`md.core.ruler.after('inline')` に登録した `strong_ja_postprocess` で対象段落を再訪する。
+- `coreRulesBeforePostprocess` はコアルール名の配列（デフォルトは空配列）を受け取り、`strong_ja_postprocess` より前に来るよう `moveRuleBefore` で一度だけ再配置する。CJK 改行系プラグインを使う場合は `['cjk_breaks']` などを指定する。
 
 ## インライン解析
 1. **事前初期化**  
@@ -39,7 +40,8 @@
 ## 最適化と補助関数
 - `splitBracketToken` は必要なテキストトークンのみ分割するため、1段落全量をコピーせずに済む。`convertInlineLinks` / `convertCollapsedReferenceLinks` のどちらでも再利用する。
 - 参照キー正規化は markdown-it 標準の `md.utils.normalizeReference` があればそれを使い、なければ大文字化＋空白圧縮で代替する。
-- `normalizeReferenceCandidate` は collapsed reference のラベル内に含まれる `*` / `_` を取り除き、マークアップに影響されないキーを生成する。
+- `normalizeReferenceCandidate` は collapsed reference のラベル内に含まれる `*` / `_` を取り除き、マークアップに影響されないキーを生成する。結果は段落単位の `Map` にキャッシュし、同じラベルの正規化を繰り返さない。
 - `hasBackslash` / `findRefRangeIndex` / `findInlineLinkRange` などのホットパスは `Map` や `__lastIndexState` を併用し、同じ位置を何度も走査しない。
+- `coreRulesBeforePostprocess` の正規化は `Set` で一括重複排除し、初期化時のみ計算してランタイムコストを発生させない。
 - ベンチマークは `test/material/performance_compare.mjs` / `performance_final.mjs` で確認可能。
 
