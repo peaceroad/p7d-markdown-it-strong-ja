@@ -1889,6 +1889,12 @@ const mditStrongJa = (md, option) => {
     if (!targets || targets.length === 0) return
     for (const tokens of targets) {
       if (!tokens || !tokens.length) continue
+      const hasBracketText = tokens.some((t) => t && t.type === 'text' && /[\[\]]/.test(t.content))
+      if (!hasBracketText) {
+        delete tokens.__strongJaInlineLabelSources
+        delete tokens.__strongJaInlineLabelIndex
+        continue
+      }
       convertInlineLinks(tokens, state)
       convertCollapsedReferenceLinks(tokens, state)
       mergeBrokenMarksAroundLinks(tokens)
