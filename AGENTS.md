@@ -31,9 +31,10 @@
 
 ## collapsed reference / インラインリンク後処理
 1. **ターゲット登録**  
-   - `state.__strongJaHasCollapsedRefs` または `state.__strongJaHasInlineLinks` が真になった段落だけ `registerPostProcessTarget` に積み、`WeakSet` で重複登録を防ぐ。
+   - `state.__strongJaHasCollapsedRefs` または `state.__strongJaHasInlineLinks` が真になった段落だけ `registerPostProcessTarget` に積み、`WeakSet` で重複登録を防ぐ（フラグは「見つかったら true」にするだけで false へは戻さない）。
 2. **`strong_ja_postprocess` の中身**  
-   - `convertInlineLinks` が `splitBracketToken` を利用しつつ `[label](dest)` 断片を `link_open/link_close` へ再構築し、必要に応じて `parseLinkDestination` / `parseLinkTitle` で URL・title を抽出する。  
+   - 対象段落に `[` / `]` を含む `text` トークンが無ければ、リンク・参照処理を丸ごとスキップする。  
+   - `convertInlineLinks` が `splitBracketToken` を利用しつつ `[label](dest)` 断片を `link_open/link_close` へ再構築し、必要に応じて `parseLinkDestination` / `parseLinkTitle` で URL・title を抽出する。`__strongJaInlineLabelSources` があればそれに従う。  
    - `convertCollapsedReferenceLinks` は `[label][]` / `[label][key]` を `state.env.references` で引き当て、存在するキーだけをアンカーに置き換える。既に `link_open` がある場合は再利用し、未定義参照はそのまま残す。  
    - ラベルラップ中に壊れた強調マークがあった場合は `mergeBrokenMarksAroundLinks` が `*_close → link → *_open` パターンを掃除する。  
    - 後処理終了後に `__strongJaPostProcessTargets` / `__strongJaInlineLabelSources` などの作業用フラグを必ず破棄する。
@@ -42,4 +43,3 @@
 - `coreRulesBeforePostprocess` の正規化は `Set` で一括重複排除し、初期化時のみ計算してランタイムコストを発生させない。
 - `normalizeReferenceCandidate` から呼ばれる正規化関数は `state.__strongJaNormalizeRef` にキャッシュし、毎回 `state.md.utils.normalizeReference` を辿らない。
 - `splitBracketToken` は一度分割したトークンに `__strongJaHasBracket` / `__strongJaBracketAtomic` を埋め込み、再走査が不要なケースを即座に判定する。
-
