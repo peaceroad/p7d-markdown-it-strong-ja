@@ -1,0 +1,18 @@
+[Markdown]
+**強調** こんにちは！
+World
+[HTML]
+<p><strong>強調</strong> こんにちは！ World</p>
+
+[Markdown]
+こんにちは！
+World
+{.jp}
+[HTML]
+<p class="jp">こんにちは！ World</p>
+
+[Markdown]
+**強調**{.s} こんにちは！
+World
+[HTML]
+<p><strong class="s">強調</strong> こんにちは！ World</p>

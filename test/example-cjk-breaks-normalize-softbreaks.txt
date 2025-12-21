@@ -1,0 +1,18 @@
+[Markdown]
+**漢**
+字
+[HTML]
+<p><strong>漢</strong>字</p>
+
+[Markdown]
+**漢**
+字
+{.jp}
+[HTML]
+<p class="jp"><strong>漢</strong>字</p>
+
+[Markdown]
+**漢**{.s}
+字
+[HTML]
+<p><strong class="s">漢</strong>字</p>

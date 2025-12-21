@@ -5,7 +5,7 @@ import url from 'url'
 
 import mdit from 'markdown-it'
 import mditAttrs from 'markdown-it-attrs'
-import mditCJKBreaks from '@sup39/markdown-it-cjk-breaks'
+import mditCJKBreaks from '@peaceroad/markdown-it-cjk-breaks-mod'
 import mditSemanticContainer from '@peaceroad/markdown-it-hr-sandwiched-semantic-container'
 import mditSub from 'markdown-it-sub'
 import mditSup from 'markdown-it-sup'
@@ -17,6 +17,10 @@ const md = mdit().use(mditStrongJa).use(mditAttrs).use(mditSemanticContainer)
 const mdWithHtml = mdit({html: true}).use(mditStrongJa).use(mditAttrs).use(mditSemanticContainer)
 const mdWithCJKBreaks = mdit().use(mditStrongJa).use(mditAttrs).use(mditCJKBreaks, {either: true})
 const mdWithCJKBreaksWithHtml = mdit({html: true}).use(mditStrongJa).use(mditAttrs).use(mditCJKBreaks, {either: true})
+const mdWithCJKBreaksSpaceHalf = mdit().use(mditStrongJa).use(mditAttrs).use(mditCJKBreaks, {spaceAfterPunctuation: 'half', either: true})
+const mdWithCJKBreaksSpaceHalfWithHtml = mdit({html: true}).use(mditStrongJa).use(mditAttrs).use(mditCJKBreaks, {spaceAfterPunctuation: 'half', either: true})
+const mdWithCJKBreaksNormalizeSoftBreaks = mdit().use(mditStrongJa).use(mditAttrs).use(mditCJKBreaks, {spaceAfterPunctuation: 'half', normalizeSoftBreaks: true, either: true})
+const mdWithCJKBreaksNormalizeSoftBreaksWithHtml = mdit({html: true}).use(mditStrongJa).use(mditAttrs).use(mditCJKBreaks, {spaceAfterPunctuation: 'half', normalizeSoftBreaks: true, either: true})
 
 const mdNoAttrsPlugin = mdit().use(mditStrongJa).use(mditSemanticContainer)
 const mdNoAttrsPluginWithHtml = mdit({html: true}).use(mditStrongJa).use(mditSemanticContainer)
@@ -158,6 +162,41 @@ const checkSupSub = (ms, example, allPass) => {
   return allPass
 }
 
+const checkWithCustomMd = (ms, example, allPass, mdPlain, mdHtml, label) => {
+  let n = 1
+  while (n < ms.length) {
+    const m = ms[n].markdown
+    const h = mdPlain.render(m)
+    try {
+      assert.strictEqual(h, ms[n].html)
+    } catch(e) {
+      console.log('Test [' + label + ', ' + n + ', HTML: false] >>>')
+      console.log('Input: ' + ms[n].markdown + '\nOutput: ' + h + 'Correct: ' + ms[n].html)
+      allPass = false
+    }
+    if (ms[n].htmlWithHtmlTrue) {
+      const hh = mdHtml.render(m)
+      try {
+        assert.strictEqual(hh, ms[n].htmlWithHtmlTrue)
+      } catch(e) {
+        console.log('Test [' + label + ', ' + n + ', HTML: true] >>>')
+        console.log('Input: ' + ms[n].markdown + '\nOutput: ' + hh + 'Correct: ' + ms[n].htmlWithHtmlTrue)
+        allPass = false
+      }
+    }
+    n++
+  }
+  return allPass
+}
+
+const checkCjkBreaksSpaceHalf = (ms, example, allPass) => {
+  return checkWithCustomMd(ms, example, allPass, mdWithCJKBreaksSpaceHalf, mdWithCJKBreaksSpaceHalfWithHtml, 'cjk-breaks-space-half')
+}
+
+const checkCjkBreaksNormalizeSoftBreaks = (ms, example, allPass) => {
+  return checkWithCustomMd(ms, example, allPass, mdWithCJKBreaksNormalizeSoftBreaks, mdWithCJKBreaksNormalizeSoftBreaksWithHtml, 'cjk-breaks-normalize-softbreaks')
+}
+
 const checkNoAttrsPlugin = (ms, example, allPass) => {
   let n = 1
   while (n < ms.length) {
@@ -215,6 +254,14 @@ const examplesSupSub = {
   supSub: __dirname + '/example-sup-sub.txt',
 }
 
+const examplesCjkBreaksSpaceHalf = {
+  cjkBreaksSpaceHalf: __dirname + '/example-cjk-breaks-space-half.txt',
+}
+
+const examplesCjkBreaksNormalizeSoftBreaks = {
+  cjkBreaksNormalizeSoftBreaks: __dirname + '/example-cjk-breaks-normalize-softbreaks.txt',
+}
+
 const runTests = (examples, checkFunction, useAttrs) => {
   let allPass = true
   for (let example in examples) {
@@ -249,6 +296,8 @@ const runTests = (examples, checkFunction, useAttrs) => {
 let allPass = runTests(examples, check, true)
 allPass = runTests(examplesDisallowMixed, checkDisallowMixed, true) && allPass
 allPass = runTests(examplesSupSub, checkSupSub, true) && allPass
+allPass = runTests(examplesCjkBreaksSpaceHalf, checkCjkBreaksSpaceHalf, true) && allPass
+allPass = runTests(examplesCjkBreaksNormalizeSoftBreaks, checkCjkBreaksNormalizeSoftBreaks, true) && allPass
 allPass = runTests(examplesNoAttrsPlugin, checkNoAttrsPlugin, true) && allPass
 allPass = runTests(examplesMditNoAttrs, check, false) && allPass
 allPass = runTests(examplesMditBreaks, checkBreaks, false) && allPass
