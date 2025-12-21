@@ -349,7 +349,7 @@ const isAllAsterisks = (content) => {
 function isPlainTextContent(content) {
   for (let idx = 0; idx < content.length; idx++) {
     const code = content.charCodeAt(idx)
-    if (code === CHAR_BACKSLASH || code === CHAR_NEWLINE || code === CHAR_TAB || code === 0x0D) {
+    if (code === CHAR_BACKSLASH || code === CHAR_NEWLINE || code === CHAR_TAB) {
       return false
     }
     if (code < 128 && isAsciiPunctuationCode(code)) return false
@@ -909,7 +909,7 @@ const hasPunctuationOrNonJapanese = (state, inlines, n, i, opt, refRanges, hasRe
   }
   const closeNextChar = src[inlines[i].e + 1] || ''
   const isLastInline = i === inlines.length - 1
-  const checkCloseNextChar = isLastInline || isPunctuation(closeNextChar)
+  const checkCloseNextChar = isLastInline || isPunctuation(closeNextChar) || closeNextChar === '\n'
 
   if (opt.disallowMixed === false) {
     if (isEnglish(openPrevChar) || isEnglish(closeNextChar)) {

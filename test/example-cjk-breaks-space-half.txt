@@ -5,6 +5,18 @@ World
 <p><strong>強調</strong> こんにちは！ World</p>
 
 [Markdown]
+**Hello!?**
+漢
+[HTML]
+<p><strong>Hello!?</strong> 漢</p>
+
+[Markdown]
+*Hello!?*
+漢
+[HTML]
+<p><em>Hello!?</em> 漢</p>
+
+[Markdown]
 こんにちは！
 World
 {.jp}

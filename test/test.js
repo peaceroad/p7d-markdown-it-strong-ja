@@ -262,6 +262,10 @@ const examplesCjkBreaksNormalizeSoftBreaks = {
   cjkBreaksNormalizeSoftBreaks: __dirname + '/example-cjk-breaks-normalize-softbreaks.txt',
 }
 
+const examplesCjkBreaksCrlf = {
+  cjkBreaksCrlf: __dirname + '/example-cjk-breaks-crlf.txt',
+}
+
 const runTests = (examples, checkFunction, useAttrs) => {
   let allPass = true
   for (let example in examples) {
@@ -293,11 +297,46 @@ const runTests = (examples, checkFunction, useAttrs) => {
   return allPass
 }
 
+const runTestsCrlf = (examples, checkFunction, useAttrs) => {
+  let allPass = true
+  for (let example in examples) {
+    const exampleCont = fs.readFileSync(examples[example], 'utf-8')
+    let ms = []
+    let ms0 = exampleCont.split(/(?:^|(?:\r\n)+)\[Markdown[^\]]*?\]\r\n/)
+    let n = 1
+    while (n < ms0.length) {
+      let mhs = ms0[n].split(/(?:\r\n)+\[HTML[^\]]*?\]\r\n/)
+      let i = 1
+      while (i < 3) {
+        if (mhs[i] === undefined) {
+          mhs[i] = ''
+        } else {
+          mhs[i] = mhs[i].replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+          mhs[i] = mhs[i].replace(/\n+$/, '')
+          mhs[i] = mhs[i].replace(/$/,'\n')
+        }
+        i++
+      }
+      ms[n] = {
+        markdown: mhs[0],
+        html: mhs[1],
+        htmlWithHtmlTrue: mhs[2],
+      }
+      n++
+    }
+    console.log('Check ' + example + ' process [mditAttrs: ' + useAttrs + '] =======================')
+    allPass = checkFunction(ms, example, allPass, useAttrs)
+  }
+  return allPass
+}
+
 let allPass = runTests(examples, check, true)
 allPass = runTests(examplesDisallowMixed, checkDisallowMixed, true) && allPass
 allPass = runTests(examplesSupSub, checkSupSub, true) && allPass
 allPass = runTests(examplesCjkBreaksSpaceHalf, checkCjkBreaksSpaceHalf, true) && allPass
 allPass = runTests(examplesCjkBreaksNormalizeSoftBreaks, checkCjkBreaksNormalizeSoftBreaks, true) && allPass
+allPass = runTestsCrlf(examplesCjkBreaksCrlf, checkCjkBreaksSpaceHalf, true) && allPass
+allPass = runTestsCrlf(examplesCjkBreaksCrlf, checkCjkBreaksNormalizeSoftBreaks, true) && allPass
 allPass = runTests(examplesNoAttrsPlugin, checkNoAttrsPlugin, true) && allPass
 allPass = runTests(examplesMditNoAttrs, check, false) && allPass
 allPass = runTests(examplesMditBreaks, checkBreaks, false) && allPass

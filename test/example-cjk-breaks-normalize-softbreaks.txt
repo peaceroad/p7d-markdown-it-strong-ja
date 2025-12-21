@@ -5,6 +5,18 @@
 <p><strong>漢</strong>字</p>
 
 [Markdown]
+**Hello!?**
+漢
+[HTML]
+<p><strong>Hello!?</strong> 漢</p>
+
+[Markdown]
+*Hello!?*
+漢
+[HTML]
+<p><em>Hello!?</em> 漢</p>
+
+[Markdown]
 **漢**
 字
 {.jp}

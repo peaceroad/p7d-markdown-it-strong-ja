@@ -9,6 +9,27 @@ HTMLは***「HyperText Markup Language」***の略です。
 [HTML]
 <p>HTMLは<em><strong>「HyperText Markup Language」</strong></em>の略です。</p>
 
+[Markdown]
+***Hello!?***
+漢
+[HTML]
+<p><em><strong>Hello!?</strong></em>
+漢</p>
+
+[Markdown]
+***こんにちは***
+漢
+[HTML]
+<p><em><strong>こんにちは</strong></em>
+漢</p>
+
+[Markdown]
+***Hello***
+***こんにちは***
+[HTML]
+<p><em><strong>Hello</strong></em>
+<em><strong>こんにちは</strong></em></p>
+
 
 [Markdown]
 HTMLは「****HyperText Markup Language****」の略です。
@@ -1182,5 +1203,3 @@ A [**para**][pa]graph.
 [HTML]
 <p>なんとなく <a href="https://example.com/first"><em>先行</em></a> を参照。</p>
 <p>次の段落で <a href="https://example.com/second"><strong>遅延</strong></a> を参照。</p>
-
-

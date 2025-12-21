@@ -1,0 +1,11 @@
+[Markdown]
+**Hello!?**
+漢
+[HTML]
+<p><strong>Hello!?</strong> 漢</p>
+
+[Markdown]
+*こんにちは*
+漢
+[HTML]
+<p><em>こんにちは</em>漢</p>
