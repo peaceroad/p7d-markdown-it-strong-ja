@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "@peaceroad/markdown-it-cjk-breaks-mod": "^0.1.1",
-    "@peaceroad/markdown-it-hr-sandwiched-semantic-container": "^0.7.0",
+    "@peaceroad/markdown-it-hr-sandwiched-semantic-container": "^0.8.0",
     "markdown-it-attrs": "^4.3.1",
     "markdown-it-sub": "^2.0.0",
     "markdown-it-sup": "^2.0.0"
