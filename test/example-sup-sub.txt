@@ -1,0 +1,14 @@
+[Markdown]
+**aaa^aaa^aaaa**
+[HTML]
+<p><strong>aaa<sup>aaa</sup>aaaa</strong></p>
+
+[Markdown]
+aaaa~aaaa~eee
+[HTML]
+<p>aaaa<sub>aaaa</sub>eee</p>
+
+[Markdown]
+**mix~sub~text**
+[HTML]
+<p><strong>mix<sub>sub</sub>text</strong></p>

@@ -7,6 +7,8 @@ import mdit from 'markdown-it'
 import mditAttrs from 'markdown-it-attrs'
 import mditCJKBreaks from '@sup39/markdown-it-cjk-breaks'
 import mditSemanticContainer from '@peaceroad/markdown-it-hr-sandwiched-semantic-container'
+import mditSub from 'markdown-it-sub'
+import mditSup from 'markdown-it-sup'
 import mditStrongJa from '../index.js'
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url)).replace(/\\/g, '/')
@@ -15,6 +17,9 @@ const md = mdit().use(mditStrongJa).use(mditAttrs).use(mditSemanticContainer)
 const mdWithHtml = mdit({html: true}).use(mditStrongJa).use(mditAttrs).use(mditSemanticContainer)
 const mdWithCJKBreaks = mdit().use(mditStrongJa).use(mditAttrs).use(mditCJKBreaks, {either: true})
 const mdWithCJKBreaksWithHtml = mdit({html: true}).use(mditStrongJa).use(mditAttrs).use(mditCJKBreaks, {either: true})
+
+const mdNoAttrsPlugin = mdit().use(mditStrongJa).use(mditSemanticContainer)
+const mdNoAttrsPluginWithHtml = mdit({html: true}).use(mditStrongJa).use(mditSemanticContainer)
 
 const mditNoAttrs = mdit().use(mditStrongJa, {mditAttrs: false}).use(mditSemanticContainer)
 const mditNoAttrsWithHtml = mdit({html: true}).use(mditStrongJa, {mditAttrs: false}).use(mditSemanticContainer)
@@ -29,6 +34,9 @@ const mdDisallowMixed = mdit().use(mditStrongJa, {disallowMixed: true}).use(mdit
 const mdDisallowMixedWithHtml = mdit({html: true}).use(mditStrongJa, {disallowMixed: true}).use(mditAttrs)
 const mditNoAttrsDisallowMixed = mdit().use(mditStrongJa, {mditAttrs: false, disallowMixed: true})
 const mditNoAttrsDisallowMixedWithHtml = mdit({html: true}).use(mditStrongJa, {mditAttrs: false, disallowMixed: true})
+
+const mdSupSub = mdit().use(mditStrongJa).use(mditAttrs).use(mditSemanticContainer).use(mditSup).use(mditSub)
+const mdSupSubWithHtml = mdit({html: true}).use(mditStrongJa).use(mditAttrs).use(mditSemanticContainer).use(mditSup).use(mditSub)
 
 const check = (ms, example, allPass, useAttrs) => {
   let n = 1
@@ -123,6 +131,60 @@ const checkDisallowMixed = (ms, example, allPass, useAttrs) => {
   return allPass
 }
 
+const checkSupSub = (ms, example, allPass) => {
+  let n = 1
+  while (n < ms.length) {
+    const m = ms[n].markdown
+    const h = mdSupSub.render(m)
+    try {
+      assert.strictEqual(h, ms[n].html)
+    } catch(e) {
+      console.log('Test [sup/sub, ' + n + ', HTML: false] >>>')
+      console.log('Input: ' + ms[n].markdown + '\nOutput: ' + h + 'Correct: ' + ms[n].html)
+      allPass = false
+    }
+    if (ms[n].htmlWithHtmlTrue) {
+      const hh = mdSupSubWithHtml.render(m)
+      try {
+        assert.strictEqual(hh, ms[n].htmlWithHtmlTrue)
+      } catch(e) {
+        console.log('Test [sup/sub, ' + n + ', HTML: true] >>>')
+        console.log('Input: ' + ms[n].markdown + '\nOutput: ' + hh + 'Correct: ' + ms[n].htmlWithHtmlTrue)
+        allPass = false
+      }
+    }
+    n++
+  }
+  return allPass
+}
+
+const checkNoAttrsPlugin = (ms, example, allPass) => {
+  let n = 1
+  while (n < ms.length) {
+    const m = ms[n].markdown
+    const h = mdNoAttrsPlugin.render(m)
+    try {
+      assert.strictEqual(h, ms[n].html)
+    } catch(e) {
+      console.log('Test [no attrs plugin, ' + n + ', HTML: false] >>>')
+      console.log('Input: ' + ms[n].markdown + '\nOutput: ' + h + 'Correct: ' + ms[n].html)
+      allPass = false
+    }
+    if (ms[n].htmlWithHtmlTrue) {
+      const hh = mdNoAttrsPluginWithHtml.render(m)
+      try {
+        assert.strictEqual(hh, ms[n].htmlWithHtmlTrue)
+      } catch(e) {
+        console.log('Test [no attrs plugin, ' + n + ', HTML: true] >>>')
+        console.log('Input: ' + ms[n].markdown + '\nOutput: ' + hh + 'Correct: ' + ms[n].htmlWithHtmlTrue)
+        allPass = false
+      }
+    }
+    n++
+  }
+  return allPass
+}
+
 const examples = {
   strong: __dirname + '/example-strong.txt',
   em: __dirname + '/example-em.txt',
@@ -143,6 +205,14 @@ const examplesMditBreaks = {
 
 const examplesDisallowMixed = {
   disallowMixed: __dirname + '/example-disallow-mixed.txt',
+}
+
+const examplesNoAttrsPlugin = {
+  noAttrsPlugin: __dirname + '/example-no-attrs-plugin.txt',
+}
+
+const examplesSupSub = {
+  supSub: __dirname + '/example-sup-sub.txt',
 }
 
 const runTests = (examples, checkFunction, useAttrs) => {
@@ -178,6 +248,8 @@ const runTests = (examples, checkFunction, useAttrs) => {
 
 let allPass = runTests(examples, check, true)
 allPass = runTests(examplesDisallowMixed, checkDisallowMixed, true) && allPass
+allPass = runTests(examplesSupSub, checkSupSub, true) && allPass
+allPass = runTests(examplesNoAttrsPlugin, checkNoAttrsPlugin, true) && allPass
 allPass = runTests(examplesMditNoAttrs, check, false) && allPass
 allPass = runTests(examplesMditBreaks, checkBreaks, false) && allPass
 allPass = runTests(examplesDisallowMixed, checkDisallowMixed, false) && allPass

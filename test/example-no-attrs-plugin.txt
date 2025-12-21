@@ -1,0 +1,14 @@
+[Markdown]
+**a** {.c}
+[HTML]
+<p><strong>a</strong> {.c}</p>
+
+[Markdown]
+*a* {.c}
+[HTML]
+<p><em>a</em> {.c}</p>
+
+[Markdown]
+**a**{.c}
+[HTML]
+<p><strong>a</strong>{.c}</p>
