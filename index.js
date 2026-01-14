@@ -293,16 +293,7 @@ const findInlineLinkRange = (pos, ranges, kind) => {
 }
 
 const copyInlineTokenFields = (dest, src) => {
-  if (src.attrs) dest.attrs = src.attrs
-  if (src.map) dest.map = src.map
-  dest.level = src.level
-  if (src.children) dest.children = src.children
-  dest.content = src.content
-  dest.markup = src.markup
-  if (src.info) dest.info = src.info
-  if (src.meta) dest.meta = src.meta
-  dest.block = src.block
-  dest.hidden = src.hidden
+  Object.assign(dest, src)
 }
 
 const registerPostProcessTarget = (state) => {
@@ -352,13 +343,49 @@ function isPlainTextContent(content) {
     if (code === CHAR_BACKSLASH || code === CHAR_NEWLINE || code === CHAR_TAB) {
       return false
     }
-    if (code < 128 && isAsciiPunctuationCode(code)) return false
+    if (code === CHAR_BACKTICK || code === CHAR_DOLLAR || code === CHAR_LT || code === CHAR_GT) {
+      return false
+    }
+    if (code === CHAR_OPEN_BRACKET || code === CHAR_CLOSE_BRACKET || code === CHAR_OPEN_PAREN || code === CHAR_CLOSE_PAREN) {
+      return false
+    }
+    if (code === 0x5E || code === 0x7E) {
+      return false
+    }
   }
   return true
 }
 
+// Cache newline positions for lightweight map generation
+const getLineOffsets = (state) => {
+  if (state.__strongJaLineOffsets) return state.__strongJaLineOffsets
+  const offsets = []
+  const src = state.src || ''
+  for (let i = 0; i < src.length; i++) {
+    if (src.charCodeAt(i) === CHAR_NEWLINE) offsets.push(i)
+  }
+  state.__strongJaLineOffsets = offsets
+  return offsets
+}
+
+const createLineMapper = (state) => {
+  const offsets = getLineOffsets(state)
+  let idx = 0
+  const maxIdx = offsets.length
+  return (startPos, endPos) => {
+    const start = startPos === undefined || startPos === null ? 0 : startPos
+    const end = endPos === undefined || endPos === null ? start : endPos
+    while (idx < maxIdx && offsets[idx] < start) idx++
+    const startLine = idx
+    let endIdx = idx
+    while (endIdx < maxIdx && offsets[endIdx] < end) endIdx++
+    return [startLine, endIdx]
+  }
+}
+
 const setToken = (state, inlines, opt, attrsEnabled) => {
   const src = state.src
+  const mapFromPos = createLineMapper(state)
   let i = 0
   let attrsIsText = false
   let attrsIsTextTag = ''
@@ -378,6 +405,7 @@ const setToken = (state, inlines, opt, attrsEnabled) => {
     if (isOpen) {
       const startToken = state.push(type, tag, 1)
       startToken.markup = tag === 'strong' ? '**' : '*'
+      startToken.map = mapFromPos(inlines[i].s, inlines[i].e)
       attrsIsText = true
       attrsIsTextTag = tag
     }
@@ -391,6 +419,7 @@ const setToken = (state, inlines, opt, attrsEnabled) => {
         if (isAllAsterisks(content)) {
           const asteriskToken = state.push(type, '', 0)
           asteriskToken.content = content
+          asteriskToken.map = mapFromPos(inlines[i].s, inlines[i].e)
           i++
           continue
         }
@@ -422,6 +451,7 @@ const setToken = (state, inlines, opt, attrsEnabled) => {
           }
           attrsIsText = false
           attrsIsTextTag = ''
+          attrsToken.map = mapFromPos(inlines[i].s, inlines[i].e)
           i++
           continue
         }
@@ -429,27 +459,31 @@ const setToken = (state, inlines, opt, attrsEnabled) => {
       if (isPlainTextContent(content)) {
         const textToken = state.push(type, '', 0)
         textToken.content = content
+          textToken.map = mapFromPos(inlines[i].s, inlines[i].e)
         i++
         continue
       }
 
       const childTokens = state.md.parseInline(content, state.env)
-      if (childTokens[0] && childTokens[0].children) {
-        let j = 0
-        while (j < childTokens[0].children.length) {
-          const t = childTokens[0].children[j]
-          if (t.type === 'softbreak' && !opt.mdBreaks) {
-            t.type = 'text'
-            t.tag = ''
-            t.content = '\n'
+      for (let k = 0; k < childTokens.length; k++) {
+        const parentToken = childTokens[k]
+        if (parentToken && parentToken.children) {
+          let j = 0
+          while (j < parentToken.children.length) {
+            const t = parentToken.children[j]
+            if (t.type === 'softbreak' && !opt.mdBreaks) {
+              t.type = 'text'
+              t.tag = ''
+              t.content = '\n'
+            }
+            if (!attrsEnabled && t.tag === 'br') {
+              t.tag = ''
+              t.content = '\n'
+            }
+            const token = state.push(t.type, t.tag, t.nesting)
+            copyInlineTokenFields(token, t)
+            j++
           }
-          if (!attrsEnabled && t.tag === 'br') {
-            t.tag = ''
-            t.content = '\n'
-          }
-          const token = state.push(t.type, t.tag, t.nesting)
-          copyInlineTokenFields(token, t)
-          j++
         }
       }
     }
@@ -457,6 +491,7 @@ const setToken = (state, inlines, opt, attrsEnabled) => {
     if (isClose) {
       const closeToken = state.push(type, tag, -1)
       closeToken.markup = tag === 'strong' ? '**' : '*'
+      closeToken.map = mapFromPos(inlines[i].s, inlines[i].e)
       attrsIsText = false
       attrsIsTextTag = ''
     }
@@ -1375,13 +1410,10 @@ const adjustTokenLevels = (tokens, startIdx, endIdx, delta) => {
 
 const cloneTextToken = (source, content) => {
   const newToken = new Token('text', '', 0)
+  Object.assign(newToken, source)
   newToken.content = content
-  newToken.level = source.level
-  newToken.markup = source.markup
-  newToken.info = source.info
-  newToken.meta = source.meta ? {...source.meta} : null
-  newToken.block = source.block
-  newToken.hidden = source.hidden
+  if (source.meta) newToken.meta = { ...source.meta }
+  if (source.map) newToken.map = source.map
   return newToken
 }
 
