@@ -9,27 +9,6 @@ HTMLは**「HyperText Markup Language」**の略です。
 [HTML]
 <p>HTMLは<strong>「HyperText Markup Language」</strong>の略です。</p>
 
-[Markdown]
-**Hello!?**
-漢
-[HTML]
-<p><strong>Hello!?</strong>
-漢</p>
-
-[Markdown]
-**こんにちは**
-漢
-[HTML]
-<p><strong>こんにちは</strong>
-漢</p>
-
-[Markdown]
-**Hello**
-**こんにちは**
-[HTML]
-<p><strong>Hello</strong>
-<strong>こんにちは</strong></p>
-
 
 [Markdown]
 HTMLは**「HyperText *Markup* Language」**の略です。
@@ -220,6 +199,27 @@ HTMLは[**「HyperText Markup Language」**][]です。
 <p>HTMLは<a href="https://example.com/"><strong>「HyperText Markup Language」</strong></a>です。</p>
 
 [Markdown]
+aaa<em>*bbb*</em>ccc
+[HTML:false]
+<p>aaa&lt;em&gt;<em>bbb</em>&lt;/em&gt;ccc</p>
+[HTML:true]
+<p>aaa<em><em>bbb</em></em>ccc</p>
+
+[Markdown]
+<***aa***\>
+[HTML:false]
+<p>&lt;<em><strong>aa</strong></em>&gt;</p>
+[HTML:true]
+<p>&lt;<em><strong>aa</strong></em>&gt;</p>
+
+[Markdown]
+\<***aa***>
+[HTML:false]
+<p>&lt;<em><strong>aa</strong></em>&gt;</p>
+[HTML:true]
+<p>&lt;<em><strong>aa</strong></em>&gt;</p>
+
+[Markdown]
 - HTMLは**「Hyper[Text](https://example.com/) Markup Language」**
 [HTML]
 <ul>
@@ -236,3 +236,33 @@ aaa><aaa
 aaa&lt;/&gt;aaa
 [HTML]
 <p>aaa&lt;/&gt;aaa</p>
+
+
+[Markdown]
+前文**強調**、途中で[**参照リンク**][ref-ja]を挟み、最後は**読点。**
+
+[ref-ja]: https://example.com/ja
+[HTML]
+<p>前文<strong>強調</strong>、途中で<a href="https://example.com/ja"><strong>参照リンク</strong></a>を挟み、最後は<strong>読点。</strong></p>
+
+
+[Markdown]
+和文**`コード`と[インライン](https://example.com/code)混在**テスト
+[HTML]
+<p>和文<strong><code>コード</code>と<a href="https://example.com/code">インライン</a>混在</strong>テスト</p>
+
+
+[Markdown]
+「**改行をまたぐ
+強調表現**の確認」
+[HTML]
+<p>「<strong>改行をまたぐ
+強調表現</strong>の確認」</p>
+
+
+[Markdown]
+箇条書き風ですが**(注釈)【重要】**を連続で強調します。
+[HTML]
+<p>箇条書き風ですが<strong>(注釈)【重要】</strong>を連続で強調します。</p>
+
+

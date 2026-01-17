@@ -197,7 +197,7 @@ a<span>b*c</span>d*e*f
 [HTML]
 <p>a&lt;span&gt;b<em>c&lt;/span&gt;d</em>e*f</p>
 [HTML:true]
-<p>a<span>b*c</span>d<em>e</em>f</p>
+<p>a<span>b<em>c</span>d</em>e*f</p>
 
 [Markdown]
 a*a<span>b</span>c*c
@@ -343,9 +343,9 @@ b<span>c</span>*
 [Markdown]
 ***<span>a</span>*b*
 [HTML]
-<p>*<em><em>&lt;span&gt;a&lt;/span&gt;</em>b</em></p>
+<p>***&lt;span&gt;a&lt;/span&gt;<em>b</em></p>
 [HTML: true]
-<p>*<em><em><span>a</span></em>b</em></p>
+<p>***<span>a</span><em>b</em></p>
 
 
 [Markdown]
@@ -483,7 +483,7 @@ e*z<span> *a*b*
 [Markdown]
 a**`b`**a
 [HTML:false :: markdown-it default: <p>a**<code>b</code>**a</p>]
-<p>a<strong><code>b</code></strong>a</p>
+<p>a**<code>b</code>**a</p>
 
 [Markdown]
 a(**`b`**)a
@@ -514,12 +514,12 @@ a(**`b`**)a
 [Markdown]
 string**[text](url)**
 [HTML:false :: markdown-it default: <p>string**<a href="url">text</a>**</p>]
-<p>string<strong><a href="url">text</a></strong></p>
+<p>string**<a href="url">text</a>**</p>
 
 [Markdown]
 **[text](url)**string
 [HTML:false :: markdown-it default: <p>**<a href="url">text</a>**string</p>]
-<p><strong><a href="url">text</a></strong>string</p>
+<p>**<a href="url">text</a>**string</p>
 
 [Markdown]
 ああ**[text](url)**
@@ -542,16 +542,16 @@ string**[text](url)**
 [Markdown]
 string**<span>text</span>**
 [HTML:false :: markdown-it default: <p>string**&lt;span&gt;text&lt;/span&gt;**</p>]
-<p>string<strong>&lt;span&gt;text&lt;/span&gt;</strong></p>
+<p>string**&lt;span&gt;text&lt;/span&gt;**</p>
 [HTML:true :: markdown-it default: <p>string**<span>text</span>**</p>]
-<p>string<strong><span>text</span></strong></p>
+<p>string**<span>text</span>**</p>
 
 [Markdown]
 **<span>text</span>**string
 [HTML:false :: markdown-it default: <p>**&lt;span&gt;text&lt;/span&gt;**string</p>]
-<p><strong>&lt;span&gt;text&lt;/span&gt;</strong>string</p>
+<p>**&lt;span&gt;text&lt;/span&gt;**string</p>
 [HTML:true :: markdown-it default: <p>**<span>text</span>**string</p>]
-<p><strong><span>text</span></strong>string</p>
+<p>**<span>text</span>**string</p>
 
 [Markdown]
 ああ**<span>text</span>**
@@ -581,12 +581,12 @@ string**<span>text</span>**
 [Markdown]
 string*[text](url)*
 [HTML:false]
-<p>string<em><a href="url">text</a></em></p>
+<p>string*<a href="url">text</a>*</p>
 
 [Markdown]
 *[text](url)*string
 [HTML:false]
-<p><em><a href="url">text</a></em>string</p>
+<p>*<a href="url">text</a>*string</p>
 
 [Markdown]
 ああ*[text](url)*いい
@@ -603,23 +603,23 @@ string*[text](url)*
 [Markdown]
 string*<span>text</span>*
 [HTML:false]
-<p>string<em>&lt;span&gt;text&lt;/span&gt;</em></p>
+<p>string*&lt;span&gt;text&lt;/span&gt;*</p>
 [HTML:true]
-<p>string<em><span>text</span></em></p>
+<p>string*<span>text</span>*</p>
 
 [Markdown]
 *<span>text</span>*string
 [HTML:false]
-<p><em>&lt;span&gt;text&lt;/span&gt;</em>string</p>
+<p>*&lt;span&gt;text&lt;/span&gt;*string</p>
 [HTML:true]
-<p><em><span>text</span></em>string</p>
+<p>*<span>text</span>*string</p>
 
 [Markdown]
 *`text`*string
 [HTML:false]
-<p><em><code>text</code></em>string</p>
+<p>*<code>text</code>*string</p>
 [HTML:true]
-<p><em><code>text</code></em>string</p>
+<p>*<code>text</code>*string</p>
 
 [Markdown]
 *`text`*いい
@@ -631,7 +631,7 @@ string*<span>text</span>*
 [Markdown]
 a*`b`*a
 [HTML:false]
-<p>a<em><code>b</code></em>a</p>
+<p>a*<code>b</code>*a</p>
 
 [Markdown]
 テストは「[**Text**][]と[**More**][]」です。
@@ -1070,5 +1070,33 @@ A [**para**][pa]graph.
 [HTML]
 <p>なんとなく <a href="https://example.com/first"><em>先行</em></a> を参照。</p>
 <p>次の段落で <a href="https://example.com/second"><strong>遅延</strong></a> を参照。</p>
+
+
+[Markdown]
+和文***リンクと`コード`***をまとめて強調します。
+[HTML]
+<p>和文<em><strong>リンクと<code>コード</code></strong></em>をまとめて強調します。</p>
+
+
+[Markdown]
+資料は[***公式ドキュメント***][docs-ja]を参照してください。
+
+[docs-ja]: https://example.com/docs/ja
+[HTML]
+<p>資料は<a href="https://example.com/docs/ja"><em><strong>公式ドキュメント</strong></em></a>を参照してください。</p>
+
+
+[Markdown]
+「***改行をまたぐ
+強調の検証***と*入れ子*を組み合わせる。」
+[HTML]
+<p>「<em><strong>改行をまたぐ
+強調の検証</strong></em>と<em>入れ子</em>を組み合わせる。」</p>
+
+
+[Markdown]
+前後に句読点***、強調対象、***を含めるテスト。
+[HTML]
+<p>前後に句読点<em><strong>、強調対象、</strong></em>を含めるテスト。</p>
 
 

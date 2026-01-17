@@ -8,23 +8,35 @@ World
 **Hello!?**
 漢
 [HTML]
-<p><strong>Hello!?</strong> 漢</p>
+<p><strong>Hello!?</strong>
+漢</p>
 
 [Markdown]
 *Hello!?*
 漢
 [HTML]
-<p><em>Hello!?</em> 漢</p>
+<p><em>Hello!?</em>
+漢</p>
 
 [Markdown]
 こんにちは！
 World
 {.jp}
 [HTML]
-<p class="jp">こんにちは！ World</p>
+<p class="jp">こんにちは！
+World</p>
 
 [Markdown]
-**強調**{.s} こんにちは！
-World
+**番号**
+123
 [HTML]
-<p><strong class="s">強調</strong> こんにちは！ World</p>
+<p><strong>番号</strong>
+123</p>
+
+[Markdown]
+漢字。
+foo bar
+[HTML]
+<p>漢字。
+foo bar</p>
+

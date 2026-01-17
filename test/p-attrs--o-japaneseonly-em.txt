@@ -9,6 +9,27 @@ HTMLは*「HyperText Markup Language」*の略です。
 [HTML]
 <p>HTMLは<em>「HyperText Markup Language」</em>の略です。</p>
 
+[Markdown]
+*Hello!?*
+漢
+[HTML]
+<p><em>Hello!?</em>
+漢</p>
+
+[Markdown]
+*こんにちは*
+漢
+[HTML]
+<p><em>こんにちは</em>
+漢</p>
+
+[Markdown]
+*Hello*
+*こんにちは*
+[HTML]
+<p><em>Hello</em>
+<em>こんにちは</em></p>
+
 
 [Markdown]
 HTMLは*「HyperText **Markup** Language」*の略です。
@@ -203,3 +224,31 @@ HTMLは[*「HyperText Markup Language」*][]です。
 <ul>
 <li>HTMLは<em>「Hyper<a href="https://example.com/">Text</a> Markup Language」</em></li>
 </ul>
+
+
+[Markdown]
+前文*強調*、途中で[*参照リンク*][ref-ja]を挟み、最後は*読点。*
+
+[ref-ja]: https://example.com/ja
+[HTML]
+<p>前文<em>強調</em>、途中で<a href="https://example.com/ja"><em>参照リンク</em></a>を挟み、最後は<em>読点。</em></p>
+
+
+[Markdown]
+和文*`コード`と[インライン](https://example.com/code)混在*テスト
+[HTML]
+<p>和文<em><code>コード</code>と<a href="https://example.com/code">インライン</a>混在</em>テスト</p>
+
+
+[Markdown]
+「*改行をまたぐ
+強調表現*の確認」
+[HTML]
+<p>「<em>改行をまたぐ
+強調表現</em>の確認」</p>
+
+
+[Markdown]
+箇条書き風ですが*(注釈)【重要】*を連続で強調します。
+[HTML]
+<p>箇条書き風ですが<em>(注釈)【重要】</em>を連続で強調します。</p>

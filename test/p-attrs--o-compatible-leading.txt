@@ -1,0 +1,146 @@
+[Markdown]
+**aaa.**iiii**
+[HTML]
+<p>**aaa.<strong>iiii</strong></p>
+
+[Markdown]
+nnn**aaa.**iiii**
+[HTML]
+<p>nnn**aaa.<strong>iiii</strong></p>
+
+[Markdown]
+nnn **aaa.**iiii**
+[HTML]
+<p>nnn **aaa.<strong>iiii</strong></p>
+
+[Markdown]
+**aaa.**iiii**uuu
+[HTML]
+<p>**aaa.<strong>iiii</strong>uuu</p>
+
+[Markdown]
+**aaa.**iiii** uuu
+[HTML]
+<p>**aaa.<strong>iiii</strong> uuu</p>
+
+[Markdown]
+nnn**aaa.**iiii**uuu
+[HTML]
+<p>nnn**aaa.<strong>iiii</strong>uuu</p>
+
+[Markdown]
+nnn**aaa.**iiii** uuu
+[HTML]
+<p>nnn**aaa.<strong>iiii</strong> uuu</p>
+
+[Markdown]
+**aaa. **iiii**
+[HTML]
+<p>**aaa. <strong>iiii</strong></p>
+
+[Markdown]
+**aaa。**iiii**
+[HTML]
+<p>**aaa。<strong>iiii</strong></p>
+
+[Markdown]
+**aaa.**いいい**
+[HTML]
+<p>**aaa.<strong>いいい</strong></p>
+
+[Markdown]
+**あああ.**iiii**
+[HTML]
+<p>**あああ.<strong>iiii</strong></p>
+
+[Markdown]
+**あああ. **iiii**
+[HTML]
+<p>**あああ. <strong>iiii</strong></p>
+
+[Markdown]
+**あああ.**いいい**
+[HTML]
+<p>**あああ.<strong>いいい</strong></p>
+
+[Markdown]
+**あああ。**いいい**
+[HTML]
+<p>**あああ。<strong>いいい</strong></p>
+
+[Markdown]
+**あああ。 **いいい**
+[HTML]
+<p>**あああ。 <strong>いいい</strong></p>
+
+[Markdown]
+**aaa，**bbbb**
+[HTML]
+<p>**aaa，<strong>bbbb</strong></p>
+
+[Markdown]
+**あああ、**いいい**
+[HTML]
+<p>**あああ、<strong>いいい</strong></p>
+
+[Markdown]
+**aaa！**bbbb**
+[HTML]
+<p>**aaa！<strong>bbbb</strong></p>
+
+[Markdown]
+**aaaa.**eeee**
+[HTML]
+<p>**aaaa.<strong>eeee</strong></p>
+
+[Markdown]
+**あああ.**aaaa**
+[HTML]
+<p>**あああ.<strong>aaaa</strong></p>
+
+[Markdown]
+**あああ$**aaaa**
+[HTML]
+<p>**あああ$<strong>aaaa</strong></p>
+
+[Markdown]
+**あああ%**aaaa**
+[HTML]
+<p>**あああ%<strong>aaaa</strong></p>
+
+[Markdown]
+**/あああ**aaaa**
+[HTML]
+<p><strong>/あああ</strong>aaaa**</p>
+
+[Markdown]
+**'あああ%**aaaa**
+[HTML]
+<p>**'あああ%<strong>aaaa</strong></p>
+
+[Markdown]
+**`code`**tail**
+[HTML]
+<p>**<code>code</code><strong>tail</strong></p>
+
+[Markdown]
+**`\\`**tail**
+[HTML]
+<p>**<code>\\</code><strong>tail</strong></p>
+
+[Markdown]
+**![](/img.png)**zzz**
+[HTML]
+<p>**<img src="/img.png" alt=""><strong>zzz</strong></p>
+
+[Markdown]
+**[link](u)**tail**
+[HTML]
+<p>**<a href="u">link</a><strong>tail</strong></p>
+
+[Markdown]
+**<i>aaa</i>**bbb**
+[HTML:false]
+<p>**&lt;i&gt;aaa&lt;/i&gt;<strong>bbb</strong></p>
+[HTML:true]
+<p>**<i>aaa</i><strong>bbb</strong></p>

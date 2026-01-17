@@ -28,3 +28,15 @@
 字
 [HTML]
 <p><strong class="s">漢</strong>字</p>
+
+[Markdown]
+強調！
+World
+[HTML]
+<p>強調！ World</p>
+
+[Markdown]
+**注記**{.note}
+line2
+[HTML]
+<p><strong class="note">注記</strong>line2</p>

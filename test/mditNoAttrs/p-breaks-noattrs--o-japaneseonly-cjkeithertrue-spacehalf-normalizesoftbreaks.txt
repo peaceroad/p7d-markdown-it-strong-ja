@@ -1,0 +1,25 @@
+[Markdown]
+**漢**
+字
+[HTML]
+<p><strong>漢</strong>字</p>
+
+[Markdown]
+**強調** こんにちは！
+World
+[HTML]
+<p><strong>強調</strong> こんにちは！ World</p>
+
+[Markdown]
+日本語！
+Docs
+[HTML]
+<p>日本語！Docs</p>
+
+[Markdown]
+**Mix**
+abc123
+[HTML]
+<p><strong>Mix</strong>
+abc123</p>
+

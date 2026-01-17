@@ -1,0 +1,25 @@
+[Markdown]
+- **a**: a1
+- **b**: びーいち
+{.nomarker}
+[HTML]
+<ul>
+<li><strong>a</strong>: a1</li>
+<li><strong>b</strong>: びーいち{.nomarker}</li>
+</ul>
+[HTML:true]
+<ul>
+<li><strong>a</strong>: a1</li>
+<li><strong>b</strong>: びーいち{.nomarker}</li>
+</ul>
+
+[Markdown]
+- **c**: see!
+- **d**:
+こんにちは
+{.nomarker}
+[HTML]
+<ul>
+<li><strong>c</strong>: see!</li>
+<li><strong>d</strong>:こんにちは{.nomarker}</li>
+</ul>

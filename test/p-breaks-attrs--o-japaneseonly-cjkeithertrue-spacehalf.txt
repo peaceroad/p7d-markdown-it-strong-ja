@@ -1,0 +1,42 @@
+[Markdown]
+**強調** こんにちは！
+World
+[HTML]
+<p><strong>強調</strong> こんにちは！ World</p>
+
+[Markdown]
+**Hello!?**
+漢
+[HTML]
+<p><strong>Hello!?</strong> 漢</p>
+
+[Markdown]
+*Hello!?*
+漢
+[HTML]
+<p><em>Hello!?</em> 漢</p>
+
+[Markdown]
+こんにちは！
+World
+{.jp}
+[HTML]
+<p class="jp">こんにちは！ World</p>
+
+[Markdown]
+**強調**{.s} こんにちは！
+World
+[HTML]
+<p><strong class="s">強調</strong> こんにちは！ World</p>
+
+[Markdown]
+**テスト**
+API
+[HTML]
+<p><strong>テスト</strong>API</p>
+
+[Markdown]
+価格！
+$100
+[HTML]
+<p>価格！ $100</p>

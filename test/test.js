@@ -10,6 +10,7 @@ import mditSemanticContainer from '@peaceroad/markdown-it-hr-sandwiched-semantic
 import mditSub from 'markdown-it-sub'
 import mditSup from 'markdown-it-sup'
 import mditStrongJa from '../index.js'
+import { runAutoLeadingTests } from './auto-leading.test.js'
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url)).replace(/\\/g, '/')
 
@@ -19,8 +20,19 @@ const mdWithCJKBreaks = mdit().use(mditStrongJa).use(mditAttrs).use(mditCJKBreak
 const mdWithCJKBreaksWithHtml = mdit({html: true}).use(mditStrongJa).use(mditAttrs).use(mditCJKBreaks, {either: true})
 const mdWithCJKBreaksSpaceHalf = mdit().use(mditStrongJa).use(mditAttrs).use(mditCJKBreaks, {spaceAfterPunctuation: 'half', either: true})
 const mdWithCJKBreaksSpaceHalfWithHtml = mdit({html: true}).use(mditStrongJa).use(mditAttrs).use(mditCJKBreaks, {spaceAfterPunctuation: 'half', either: true})
+const mdWithCJKBreaksEitherFalse = mdit().use(mditStrongJa).use(mditAttrs).use(mditCJKBreaks)
+const mdWithCJKBreaksEitherFalseWithHtml = mdit({html: true}).use(mditStrongJa).use(mditAttrs).use(mditCJKBreaks)
 const mdWithCJKBreaksNormalizeSoftBreaks = mdit().use(mditStrongJa).use(mditAttrs).use(mditCJKBreaks, {spaceAfterPunctuation: 'half', normalizeSoftBreaks: true, either: true})
 const mdWithCJKBreaksNormalizeSoftBreaksWithHtml = mdit({html: true}).use(mditStrongJa).use(mditAttrs).use(mditCJKBreaks, {spaceAfterPunctuation: 'half', normalizeSoftBreaks: true, either: true})
+const mdWithCJKBreaksOnly = mdit().use(mditCJKBreaks, {either: true})
+const mdWithCJKBreaksOnlyHtml = mdit({html: true}).use(mditCJKBreaks, {either: true})
+
+const mdLeadingGreedy = mdit().use(mditStrongJa, {mode: 'aggressive'}).use(mditAttrs)
+const mdLeadingGreedyWithHtml = mdit({html: true}).use(mditStrongJa, {mode: 'aggressive'}).use(mditAttrs)
+const mdLeadingMarkdownIt = mdit().use(mditStrongJa, {mode: 'compatible'}).use(mditAttrs)
+const mdLeadingMarkdownItWithHtml = mdit({html: true}).use(mditStrongJa, {mode: 'compatible'}).use(mditAttrs)
+const mdLeadingMarkdownItDisallowMixed = mdit().use(mditStrongJa, {mode: 'compatible', disallowMixed: true}).use(mditAttrs)
+const mdLeadingMarkdownItDisallowMixedWithHtml = mdit({html: true}).use(mditStrongJa, {mode: 'compatible', disallowMixed: true}).use(mditAttrs)
 
 const mdNoAttrsPlugin = mdit().use(mditStrongJa).use(mditSemanticContainer)
 const mdNoAttrsPluginWithHtml = mdit({html: true}).use(mditStrongJa).use(mditSemanticContainer)
@@ -29,6 +41,8 @@ const mditNoAttrs = mdit().use(mditStrongJa, {mditAttrs: false}).use(mditSemanti
 const mditNoAttrsWithHtml = mdit({html: true}).use(mditStrongJa, {mditAttrs: false}).use(mditSemanticContainer)
 const mditNoAttrsCJKBreaks = mdit().use(mditStrongJa, {mditAttrs: false}).use(mditCJKBreaks, {either: true})
 const mditNoAttrsCJKBreaksWithHtml = mdit({html: true}).use(mditStrongJa, {mditAttrs: false}).use(mditCJKBreaks, {either: true})
+const mditNoAttrsCJKBreaksNormalizeSoftBreaks = mdit().use(mditStrongJa, {mditAttrs: false}).use(mditCJKBreaks, {normalizeSoftBreaks: true, either: true})
+const mditNoAttrsCJKBreaksNormalizeSoftBreaksWithHtml = mdit({html: true}).use(mditStrongJa, {mditAttrs: false}).use(mditCJKBreaks, {normalizeSoftBreaks: true, either: true})
 
 const mditNoAttrsLinebreak = mdit({breaks: true}).use(mditStrongJa, {mditAttrs: false})
 const mditNoAttrsLinebreakWithHtml = mdit({html: true, breaks: true}).use(mditStrongJa, {mditAttrs: false})
@@ -193,8 +207,32 @@ const checkCjkBreaksSpaceHalf = (ms, example, allPass) => {
   return checkWithCustomMd(ms, example, allPass, mdWithCJKBreaksSpaceHalf, mdWithCJKBreaksSpaceHalfWithHtml, 'cjk-breaks-space-half')
 }
 
+const checkCjkBreaksEitherFalse = (ms, example, allPass) => {
+  return checkWithCustomMd(ms, example, allPass, mdWithCJKBreaksEitherFalse, mdWithCJKBreaksEitherFalseWithHtml, 'cjk-breaks-either-false')
+}
+
 const checkCjkBreaksNormalizeSoftBreaks = (ms, example, allPass) => {
   return checkWithCustomMd(ms, example, allPass, mdWithCJKBreaksNormalizeSoftBreaks, mdWithCJKBreaksNormalizeSoftBreaksWithHtml, 'cjk-breaks-normalize-softbreaks')
+}
+
+const checkCjkBreaksNormalizeSoftBreaksNoAttrs = (ms, example, allPass) => {
+  return checkWithCustomMd(ms, example, allPass, mditNoAttrsCJKBreaksNormalizeSoftBreaks, mditNoAttrsCJKBreaksNormalizeSoftBreaksWithHtml, 'cjk-breaks-normalize-softbreaks-noattrs')
+}
+
+const checkCjkBreaksOnly = (ms, example, allPass) => {
+  return checkWithCustomMd(ms, example, allPass, mdWithCJKBreaksOnly, mdWithCJKBreaksOnlyHtml, 'cjk-breaks-only')
+}
+
+const checkLeadingGreedy = (ms, example, allPass) => {
+  return checkWithCustomMd(ms, example, allPass, mdLeadingGreedy, mdLeadingGreedyWithHtml, 'leading-aggressive')
+}
+
+const checkLeadingCompat = (ms, example, allPass) => {
+  return checkWithCustomMd(ms, example, allPass, mdLeadingMarkdownIt, mdLeadingMarkdownItWithHtml, 'leading-compat')
+}
+
+const checkLeadingCompatDisallowMixed = (ms, example, allPass) => {
+  return checkWithCustomMd(ms, example, allPass, mdLeadingMarkdownItDisallowMixed, mdLeadingMarkdownItDisallowMixedWithHtml, 'leading-compat-disallowMixed')
 }
 
 const checkNoAttrsPlugin = (ms, example, allPass) => {
@@ -225,48 +263,68 @@ const checkNoAttrsPlugin = (ms, example, allPass) => {
 }
 
 const examples = {
-  strong: __dirname + '/example-strong.txt',
-  em: __dirname + '/example-em.txt',
-  complex: __dirname + '/example-complex.txt',
-  withLineBreak: __dirname + '/example-with-linebreak.txt',
+  strong: __dirname + '/p-attrs--o-japaneseonly-strong.txt',
+  em: __dirname + '/p-attrs--o-japaneseonly-em.txt',
+  complex: __dirname + '/p-attrs--o-japaneseonly-complex.txt',
+  withLineBreak: __dirname + '/p-breaks-attrs--o-japaneseonly-cjkeithertrue-with-linebreak.txt',
 }
 
 const examplesMditNoAttrs = {
-  strong: __dirname + '/mditNoAttrs/example-strong.txt',
-  em: __dirname + '/mditNoAttrs/example-em.txt',
-  complex: __dirname + '/mditNoAttrs/example-complex.txt',
-  withLineBreak: __dirname + '/mditNoAttrs/example-with-linebreak.txt',
+  strong: __dirname + '/mditNoAttrs/p-noattrs--o-japaneseonly-strong.txt',
+  em: __dirname + '/mditNoAttrs/p-noattrs--o-japaneseonly-em.txt',
+  complex: __dirname + '/mditNoAttrs/p-noattrs--o-japaneseonly-complex.txt',
+  withLineBreak: __dirname + '/mditNoAttrs/p-breaks-noattrs--o-japaneseonly-cjkeithertrue-with-linebreak.txt',
 }
 
 const examplesMditBreaks = {
-  linebreak: __dirname + '/mditNoAttrs/example-mdit-linebrek.txt',
+  linebreak: __dirname + '/mditNoAttrs/p-noattrs--o-japaneseonly-breaks-true-linebreaks.txt',
 }
 
 const examplesDisallowMixed = {
-  disallowMixed: __dirname + '/example-disallow-mixed.txt',
+  disallowMixed: __dirname + '/p-attrs--o-japaneseonly-disallowmixed.txt',
 }
 
 const examplesNoAttrsPlugin = {
-  noAttrsPlugin: __dirname + '/example-no-attrs-plugin.txt',
+  noAttrsPlugin: __dirname + '/p-attrs-disabled--o-japaneseonly-default.txt',
 }
 
 const examplesSupSub = {
-  supSub: __dirname + '/example-sup-sub.txt',
+  supSub: __dirname + '/p-attrs--o-japaneseonly-sup-sub.txt',
 }
 
 const examplesCjkBreaksSpaceHalf = {
-  cjkBreaksSpaceHalf: __dirname + '/example-cjk-breaks-space-half.txt',
+  cjkBreaksSpaceHalf: __dirname + '/p-breaks-attrs--o-japaneseonly-cjkeithertrue-spacehalf.txt',
+}
+
+const examplesCjkBreaksEitherFalse = {
+  cjkBreaksEitherFalse: __dirname + '/p-breaks-attrs--o-japaneseonly-cjkeitherfalse.txt',
 }
 
 const examplesCjkBreaksNormalizeSoftBreaks = {
-  cjkBreaksNormalizeSoftBreaks: __dirname + '/example-cjk-breaks-normalize-softbreaks.txt',
+  cjkBreaksNormalizeSoftBreaks: __dirname + '/p-breaks-attrs--o-japaneseonly-cjkeithertrue-spacehalf-normalizesoftbreaks.txt',
+}
+
+const examplesCjkBreaksNormalizeSoftBreaksNoAttrs = {
+  cjkBreaksNormalizeSoftBreaksNoAttrs: __dirname + '/mditNoAttrs/p-breaks-noattrs--o-japaneseonly-cjkeithertrue-spacehalf-normalizesoftbreaks.txt',
+}
+
+const examplesCjkBreaksOnly = {
+  cjkBreaksOnly: __dirname + '/p-breaks--o-cjkeithertrue-only.txt',
 }
 
 const examplesCjkBreaksCrlf = {
-  cjkBreaksCrlf: __dirname + '/example-cjk-breaks-crlf.txt',
+  cjkBreaksCrlf: __dirname + '/p-breaks-attrs--o-japaneseonly-cjkeithertrue-crlf.txt',
 }
 
-const runTests = (examples, checkFunction, useAttrs) => {
+const examplesLeadingAggressive = {
+  leadingAggressive: __dirname + '/p-attrs--o-aggressive-leading.txt',
+}
+
+const examplesLeadingCompat = {
+  leadingCompat: __dirname + '/p-attrs--o-compatible-leading.txt',
+}
+
+const runTests = (examples, checkFunction, useAttrs, labelPrefix) => {
   let allPass = true
   for (let example in examples) {
     const exampleCont = fs.readFileSync(examples[example], 'utf-8').trim()
@@ -291,13 +349,14 @@ const runTests = (examples, checkFunction, useAttrs) => {
       }
       n++
     }
-    console.log('Check ' + example + ' process [mditAttrs: ' + useAttrs + '] =======================')
+    const label = labelPrefix ? `${labelPrefix} / ${example}` : example
+    console.log('Check ' + label + ' =======================')
     allPass = checkFunction(ms, example, allPass, useAttrs)
   }
   return allPass
 }
 
-const runTestsCrlf = (examples, checkFunction, useAttrs) => {
+const runTestsCrlf = (examples, checkFunction, useAttrs, labelPrefix) => {
   let allPass = true
   for (let example in examples) {
     const exampleCont = fs.readFileSync(examples[example], 'utf-8')
@@ -324,22 +383,32 @@ const runTestsCrlf = (examples, checkFunction, useAttrs) => {
       }
       n++
     }
-    console.log('Check ' + example + ' process [mditAttrs: ' + useAttrs + '] =======================')
+    const label = labelPrefix ? `${labelPrefix} / ${example}` : example
+    console.log('Check ' + label + ' =======================')
     allPass = checkFunction(ms, example, allPass, useAttrs)
   }
   return allPass
 }
 
-let allPass = runTests(examples, check, true)
-allPass = runTests(examplesDisallowMixed, checkDisallowMixed, true) && allPass
-allPass = runTests(examplesSupSub, checkSupSub, true) && allPass
-allPass = runTests(examplesCjkBreaksSpaceHalf, checkCjkBreaksSpaceHalf, true) && allPass
-allPass = runTests(examplesCjkBreaksNormalizeSoftBreaks, checkCjkBreaksNormalizeSoftBreaks, true) && allPass
-allPass = runTestsCrlf(examplesCjkBreaksCrlf, checkCjkBreaksSpaceHalf, true) && allPass
-allPass = runTestsCrlf(examplesCjkBreaksCrlf, checkCjkBreaksNormalizeSoftBreaks, true) && allPass
-allPass = runTests(examplesNoAttrsPlugin, checkNoAttrsPlugin, true) && allPass
-allPass = runTests(examplesMditNoAttrs, check, false) && allPass
-allPass = runTests(examplesMditBreaks, checkBreaks, false) && allPass
-allPass = runTests(examplesDisallowMixed, checkDisallowMixed, false) && allPass
+let allPass = runTests(examples, check, true, 'attrs mode=japanese-only default')
+allPass = runTests(examplesLeadingAggressive, checkLeadingGreedy, true, 'attrs mode=aggressive') && allPass
+allPass = runTests(examplesLeadingCompat, checkLeadingCompat, true, 'attrs mode=compatible') && allPass
+allPass = runTests(examplesDisallowMixed, checkDisallowMixed, true, 'attrs mode=japanese-only disallowMixed=true') && allPass
+allPass = runTests(examplesLeadingCompat, checkLeadingCompatDisallowMixed, true, 'attrs mode=compatible disallowMixed=true') && allPass
+allPass = runTests(examplesSupSub, checkSupSub, true, 'attrs mode=japanese-only sup/sub') && allPass
+allPass = runTests(examplesCjkBreaksSpaceHalf, checkCjkBreaksSpaceHalf, true, 'attrs mode=japanese-only cjk_breaks either=true space=half') && allPass
+allPass = runTests(examplesCjkBreaksEitherFalse, checkCjkBreaksEitherFalse, true, 'attrs mode=japanese-only cjk_breaks either=false') && allPass
+allPass = runTests(examplesCjkBreaksNormalizeSoftBreaks, checkCjkBreaksNormalizeSoftBreaks, true, 'attrs mode=japanese-only cjk_breaks normalizeSoftBreaks=true space=half') && allPass
+allPass = runTests(examplesCjkBreaksOnly, checkCjkBreaksOnly, true, 'attrs mode=japanese-only cjk_breaks only') && allPass
+allPass = runTestsCrlf(examplesCjkBreaksCrlf, checkCjkBreaksSpaceHalf, true, 'attrs mode=japanese-only cjk_breaks either=true space=half CRLF') && allPass
+allPass = runTestsCrlf(examplesCjkBreaksCrlf, checkCjkBreaksNormalizeSoftBreaks, true, 'attrs mode=japanese-only cjk_breaks normalizeSoftBreaks=true CRLF') && allPass
+allPass = runTests(examplesNoAttrsPlugin, checkNoAttrsPlugin, true, 'attrs mode=japanese-only attrs-plugin-disabled') && allPass
+allPass = runTests(examplesMditNoAttrs, check, false, 'noattrs mode=japanese-only default') && allPass
+allPass = runTests(examplesMditBreaks, checkBreaks, false, 'noattrs mode=japanese-only breaks=true') && allPass
+allPass = runTests(examplesDisallowMixed, checkDisallowMixed, false, 'noattrs mode=japanese-only disallowMixed=true') && allPass
+allPass = runTests(examplesCjkBreaksOnly, checkCjkBreaksOnly, false, 'noattrs mode=japanese-only cjk_breaks only') && allPass
+allPass = runTests(examplesCjkBreaksNormalizeSoftBreaksNoAttrs, checkCjkBreaksNormalizeSoftBreaksNoAttrs, false) && allPass
+
+allPass = runAutoLeadingTests() && allPass
 
 if (allPass) console.log('Passed all tests.')

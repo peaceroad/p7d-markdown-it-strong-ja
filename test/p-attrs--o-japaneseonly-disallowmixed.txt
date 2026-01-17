@@ -15,7 +15,7 @@ string**[text](url)**
 
 [Markdown]
 ああ**[text](url)**いい
-[HTML:false :: commommark output: <p>ああ**<a href="url">text</a>**いい</p>]
+[HTML:false]
 <p>ああ<strong><a href="url">text</a></strong>いい</p>
 
 
@@ -50,7 +50,7 @@ string**<span>text</span>**
 
 [Markdown]
 **`text`**いい
-[HTML:false :: commommark output: <p>**<code>text</code>**いい</p>]
+[HTML:false]
 <p><strong><code>text</code></strong>いい</p>
 [HTML:true]
 <p><strong><code>text</code></strong>いい</p>
@@ -78,7 +78,7 @@ string*[text](url)*
 
 [Markdown]
 ああ*[text](url)*いい
-[HTML:false :: commommark output: <p>ああ*<a href="url">text</a>*いい</p>]
+[HTML:false]
 <p>ああ<em><a href="url">text</a></em>いい</p>
 
 
@@ -113,7 +113,7 @@ string*<span>text</span>*
 
 [Markdown]
 *`text`*いい
-[HTML:false :: commommark output: <p>*<code>text</code>*いい</p>]
+[HTML:false]
 <p><em><code>text</code></em>いい</p>
 [HTML:true]
 <p><em><code>text</code></em>いい</p>
@@ -228,3 +228,25 @@ hello**<div>valid</div>**world
 <p>hello**&lt;div&gt;valid&lt;/div&gt;**world</p>
 [HTML:true]
 <p>hello**<div>valid</div>**world</p>
+
+
+[Markdown]
+前置詞**テキスト**と**[リンク](url)**を続けて評価。
+[HTML:false]
+<p>前置詞<strong>テキスト</strong>と<strong><a href="url">リンク</a></strong>を続けて評価。</p>
+
+
+[Markdown]
+「**<span>日本語タグ</span>**」を包む
+[HTML:false]
+<p>「<strong>&lt;span&gt;日本語タグ&lt;/span&gt;</strong>」を包む</p>
+[HTML:true]
+<p>「<strong><span>日本語タグ</span></strong>」を包む</p>
+
+
+[Markdown]
+全文**`ルール`**テスト、末尾。
+[HTML:false]
+<p>全文<strong><code>ルール</code></strong>テスト、末尾。</p>
+[HTML:true]
+<p>全文<strong><code>ルール</code></strong>テスト、末尾。</p>
