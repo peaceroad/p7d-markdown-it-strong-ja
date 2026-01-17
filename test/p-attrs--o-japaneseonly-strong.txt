@@ -230,6 +230,11 @@ HTMLは[**「HyperText Markup Language」**][]です。
 <p>**aa<code>code</code>**aa</p>
 
 [Markdown]
+**aaa.**eee.**eeee**
+[HTML]
+<p>**aaa.**eee.<strong>eeee</strong></p>
+
+[Markdown]
 **`\\`**tail**
 [HTML]
 <p>**<code>\\</code><strong>tail</strong></p>

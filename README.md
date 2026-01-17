@@ -44,7 +44,7 @@ Japanese-first pairing around punctuation and mixed sentences: leading/trailing 
   - Output (aggressive): `<p><strong>「test」</strong></p>`
   - Output (compatible): `<p>**「test」**</p>`
 
-- Mixed sentence (multiple `*` runs):
+- Mixed sentence (multiple `*` runs): English-only stays markdown-it compatible unless you pick aggressive mode; earlier `**` runs can remain literal while later ones pair.
   - Input (Japanese mixed): `**あああ。**iii**`
   - Output (default): `<p><strong>あああ。</strong>iii**</p>`
   - Output (aggressive): `<p><strong>あああ。</strong>iii**</p>`
@@ -53,6 +53,10 @@ Japanese-first pairing around punctuation and mixed sentences: leading/trailing 
   - Output (default): `<p>**aaa.<strong>iii</strong></p>`
   - Output (aggressive): `<p><strong>aaa.</strong>iii**</p>`
   - Output (compatible): `<p>**aaa.<strong>iii</strong></p>`
+  - Input (English-only, two `**` runs): `**aaa.**eee.**eeee**`
+  - Output (default): `<p>**aaa.**eee.<strong>eeee</strong></p>`
+  - Output (aggressive): `<p><strong>aaa.</strong>eee.<strong>eeee</strong></p>`
+  - Output (compatible): `<p>**aaa.**eee.<strong>eeee</strong></p>`
 
 Inline link/HTML/code blocks stay intact (see Link / Inline code examples above): the plugin re-wraps `[label](url)` / `[label][]` after pairing to avoid broken emphasis tokens around anchors, inline HTML, or inline code. This also covers clusters of `*` with no spaces around the link or code span.
 
