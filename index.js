@@ -22,9 +22,17 @@ const CHAR_CLOSE_CURLY = 0x7D // }
 
 const REG_ATTRS = /{[^{}\n!@#%^&*()]+?}$/
 const REG_ASCII_PUNCT = /[!-/:-@[-`{-~]/g
-const REG_JAPANESE = /\p{Script=Hiragana}|\p{Script=Katakana}|\p{Script=Han}|\p{General_Category=Punctuation}|\p{General_Category=Symbol}|\p{General_Category=Format}|\p{Emoji}/u // ひらがな|カタカナ|漢字|句読点|記号|フォーマット文字|絵文字
+const REG_JAPANESE = /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}\u3000-\u303F\uFF00-\uFFEF]/u // ひらがな|カタカナ|漢字|CJK句読点・全角形状（絵文字は除外）
 
 const REG_MARKDOWN_HTML = /^\[[^\[\]]+\]\([^)]+\)$|^<([a-zA-Z][a-zA-Z0-9]*)[^>]*>([^<]+<\/\1>)$|^`[^`]+`$|^\$[^$]+\$$/ // for mixed-language context detection
+
+const hasCjkBreaksRule = (md) => {
+  if (!md || !md.core || !md.core.ruler || !Array.isArray(md.core.ruler.__rules__)) return false
+  if (md.__strongJaHasCjkBreaks === true) return true
+  const found = md.core.ruler.__rules__.some((rule) => rule && typeof rule.name === 'string' && rule.name.indexOf('cjk_breaks') !== -1)
+  if (found) md.__strongJaHasCjkBreaks = true
+  return found
+}
 
 const hasBackslash = (state, start) => {
   if (start <= 0) return false
@@ -268,6 +276,15 @@ const findInlineLinkRange = (pos, ranges, kind) => {
   const useCache = ranges.length > 32
   const cache = useCache ? getInlineRangeCacheMap(ranges, kind, false) : null
   if (cache && cache.has(pos)) return cache.get(pos)
+  const first = ranges[0]
+  const last = ranges[ranges.length - 1]
+  if (pos < first.start || pos > last.end) {
+    if (useCache) {
+      const storeCache = getInlineRangeCacheMap(ranges, kind, true)
+      storeCache.set(pos, null)
+    }
+    return null
+  }
   let left = 0
   let right = ranges.length - 1
   let found = null
@@ -387,8 +404,7 @@ const setToken = (state, inlines, opt, attrsEnabled) => {
   const src = state.src
   const mapFromPos = createLineMapper(state)
   let i = 0
-  let attrsIsText = false
-  let attrsIsTextTag = ''
+  let lastTextToken = null
   while (i < inlines.length) {
     let type = inlines[i].type
     let tag = ''
@@ -406,12 +422,23 @@ const setToken = (state, inlines, opt, attrsEnabled) => {
       const startToken = state.push(type, tag, 1)
       startToken.markup = tag === 'strong' ? '**' : '*'
       startToken.map = mapFromPos(inlines[i].s, inlines[i].e)
-      attrsIsText = true
-      attrsIsTextTag = tag
     }
 
     if (type === 'html_inline') {
-      type = 'text'
+      const content = src.slice(inlines[i].s, inlines[i].e + 1)
+      if (lastTextToken && inlines[i].s > 0) {
+        const prevChar = src.charAt(inlines[i].s - 1)
+        if (prevChar === ' ' || prevChar === '\t') {
+          if (!lastTextToken.content.endsWith(prevChar)) {
+            lastTextToken.content += prevChar
+          }
+        }
+      }
+      const htmlToken = state.push('html_inline', '', 0)
+      htmlToken.content = content
+      htmlToken.map = mapFromPos(inlines[i].s, inlines[i].e)
+      i++
+      continue
     }
     if (type === 'text') {
       let content = src.slice(inlines[i].s, inlines[i].e + 1)
@@ -424,18 +451,25 @@ const setToken = (state, inlines, opt, attrsEnabled) => {
           continue
         }
       }
-      if (attrsEnabled && attrsIsText && i + 1 < inlines.length) {
-        const hasImmediatelyAfterAsteriskClose = inlines[i+1].type === attrsIsTextTag + '_close'
-        const maybeAttrs = content.length > 0 && content.charCodeAt(content.length - 1) === CHAR_CLOSE_CURLY
-        if (hasImmediatelyAfterAsteriskClose && maybeAttrs && REG_ATTRS.test(content)) {
-          const attrsToken = state.push(type, '', 0)
-          let hasBackslashBeforeCurlyAttribute = null
-          if (content.indexOf('\\') !== -1) {
-            hasBackslashBeforeCurlyAttribute = content.match(/(\\+){/)
-          }
+      const attrMatch = attrsEnabled && content.length > 0 && content.charCodeAt(content.length - 1) === CHAR_CLOSE_CURLY && REG_ATTRS.test(content)
+        ? content.match(/^(.*?)(\s+{[^{}\n!@#%^&*()]+?})$/)
+        : null
+      if (attrMatch) {
+        const textPart = attrMatch[1] ? attrMatch[1].replace(/[ \t]+$/, '') : ''
+        const attrPart = attrMatch[2]
+        if (textPart && textPart.length > 0) {
+          const textToken = state.push(type, '', 0)
+          textToken.content = textPart
+          textToken.map = mapFromPos(inlines[i].s, inlines[i].s + textPart.length)
+          lastTextToken = textToken
+        }
+        const attrsToken = state.push(type, '', 0)
+        let attrsContent = attrPart.replace(/^\s+/, '')
+        if (attrsContent.indexOf('\\') !== -1) {
+          const hasBackslashBeforeCurlyAttribute = attrsContent.match(/(\\+){/)
           if (hasBackslashBeforeCurlyAttribute) {
             if (hasBackslashBeforeCurlyAttribute[1].length === 1) {
-              attrsToken.content = content.replace(/\\{/, '{')
+              attrsContent = attrsContent.replace(/\\{/, '{')
             } else {
               let backSlashNum = Math.floor(hasBackslashBeforeCurlyAttribute[1].length / 2)
               let k = 0
@@ -444,47 +478,77 @@ const setToken = (state, inlines, opt, attrsEnabled) => {
                 backSlash +=  '\\'
                 k++
               }
-              attrsToken.content = content.replace(/\\+{/, backSlash + '{')
+              attrsContent = attrsContent.replace(/\\+{/, backSlash + '{')
             }
-          } else {
-            attrsToken.content = content
           }
-          attrsIsText = false
-          attrsIsTextTag = ''
-          attrsToken.map = mapFromPos(inlines[i].s, inlines[i].e)
-          i++
-          continue
         }
+        attrsToken.content = attrsContent
+        attrsToken.map = mapFromPos(inlines[i].s + content.length - attrPart.length, inlines[i].e)
+        i++
+        continue
       }
       if (isPlainTextContent(content)) {
         const textToken = state.push(type, '', 0)
         textToken.content = content
-          textToken.map = mapFromPos(inlines[i].s, inlines[i].e)
+        textToken.map = mapFromPos(inlines[i].s, inlines[i].e)
+        lastTextToken = textToken
         i++
         continue
       }
 
-      const childTokens = state.md.parseInline(content, state.env)
-      for (let k = 0; k < childTokens.length; k++) {
-        const parentToken = childTokens[k]
-        if (parentToken && parentToken.children) {
-          let j = 0
-          while (j < parentToken.children.length) {
-            const t = parentToken.children[j]
-            if (t.type === 'softbreak' && !opt.mdBreaks) {
+      const hasOnlySimpleNewline = attrsEnabled && (content.indexOf('{') !== -1 || content.indexOf('}') !== -1) &&
+        content.indexOf('\n') !== -1 &&
+        content.indexOf('`') === -1 &&
+        content.indexOf('$') === -1 &&
+        content.indexOf('<') === -1 &&
+        content.indexOf('>') === -1 &&
+        content.indexOf('[') === -1 &&
+        content.indexOf(']') === -1 &&
+        content.indexOf('(') === -1 &&
+        content.indexOf(')') === -1 &&
+        content.indexOf('^') === -1 &&
+        content.indexOf('~') === -1 &&
+        content.indexOf('\\') === -1
+
+      if (hasOnlySimpleNewline) {
+        const textToken = state.push(type, '', 0)
+        textToken.content = content
+        textToken.map = mapFromPos(inlines[i].s, inlines[i].e)
+        lastTextToken = textToken
+        i++
+        continue
+      }
+
+      const childTokens = []
+      state.md.inline.parse(content, state.md, state.env, childTokens)
+      let j = 0
+      while (j < childTokens.length) {
+        const t = childTokens[j]
+        if (t.type === 'softbreak' && !opt.mdBreaks) {
+          const hasCjk = opt.hasCjkBreaks === true
+          if (hasCjk) {
+            const prevToken = childTokens[j - 1]
+            const nextToken = childTokens[j + 1]
+            const prevChar = prevToken && prevToken.content ? prevToken.content.slice(-1) : ''
+            const nextChar = nextToken && nextToken.content ? nextToken.content.charAt(0) : ''
+            const isAsciiWord = nextChar >= '0' && nextChar <= 'z' && /[A-Za-z0-9]/.test(nextChar)
+            if (isAsciiWord && isJapanese(prevChar) && !isJapanese(nextChar)) {
               t.type = 'text'
               t.tag = ''
-              t.content = '\n'
+              t.content = ' '
             }
-            if (!attrsEnabled && t.tag === 'br') {
-              t.tag = ''
-              t.content = '\n'
-            }
-            const token = state.push(t.type, t.tag, t.nesting)
-            copyInlineTokenFields(token, t)
-            j++
           }
         }
+        if (!attrsEnabled && t.tag === 'br') {
+          t.tag = ''
+          t.content = '\n'
+        }
+        const token = state.push(t.type, t.tag, t.nesting)
+        copyInlineTokenFields(token, t)
+        if (t.type === 'text') {
+          lastTextToken = token
+        }
+        j++
       }
     }
 
@@ -492,8 +556,6 @@ const setToken = (state, inlines, opt, attrsEnabled) => {
       const closeToken = state.push(type, tag, -1)
       closeToken.markup = tag === 'strong' ? '**' : '*'
       closeToken.map = mapFromPos(inlines[i].s, inlines[i].e)
-      attrsIsText = false
-      attrsIsTextTag = ''
     }
 
     i++
@@ -508,15 +570,10 @@ const pushInlines = (inlines, s, e, len, type, tag, tagType) => {
     ep: e,
     len: len,
     type: type,
-    check: type === 'text',
+    check: false
   }
   if (tag) inline.tag = [tag, tagType]
   inlines.push(inline)
-}
-
-const isAsciiPunctuationCode = (code) => {
-  return (code >= 33 && code <= 47) || (code >= 58 && code <= 64) ||
-    (code >= 91 && code <= 96) || (code >= 123 && code <= 126)
 }
 
 const findNextAsciiPunctuation = (src, start, max) => {
@@ -650,11 +707,13 @@ const createInlines = (state, start, max, opt) => {
     // HTML tags
     if (htmlEnabled && currentChar === CHAR_LT) {
       if (!isEscaped) {
+        const guardHtml = srcLen - n > 8192
+        const maxScanEnd = guardHtml ? Math.min(srcLen, n + 8192) : srcLen
         let foundClosingTag = false
         let i = n + 1
         while (i < srcLen) {
           i = src.indexOf('>', i)
-          if (i === -1 || i >= srcLen) break
+          if (i === -1 || i >= maxScanEnd) break
           if (!hasBackslash(state, i)) {
             hasText = processTextSegment(inlines, textStart, n, hasText)
             let tag = src.slice(n + 1, i)
@@ -725,6 +784,8 @@ const setStrong = (state, inlines, marks, n, memo, opt, nestTracker, refRanges, 
   const hasInlineLinkRanges = inlineLinkRanges && inlineLinkRanges.length > 0
   const hasRefRanges = refRanges && refRanges.length > 0
   const inlinesLength = inlines.length
+  const leadingCompat = opt.leadingAsterisk === false
+  const conservativePunctuation = opt.disallowMixed === true
   if (opt.disallowMixed === true) {
     let i = n + 1
     while (i < inlinesLength) {
@@ -767,6 +828,10 @@ const setStrong = (state, inlines, marks, n, memo, opt, nestTracker, refRanges, 
       }
     }
 
+    if (state.md && state.md.options && state.md.options.html && hasCodeTagInside(state, inlines, n, i)) {
+      return [n, nest]
+    }
+
     nest = checkNest(inlines, marks, n, i, nestTracker)
     if (nest === -1) return [n, nest]
 
@@ -798,7 +863,12 @@ const setStrong = (state, inlines, marks, n, memo, opt, nestTracker, refRanges, 
     let strongNum = Math.trunc(Math.min(inlines[n].len, inlines[i].len) / 2)
 
     if (inlines[i].len > 1) {
-      if (hasPunctuationOrNonJapanese(state, inlines, n, i, opt, refRanges, hasRefRanges)) {
+      const hasJapaneseContext = isJapanese(state.src[inlines[n].s - 1] || '') || isJapanese(state.src[inlines[i].e + 1] || '')
+      const needsPunctuationCheck = (conservativePunctuation && !hasJapaneseContext) || hasHtmlLikePunctuation(state, inlines, n, i) || hasAngleBracketInside(state, inlines, n, i)
+      if (needsPunctuationCheck && hasPunctuationOrNonJapanese(state, inlines, n, i, opt, refRanges, hasRefRanges)) {
+        if (leadingCompat) {
+          return [n, nest]
+        }
         if (memo.inlineMarkEnd) {
           marks.push(...createMarks(state, inlines, i, inlinesLength - 1, memo, opt, refRanges, inlineLinkRanges))
           if (inlines[i].len === 0) { i++; continue }
@@ -881,7 +951,17 @@ const isPunctuation = (ch) => {
          (code >= 91 && code <= 96) || (code >= 123 && code <= 126) || code === 32
 }
 
-// Check if character is Japanese (hiragana, katakana, kanji, punctuation, symbols, format chars, emoji)
+const isAsciiPunctuationCode = (code) => {
+  if (code < 33 || code > 126) return false
+  return (code <= 47) || (code >= 58 && code <= 64) || (code >= 91 && code <= 96) || (code >= 123)
+}
+
+const isUnicodePunctuation = (ch) => {
+  if (!ch) return false
+  return /\p{P}/u.test(ch)
+}
+
+// Check if character is Japanese (hiragana, katakana, kanji, CJK punctuation/fullwidth)
 // Uses fast Unicode range checks for common cases, falls back to REG_JAPANESE for complex Unicode
 const isJapanese = (ch) => {
   if (!ch) return false
@@ -894,6 +974,26 @@ const isJapanese = (ch) => {
          (code >= 0x4E00 && code <= 0x9FAF) ||
          // Fallback to regex for complex Unicode cases
          REG_JAPANESE.test(ch)
+}
+
+const hasJapaneseText = (str) => {
+  if (!str) return false
+  return REG_JAPANESE.test(str)
+}
+
+const resolveLeadingAsterisk = (state, opt, start, max) => {
+  const modeRaw = opt.mode || 'japanese-only'
+  const mode = typeof modeRaw === 'string' ? modeRaw.toLowerCase() : 'japanese-only'
+  if (mode === 'aggressive') return true
+  if (mode === 'compatible') return false
+  let hasJapanese = state.__strongJaHasJapanese
+  if (hasJapanese === undefined) {
+    hasJapanese = hasJapaneseText(state.src.slice(0, max))
+    state.__strongJaHasJapanese = hasJapanese
+  }
+  if (opt.disallowMixed === true) return hasJapanese
+
+  return hasJapanese
 }
 
 // Check if character is English (letters, numbers) or other non-Japanese characters
@@ -928,6 +1028,9 @@ const hasPunctuationOrNonJapanese = (state, inlines, n, i, opt, refRanges, hasRe
   const openPrevChar = src[inlines[n].s - 1] || ''
   const openNextChar = src[inlines[n].e + 1]  || ''
   let checkOpenNextChar = isPunctuation(openNextChar)
+  if (!checkOpenNextChar && opt.leadingAsterisk === false && isUnicodePunctuation(openNextChar)) {
+    checkOpenNextChar = true
+  }
   if (hasRefRanges && checkOpenNextChar && (openNextChar === '[' || openNextChar === ']')) {
     const openNextRange = findRefRangeIndex(inlines[n].e + 1, refRanges)
     if (openNextRange !== -1) {
@@ -936,6 +1039,9 @@ const hasPunctuationOrNonJapanese = (state, inlines, n, i, opt, refRanges, hasRe
   }
   const closePrevChar = src[inlines[i].s - 1] || ''
   let checkClosePrevChar = isPunctuation(closePrevChar)
+  if (!checkClosePrevChar && opt.leadingAsterisk === false && isUnicodePunctuation(closePrevChar)) {
+    checkClosePrevChar = true
+  }
   if (hasRefRanges && checkClosePrevChar && (closePrevChar === '[' || closePrevChar === ']')) {
     const closePrevRange = findRefRangeIndex(inlines[i].s - 1, refRanges)
     if (closePrevRange !== -1) {
@@ -944,7 +1050,10 @@ const hasPunctuationOrNonJapanese = (state, inlines, n, i, opt, refRanges, hasRe
   }
   const closeNextChar = src[inlines[i].e + 1] || ''
   const isLastInline = i === inlines.length - 1
-  const checkCloseNextChar = isLastInline || isPunctuation(closeNextChar) || closeNextChar === '\n'
+  let checkCloseNextChar = isLastInline || isPunctuation(closeNextChar) || closeNextChar === '\n'
+  if (!checkCloseNextChar && opt.leadingAsterisk === false && isUnicodePunctuation(closeNextChar)) {
+    checkCloseNextChar = true
+  }
 
   if (opt.disallowMixed === false) {
     if (isEnglish(openPrevChar) || isEnglish(closeNextChar)) {
@@ -958,12 +1067,52 @@ const hasPunctuationOrNonJapanese = (state, inlines, n, i, opt, refRanges, hasRe
   return result
 }
 
+const hasHtmlLikePunctuation = (state, inlines, n, i) => {
+  const src = state.src
+  const chars = [
+    src[inlines[n].e + 1] || '',
+    src[inlines[i].s - 1] || '',
+    src[inlines[i].e + 1] || ''
+  ]
+  for (let idx = 0; idx < chars.length; idx++) {
+    const ch = chars[idx]
+    if (ch === '<' || ch === '>') return true
+  }
+  return false
+}
+
+const hasAngleBracketInside = (state, inlines, n, i) => {
+  const src = state.src
+  const start = inlines[n].s
+  const end = inlines[i].e
+  const ltPos = src.indexOf('<', start)
+  if (ltPos !== -1 && ltPos <= end) return true
+  const gtPos = src.indexOf('>', start)
+  return gtPos !== -1 && gtPos <= end
+}
+
+const hasCodeTagInside = (state, inlines, n, i) => {
+  const src = state.src
+  const start = inlines[n].s
+  const end = inlines[i].e
+  const codeOpen = src.indexOf('<code', start)
+  if (codeOpen !== -1 && codeOpen <= end) return true
+  const codeClose = src.indexOf('</code', start)
+  if (codeClose !== -1 && codeClose <= end) return true
+  const preOpen = src.indexOf('<pre', start)
+  if (preOpen !== -1 && preOpen <= end) return true
+  const preClose = src.indexOf('</pre', start)
+  return preClose !== -1 && preClose <= end
+}
+
 const setEm = (state, inlines, marks, n, memo, opt, sNest, nestTracker, refRanges, inlineLinkRanges) => {
   const hasInlineLinkRanges = inlineLinkRanges && inlineLinkRanges.length > 0
   const hasRefRanges = refRanges && refRanges.length > 0
   const inlinesLength = inlines.length
   const emOpenRange = hasRefRanges ? findRefRangeIndex(inlines[n].s, refRanges) : -1
   const openLinkRange = hasInlineLinkRanges ? findInlineLinkRange(inlines[n].s, inlineLinkRanges) : null
+  const leadingCompat = opt.leadingAsterisk === false
+  const conservativePunctuation = leadingCompat || opt.disallowMixed === true
   if (opt.disallowMixed === true && !sNest) {
     let i = n + 1
     while (i < inlinesLength) {
@@ -1014,6 +1163,10 @@ const setEm = (state, inlines, marks, n, memo, opt, sNest, nestTracker, refRange
       }
     }
 
+    if (state.md && state.md.options && state.md.options.html && hasCodeTagInside(state, inlines, n, i)) {
+      return [n, nest]
+    }
+
     const emNum = Math.min(inlines[n].len, inlines[i].len)
 
     if (!sNest && emNum !== 1) return [n, sNest, memo]
@@ -1035,7 +1188,11 @@ const setEm = (state, inlines, marks, n, memo, opt, sNest, nestTracker, refRange
     if (nest === -1) return [n, nest]
 
     if (emNum === 1) {
-      if (hasPunctuationOrNonJapanese(state, inlines, n, i, opt, refRanges, hasRefRanges)) {
+      const needsPunctuationCheckClose = conservativePunctuation || hasHtmlLikePunctuation(state, inlines, n, i) || hasAngleBracketInside(state, inlines, n, i)
+      if (needsPunctuationCheckClose && hasPunctuationOrNonJapanese(state, inlines, n, i, opt, refRanges, hasRefRanges)) {
+        if (leadingCompat) {
+          return [n, nest]
+        }
         if (memo.inlineMarkEnd) {
           marks.push(...createMarks(state, inlines, i, inlinesLength - 1, memo, opt, refRanges, inlineLinkRanges))
 
@@ -1228,6 +1385,16 @@ const strongJa = (state, silent, opt) => {
 
   const attrsEnabled = opt.mditAttrs && hasMditAttrs(state)
 
+  const leadingAsterisk = resolveLeadingAsterisk(state, opt, start, originalMax)
+
+  if (leadingAsterisk === false) {
+    return false
+  }
+
+  const runtimeOpt = leadingAsterisk === opt.leadingAsterisk
+    ? opt
+    : { ...opt, leadingAsterisk }
+
   if (start === 0) {
     state.__strongJaRefRangeCache = null
     state.__strongJaInlineLinkRangeCache = null
@@ -1283,35 +1450,40 @@ const strongJa = (state, silent, opt) => {
 
   let refRanges = []
   const hasReferenceDefinitions = state.__strongJaReferenceCount > 0
+  const refScanStart = 0
   if (hasReferenceDefinitions) {
-    const refCache = state.__strongJaRefRangeCache
-    if (refCache && refCache.max === max && refCache.start <= start) {
-      refRanges = refCache.ranges
-    } else {
-      refRanges = computeReferenceRanges(state, start, max)
-      state.__strongJaRefRangeCache = { start, max, ranges: refRanges }
+    const firstRefBracket = state.src.indexOf('[', refScanStart)
+    if (firstRefBracket !== -1 && firstRefBracket < max) {
+      const refCache = state.__strongJaRefRangeCache
+      if (refCache && refCache.max === max && refCache.start === refScanStart) {
+        refRanges = refCache.ranges
+      } else {
+        refRanges = computeReferenceRanges(state, refScanStart, max)
+        state.__strongJaRefRangeCache = { start: refScanStart, max, ranges: refRanges }
+      }
+      if (refRanges.length > 0) {
+        state.__strongJaHasCollapsedRefs = true
+      }
     }
-  }
-  if (refRanges.length > 0) {
-    state.__strongJaHasCollapsedRefs = true
   }
 
   let inlineLinkRanges = null
-  const inlineLinkCandidatePos = state.src.indexOf('](', start)
+  const inlineLinkScanStart = 0
+  const inlineLinkCandidatePos = state.src.indexOf('](', inlineLinkScanStart)
   const hasInlineLinkCandidate = inlineLinkCandidatePos !== -1 && inlineLinkCandidatePos < max
   if (hasInlineLinkCandidate) {
     const inlineCache = state.__strongJaInlineLinkRangeCache
-    if (inlineCache && inlineCache.max === max && inlineCache.start <= start) {
+    if (inlineCache && inlineCache.max === max && inlineCache.start === inlineLinkScanStart) {
       inlineLinkRanges = inlineCache.ranges
     } else {
-      inlineLinkRanges = computeInlineLinkRanges(state, start, max)
-      state.__strongJaInlineLinkRangeCache = { start, max, ranges: inlineLinkRanges }
+      inlineLinkRanges = computeInlineLinkRanges(state, inlineLinkScanStart, max)
+      state.__strongJaInlineLinkRangeCache = { start: inlineLinkScanStart, max, ranges: inlineLinkRanges }
     }
     if (inlineLinkRanges.length > 0) {
       state.__strongJaHasInlineLinks = true
     }
   }
-  let inlines = createInlines(state, start, max, opt)
+  let inlines = createInlines(state, start, max, runtimeOpt)
 
   const memo = {
     html: state.md.options.html,
@@ -1321,11 +1493,11 @@ const strongJa = (state, silent, opt) => {
     inlineMarkEnd: src.charCodeAt(max - 1) === CHAR_ASTERISK,
   }
 
-  let marks = createMarks(state, inlines, 0, inlines.length, memo, opt, refRanges, inlineLinkRanges)
+  let marks = createMarks(state, inlines, 0, inlines.length, memo, runtimeOpt, refRanges, inlineLinkRanges)
 
   inlines = mergeInlinesAndMarks(inlines, marks)
 
-  setToken(state, inlines, opt, attrsEnabled)
+  setToken(state, inlines, runtimeOpt, attrsEnabled)
 
   if (inlineLinkRanges && inlineLinkRanges.length > 0) {
     const labelSources = []
@@ -1335,8 +1507,15 @@ const strongJa = (state, silent, opt) => {
       labelSources.push(src.slice(range.start + 1, range.end))
     }
     if (labelSources.length > 0) {
+      restoreLabelWhitespace(state.tokens, labelSources)
       state.tokens.__strongJaInlineLabelSources = labelSources
       state.tokens.__strongJaInlineLabelIndex = 0
+      if (state.env) {
+        if (!state.env.__strongJaInlineLabelSourceList) {
+          state.env.__strongJaInlineLabelSourceList = []
+        }
+        state.env.__strongJaInlineLabelSourceList.push(labelSources)
+      }
     }
   }
 
@@ -1705,9 +1884,52 @@ const removeGhostLabelText = (tokens, linkCloseIndex, labelText) => {
   }
 }
 
+const restoreLabelWhitespace = (tokens, labelSources) => {
+  if (!tokens || !labelSources || labelSources.length === 0) return
+  let labelIdx = 0
+  for (let i = 0; i < tokens.length && labelIdx < labelSources.length; i++) {
+    if (tokens[i].type !== 'link_open') continue
+    const closeIdx = findLinkCloseIndex(tokens, i)
+    if (closeIdx === -1) continue
+    const labelSource = labelSources[labelIdx] || ''
+    if (!labelSource) {
+      labelIdx++
+      continue
+    }
+    let cursor = 0
+    for (let pos = i + 1; pos < closeIdx; pos++) {
+      const t = tokens[pos]
+      const markup = t.markup || ''
+      const text = t.content || ''
+      const startPos = cursor
+      if (t.type === 'text') {
+        cursor += text.length
+      } else if (t.type === 'code_inline') {
+        cursor += markup.length + text.length + markup.length
+      } else if (markup) {
+        cursor += markup.length
+      }
+      if ((t.type === 'strong_open' || t.type === 'em_open') && startPos > 0) {
+        const prevToken = tokens[pos - 1]
+        if (prevToken && prevToken.type === 'text' && prevToken.content && !prevToken.content.endsWith(' ')) {
+          const hasSpaceBefore = startPos - 1 >= 0 && startPos - 1 < labelSource.length && labelSource[startPos - 1] === ' '
+          const hasSpaceAt = startPos >= 0 && startPos < labelSource.length && labelSource[startPos] === ' '
+          if (hasSpaceBefore || hasSpaceAt) {
+            prevToken.content += ' '
+          }
+        }
+      }
+    }
+    labelIdx++
+  }
+}
+
 const convertInlineLinks = (tokens, state) => {
   if (!tokens || tokens.length === 0) return
-  const labelSources = tokens.__strongJaInlineLabelSources
+  let labelSources = tokens.__strongJaInlineLabelSources
+  if ((!labelSources || labelSources.length === 0) && state && state.env && Array.isArray(state.env.__strongJaInlineLabelSourceList) && state.env.__strongJaInlineLabelSourceList.length > 0) {
+    labelSources = state.env.__strongJaInlineLabelSourceList.shift()
+  }
   let labelSourceIndex = tokens.__strongJaInlineLabelIndex || 0
   let i = 0
   while (i < tokens.length) {
@@ -1796,6 +2018,35 @@ const convertInlineLinks = (tokens, state) => {
     if (nextIndex === i) {
       i++
       continue
+    }
+    if (currentLabelSource) {
+      const linkCloseIdx = findLinkCloseIndex(tokens, i)
+      if (linkCloseIdx !== -1) {
+        let cursor = 0
+        for (let pos = i + 1; pos < linkCloseIdx; pos++) {
+          const t = tokens[pos]
+          const markup = t.markup || ''
+          const text = t.content || ''
+          const startPos = cursor
+          if (t.type === 'text') {
+            cursor += text.length
+          } else if (t.type === 'code_inline') {
+            cursor += markup.length + text.length + markup.length
+          } else if (markup) {
+            cursor += markup.length
+          }
+          if ((t.type === 'strong_open' || t.type === 'em_open') && startPos > 0) {
+            const prevToken = tokens[pos - 1]
+            if (prevToken && prevToken.type === 'text' && prevToken.content && !prevToken.content.endsWith(' ')) {
+              const labelHasSpaceBefore = startPos - 1 >= 0 && startPos - 1 < currentLabelSource.length && currentLabelSource[startPos - 1] === ' '
+              const labelHasSpaceAt = startPos >= 0 && startPos < currentLabelSource.length && currentLabelSource[startPos] === ' '
+              if (labelHasSpaceBefore || labelHasSpaceAt) {
+                prevToken.content += ' '
+              }
+            }
+          }
+        }
+      }
     }
     if (needsPlaceholder && currentLabelSource) {
       removeGhostLabelText(tokens, nextIndex - 1, currentLabelSource)
@@ -2001,9 +2252,11 @@ const mditStrongJa = (md, option) => {
     mditAttrs: true, //markdown-it-attrs
     mdBreaks: md.options.breaks,
     disallowMixed: false, //Non-Japanese text handling
+    mode: 'japanese-only', // 'japanese-only' | 'aggressive' | 'compatible'
     coreRulesBeforePostprocess: [] // e.g. ['cjk_breaks'] when CJK line-break plugins are active
   }
   if (option) Object.assign(opt, option)
+  opt.hasCjkBreaks = hasCjkBreaksRule(md)
   const rawCoreRules = opt.coreRulesBeforePostprocess
   const hasCoreRuleConfig = Array.isArray(rawCoreRules)
     ? rawCoreRules.length > 0
@@ -2015,6 +2268,139 @@ const mditStrongJa = (md, option) => {
   md.inline.ruler.before('emphasis', 'strong_ja', (state, silent) => {
     return strongJa(state, silent, opt)
   })
+
+  // Trim trailing spaces that remain after markdown-it-attrs strips `{...}`
+  // Trim trailing spaces only at the very end of inline content (after attrs/core rules have run).
+  const trimInlineTrailingSpaces = (state) => {
+    if (!state || !state.tokens) return
+    for (let i = 0; i < state.tokens.length; i++) {
+      const token = state.tokens[i]
+      if (!token || token.type !== 'inline' || !token.children || token.children.length === 0) continue
+      let idx = token.children.length - 1
+      while (idx >= 0 && token.children[idx] && token.children[idx].type !== 'text') {
+        idx--
+      }
+      if (idx < 0) continue
+      const child = token.children[idx]
+      if (!child.content) continue
+      const trimmed = child.content.replace(/[ \t]+$/, '')
+      if (trimmed !== child.content) {
+        child.content = trimmed
+      }
+    }
+  }
+  const hasTextJoinRule = Array.isArray(md.core?.ruler?.__rules__)
+    ? md.core.ruler.__rules__.some((rule) => rule && rule.name === 'text_join')
+    : false
+  if (hasTextJoinRule) {
+    md.core.ruler.after('text_join', 'strong_ja_trim_trailing_spaces', trimInlineTrailingSpaces)
+  } else {
+    md.core.ruler.after('inline', 'strong_ja_trim_trailing_spaces', trimInlineTrailingSpaces)
+  }
+
+  const normalizeSoftbreakSpacing = (state) => {
+    if (!state || opt.hasCjkBreaks !== true) return
+    if (!state.tokens || state.tokens.length === 0) return
+    for (let i = 0; i < state.tokens.length; i++) {
+      const token = state.tokens[i]
+      if (!token || token.type !== 'inline' || !token.children || token.children.length === 0) continue
+      for (let j = 0; j < token.children.length; j++) {
+        const child = token.children[j]
+        if (!child || child.type !== 'text' || !child.content) continue
+        if (child.content.indexOf('\n') === -1) continue
+        let normalized = ''
+        for (let idx = 0; idx < child.content.length; idx++) {
+          const ch = child.content[idx]
+          if (ch === '\n') {
+            const prevChar = idx > 0 ? child.content[idx - 1] : ''
+            const nextChar = idx + 1 < child.content.length ? child.content[idx + 1] : ''
+            const isAsciiWord = nextChar && nextChar >= '0' && nextChar <= 'z' && /[A-Za-z0-9]/.test(nextChar)
+            const shouldReplace = isAsciiWord && nextChar !== '{' && nextChar !== '\\' && isJapanese(prevChar) && !isJapanese(nextChar)
+            if (shouldReplace) {
+              normalized += ' '
+              continue
+            }
+          }
+          normalized += ch
+        }
+        if (normalized !== child.content) {
+          child.content = normalized
+        }
+      }
+    }
+  }
+  if (hasTextJoinRule) {
+    md.core.ruler.after('text_join', 'strong_ja_softbreak_spacing', normalizeSoftbreakSpacing)
+  } else {
+    md.core.ruler.after('inline', 'strong_ja_softbreak_spacing', normalizeSoftbreakSpacing)
+  }
+
+  const restoreSoftbreaksAfterCjk = (state) => {
+    if (!state) return
+    if (!state.md || state.md.__strongJaRestoreSoftbreaksForAttrs !== true) return
+    if (opt.hasCjkBreaks !== true) return
+    if (!state.tokens || state.tokens.length === 0) return
+    for (let i = 0; i < state.tokens.length; i++) {
+      const token = state.tokens[i]
+      if (!token || token.type !== 'inline' || !token.children || token.children.length === 0) continue
+      const children = token.children
+      for (let j = 0; j < children.length; j++) {
+        const child = children[j]
+        if (!child || child.type !== 'text' || child.content !== '') continue
+        // Find previous non-empty text content to inspect the trailing character.
+        let prevChar = ''
+        for (let k = j - 1; k >= 0; k--) {
+          const prev = children[k]
+          if (prev && prev.type === 'text' && prev.content) {
+            prevChar = prev.content.charAt(prev.content.length - 1)
+            break
+          }
+        }
+        if (!prevChar || !isJapanese(prevChar)) continue
+        const next = children[j + 1]
+        if (!next || next.type !== 'text' || !next.content) continue
+        const nextChar = next.content.charAt(0)
+        if (nextChar !== '{') continue
+        child.type = 'softbreak'
+        child.tag = ''
+        child.content = '\n'
+        child.markup = ''
+        child.info = ''
+      }
+    }
+  }
+
+  const registerRestoreSoftbreaks = () => {
+    if (md.__strongJaRestoreRegistered) return
+    const anchorRule = hasTextJoinRule ? 'text_join' : 'inline'
+    const added = md.core.ruler.after(anchorRule, 'strong_ja_restore_softbreaks', restoreSoftbreaksAfterCjk)
+    if (added !== false) {
+      md.__strongJaRestoreRegistered = true
+      md.__strongJaRestoreSoftbreaksForAttrs = opt.mditAttrs === false
+      if (opt.hasCjkBreaks) {
+        moveRuleAfter(md.core.ruler, 'strong_ja_restore_softbreaks', 'cjk_breaks')
+        md.__strongJaRestoreReordered = true
+      }
+      if (!md.__strongJaPatchCorePush) {
+        md.__strongJaPatchCorePush = true
+        const originalPush = md.core.ruler.push.bind(md.core.ruler)
+        md.core.ruler.push = (name, fn, options) => {
+          const res = originalPush(name, fn, options)
+          if (name && name.indexOf && name.indexOf('cjk_breaks') !== -1) {
+            opt.hasCjkBreaks = true
+            moveRuleAfter(md.core.ruler, 'strong_ja_restore_softbreaks', name)
+            md.__strongJaRestoreReordered = true
+          }
+          return res
+        }
+      }
+      if (opt.hasCjkBreaks) {
+        moveRuleAfter(md.core.ruler, 'strong_ja_restore_softbreaks', 'cjk_breaks')
+        md.__strongJaRestoreReordered = true
+      }
+    }
+  }
+  registerRestoreSoftbreaks()
 
   md.core.ruler.after('inline', 'strong_ja_postprocess', (state) => {
     const targets = state.env.__strongJaPostProcessTargets
@@ -2042,6 +2428,9 @@ const mditStrongJa = (md, option) => {
       mergeBrokenMarksAroundLinks(tokens)
       delete tokens.__strongJaInlineLabelSources
       delete tokens.__strongJaInlineLabelIndex
+    }
+    if (state.env && state.env.__strongJaInlineLabelSourceList) {
+      delete state.env.__strongJaInlineLabelSourceList
     }
     delete state.env.__strongJaPostProcessTargets
     delete state.env.__strongJaPostProcessTargetSet
@@ -2095,5 +2484,23 @@ function moveRuleBefore(ruler, ruleName, beforeName) {
 
   const rule = rules.splice(fromIdx, 1)[0]
   rules.splice(beforeIdx, 0, rule)
+  ruler.__cache__ = null
+}
+
+function moveRuleAfter(ruler, ruleName, afterName) {
+  if (!ruler || !ruler.__rules__) return
+  const rules = ruler.__rules__
+  let fromIdx = -1
+  let afterIdx = -1
+  for (let idx = 0; idx < rules.length; idx++) {
+    if (rules[idx].name === ruleName) fromIdx = idx
+    if (rules[idx].name === afterName) afterIdx = idx
+    if (fromIdx !== -1 && afterIdx !== -1) break
+  }
+  if (fromIdx === -1 || afterIdx === -1 || fromIdx === afterIdx + 1) return
+
+  const rule = rules.splice(fromIdx, 1)[0]
+  const targetIdx = fromIdx < afterIdx ? afterIdx - 1 : afterIdx
+  rules.splice(targetIdx + 1, 0, rule)
   ruler.__cache__ = null
 }
