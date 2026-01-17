@@ -239,6 +239,12 @@ aaa&lt;/&gt;aaa
 
 
 [Markdown]
+**aa`code`**aa
+[HTML]
+<p>**aa<code>code</code>**aa</p>
+
+
+[Markdown]
 前文**強調**、途中で[**参照リンク**][ref-ja]を挟み、最後は**読点。**
 
 [ref-ja]: https://example.com/ja

@@ -124,6 +124,11 @@ nnn**aaa.**iiii** uuu
 <p><strong><code>code</code></strong>tail**</p>
 
 [Markdown]
+**aa`code`**aa
+[HTML]
+<p><strong>aa<code>code</code></strong>aa</p>
+
+[Markdown]
 **`\\`**tail**
 [HTML]
 <p><strong><code>\\</code></strong>tail**</p>

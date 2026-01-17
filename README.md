@@ -65,10 +65,10 @@ Inline link/HTML/code blocks stay intact (see Link / Inline code examples above)
   - Output (default/aggressive): `<p>これは<strong><a href="url">text</a></strong>です</p>`
   - Output (compatible): `<p>これは**<a href="url">text</a>**です</p>`
 - Inline code (cluster of `*` without spaces):
-  - Input (English-only): `` **aaa.`code`** ``
-  - Output (default): `<p>**aaa.<code>code</code>**</p>`
-  - Output (aggressive): `<p><strong>aaa.`code`</strong>**</p>`
-  - Output (compatible): `<p>**aaa.<code>code</code>**</p>`
+  - Input (English-only): `` **aa`code`**aa ``
+  - Output (default): `<p>**aa<code>code</code>**aa</p>`
+  - Output (aggressive): `<p><strong>aa<code>code</code></strong>aa</p>`
+  - Output (compatible): `<p>**aa<code>code</code>**aa</p>`
   - Input (Japanese mixed): `` これは**`code`**です ``
   - Output (default/aggressive): `<p>これは<strong><code>code</code></strong>です</p>`
   - Output (compatible): `<p>これは**<code>code</code>**です</p>`
