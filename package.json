@@ -19,7 +19,7 @@
     "markdown-it": "^14.1.0"
   },
   "devDependencies": {
-    "@peaceroad/markdown-it-cjk-breaks-mod": "^0.1.1",
+    "@peaceroad/markdown-it-cjk-breaks-mod": "^0.1.4",
     "@peaceroad/markdown-it-hr-sandwiched-semantic-container": "^0.8.0",
     "markdown-it-attrs": "^4.3.1",
     "markdown-it-sub": "^2.0.0",
