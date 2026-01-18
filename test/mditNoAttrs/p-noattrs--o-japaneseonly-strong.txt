@@ -272,3 +272,20 @@ aaa&lt;/&gt;aaa
 <p>箇条書き風ですが<strong>(注釈)【重要】</strong>を連続で強調します。</p>
 
 
+[Markdown]
+文**ああ **続き
+[HTML]
+<p>文<strong>ああ </strong>続き</p>
+
+
+[Markdown]
+文** ああ**続き
+[HTML]
+<p>文<strong> ああ</strong>続き</p>
+
+
+[Markdown]
+文** ああ **続き
+[HTML]
+<p>文<strong> ああ </strong>続き</p>
+

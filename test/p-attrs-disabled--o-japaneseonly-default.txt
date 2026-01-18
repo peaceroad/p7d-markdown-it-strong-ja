@@ -12,3 +12,13 @@
 **a**{.c}
 [HTML]
 <p><strong>a</strong>{.c}</p>
+
+[Markdown]
+Text {.c}
+[HTML]
+<p>Text {.c}</p>
+
+[Markdown]
+Text  {.c}
+[HTML]
+<p>Text  {.c}</p>

@@ -2277,15 +2277,15 @@ const mditStrongJa = (md, option) => {
       const token = state.tokens[i]
       if (!token || token.type !== 'inline' || !token.children || token.children.length === 0) continue
       let idx = token.children.length - 1
-      while (idx >= 0 && token.children[idx] && token.children[idx].type !== 'text') {
+      while (idx >= 0 && (!token.children[idx] || (token.children[idx].type === 'text' && token.children[idx].content === ''))) {
         idx--
       }
       if (idx < 0) continue
-      const child = token.children[idx]
-      if (!child.content) continue
-      const trimmed = child.content.replace(/[ \t]+$/, '')
-      if (trimmed !== child.content) {
-        child.content = trimmed
+      const tail = token.children[idx]
+      if (!tail || tail.type !== 'text' || !tail.content) continue
+      const trimmed = tail.content.replace(/[ \t]+$/, '')
+      if (trimmed !== tail.content) {
+        tail.content = trimmed
       }
     }
   }

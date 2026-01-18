@@ -231,3 +231,21 @@ HTMLは[*「HyperText Markup Language」*][]です。
 箇条書き風ですが*(注釈)【重要】*を連続で強調します。
 [HTML]
 <p>箇条書き風ですが<em>(注釈)【重要】</em>を連続で強調します。</p>
+
+
+[Markdown]
+文*ああ *続き
+[HTML]
+<p>文<em>ああ </em>続き</p>
+
+
+[Markdown]
+文* ああ*続き
+[HTML]
+<p>文<em> ああ</em>続き</p>
+
+
+[Markdown]
+文* ああ *続き
+[HTML]
+<p>文<em> ああ </em>続き</p>

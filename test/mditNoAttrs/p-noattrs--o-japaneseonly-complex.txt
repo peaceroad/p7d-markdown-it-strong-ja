@@ -1100,3 +1100,123 @@ A [**para**][pa]graph.
 <p>前後に句読点<em><strong>、強調対象、</strong></em>を含めるテスト。</p>
 
 
+[Markdown]
+- List item with `code`
+[HTML]
+<ul>
+<li>List item with <code>code</code></li>
+</ul>
+
+
+[Markdown]
+- List item with **strong** `code`
+[HTML]
+<ul>
+<li>List item with <strong>strong</strong> <code>code</code></li>
+</ul>
+
+
+[Markdown]
+- List item with *em* `code`
+[HTML]
+<ul>
+<li>List item with <em>em</em> <code>code</code></li>
+</ul>
+
+
+[Markdown]
+- List item with [link](https://example.com)
+[HTML]
+<ul>
+<li>List item with <a href="https://example.com">link</a></li>
+</ul>
+
+
+[Markdown]
+- List item with ![img](https://example.com/a.png)
+[HTML]
+<ul>
+<li>List item with <img src="https://example.com/a.png" alt="img"></li>
+</ul>
+
+
+[Markdown]
+- List item with <https://example.com>
+[HTML]
+<ul>
+<li>List item with <a href="https://example.com">https://example.com</a></li>
+</ul>
+
+
+[Markdown]
+Paragraph with `code`
+[HTML]
+<p>Paragraph with <code>code</code></p>
+
+
+[Markdown]
+- List item with <br>
+[HTML]
+<ul>
+<li>List item with &lt;br&gt;</li>
+</ul>
+[HTML:true]
+<ul>
+<li>List item with <br></li>
+</ul>
+
+
+[Markdown]
+- List item with <span>inline</span>
+[HTML]
+<ul>
+<li>List item with &lt;span&gt;inline&lt;/span&gt;</li>
+</ul>
+[HTML:true]
+<ul>
+<li>List item with <span>inline</span></li>
+</ul>
+
+
+[Markdown]
+Paragraph with <br>
+[HTML]
+<p>Paragraph with &lt;br&gt;</p>
+[HTML:true]
+<p>Paragraph with <br></p>
+
+
+[Markdown]
+Paragraph with <span>inline</span>
+[HTML]
+<p>Paragraph with &lt;span&gt;inline&lt;/span&gt;</p>
+[HTML:true]
+<p>Paragraph with <span>inline</span></p>
+
+
+[Markdown]
+[link ](https://example.com)
+[HTML]
+<p><a href="https://example.com">link </a></p>
+
+
+[Markdown]
+[link ](https://example.com)tail
+[HTML]
+<p><a href="https://example.com">link </a>tail</p>
+
+
+[Markdown]
+- [link ](https://example.com)
+[HTML]
+<ul>
+<li><a href="https://example.com">link </a></li>
+</ul>
+
+
+[Markdown]
+- [link ](https://example.com)tail
+[HTML]
+<ul>
+<li><a href="https://example.com">link </a>tail</li>
+</ul>
