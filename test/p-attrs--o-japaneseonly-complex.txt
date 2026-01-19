@@ -1364,3 +1364,9 @@ Text  {.class}
 <ul>
 <li><a href="https://example.com">link </a>tail</li>
 </ul>
+
+
+[Markdown]
+***強調と*入れ子*の検証***を行う。
+[HTML]
+<p><em><em><em>強調と</em>入れ子</em>の検証</em>**を行う。</p>

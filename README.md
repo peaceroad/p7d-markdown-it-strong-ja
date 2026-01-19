@@ -42,7 +42,8 @@ Japanese-first pairing around punctuation and mixed sentences: leading/trailing 
   - Input: `**「test」**`
   - Output (default): `<p><strong>「test」</strong></p>`
   - Output (aggressive): `<p><strong>「test」</strong></p>`
-  - Output (compatible): `<p>**「test」**</p>`
+  - Output (compatible): `<p><strong>「test」</strong></p>`
+  - Output (markdown-it): `<p><strong>「test」</strong></p>`
 
 - Mixed sentence (multiple `*` runs): English-only stays markdown-it compatible unless you pick aggressive mode; earlier `**` runs can remain literal while later ones pair.
   - Input (Japanese mixed): `**あああ。**iii**`
@@ -76,22 +77,6 @@ Inline link/HTML/code blocks stay intact (see Link / Inline code examples above)
   - Input (Japanese mixed): `` これは**`code`**です ``
   - Output (default/aggressive): `<p>これは<strong><code>code</code></strong>です</p>`
   - Output (compatible): `<p>これは**<code>code</code>**です</p>`
-
-### Known differences from vanilla markdown-it
-
-This section collects other cases that diverge from vanilla markdown-it.
-
-The plugin keeps pairing aggressively in Japanese contexts, which can diverge from markdown-it when markup spans newlines or mixes nested markers.
-
-- Multiline + nested emphasis (markdown-it leaves trailing `**`):
-
-  ```markdown
-  ***強調と*入れ子*の検証***を行う。
-  ```
-
-  - markdown-it: `<p><em><em><em>強調と</em>入れ子</em>の検証</em>**を行う。</p>`
-  - markdown-it-strong-ja (default/aggressive): `<p><em><strong>強調と<em>入れ子</em>の検証</strong></em>を行う。</p>`
-  - If you want markdown-it behavior here, use `mode: 'compatible'`.
 
 Notice. The plugin keeps inline HTML / angle-bracket regions intact so rendered HTML keeps correct nesting (for example, it avoids mis-nesting in inputs like `**aaa<code>**bbb</code>` when HTML output is enabled).
 
@@ -219,6 +204,11 @@ HTMLは**「HyperText Markup Language」**
 HTMLは**「HyperText Markup Language」**。
 [HTML]
 <p>HTMLは<strong>「HyperText Markup Language」</strong>。</p>
+
+[Markdown]
+***強調と*入れ子*の検証***を行う。
+[HTML]
+<p><em><em><em>強調と</em>入れ子</em>の検証</em>**を行う。</p>
 
 [Markdown]
 ****
