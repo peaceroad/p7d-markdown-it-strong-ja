@@ -34,49 +34,44 @@ const mdCompat = mdit().use(mditStrongJa, { mode: 'compatible' }) // markdown-it
 const mdAggressive = mdit().use(mditStrongJa, { mode: 'aggressive' }) // always pair leading **
 ```
 
-Default (japanese-only) pairs aggressively only when Japanese is present. Aggressive always pairs the leading `**`, and compatible matches markdown-it.
+Default (japanese-only) pairs aggressively only when Japanese is present in the paragraph (the full inline content); detection is not line-by-line. Aggressive always pairs the leading `**`, and compatible matches markdown-it.
 
-Japanese-first pairing around punctuation and mixed sentences: leading/trailing Japanese quotes or brackets (`「`, `」`, `（`, `、` etc.) are wrapped even when the same pattern would stay literal in markdown-it. Mixed sentences here mean one line that contains multiple `*` runs; Japanese text keeps the leading `**` aggressive, while English-only stays compatible unless you pick aggressive mode.
+Japanese-first pairing around punctuation and mixed sentences: leading/trailing Japanese quotes or brackets (`「`, `」`, `（`, `、` etc.) are wrapped in Japanese paragraphs. Mixed sentences here mean one paragraph that contains multiple `*` runs; Japanese text keeps the leading `**` aggressive, while English-only stays compatible unless you pick aggressive mode.
 
-- Punctuation:
+- Punctuation (CJK quotes):
   - Input: `**「test」**`
-  - Output (default): `<p><strong>「test」</strong></p>`
-  - Output (aggressive): `<p><strong>「test」</strong></p>`
-  - Output (compatible): `<p><strong>「test」</strong></p>`
-  - Output (markdown-it): `<p><strong>「test」</strong></p>`
+  - Output (default/aggressive/compatible/markdown-it): `<p><strong>「test」</strong></p>`
+  - Input: `これは**「test」**です`
+  - Output (default/aggressive): `<p>これは<strong>「test」</strong>です</p>`
+  - Output (compatible/markdown-it): `<p>これは**「test」**です</p>`
 
 - Mixed sentence (multiple `*` runs): English-only stays markdown-it compatible unless you pick aggressive mode; earlier `**` runs can remain literal while later ones pair.
   - Input (Japanese mixed): `**あああ。**iii**`
-  - Output (default): `<p><strong>あああ。</strong>iii**</p>`
-  - Output (aggressive): `<p><strong>あああ。</strong>iii**</p>`
-  - Output (compatible): `<p>**あああ。<strong>iii</strong></p>`
+  - Output (default/aggressive): `<p><strong>あああ。</strong>iii**</p>`
+  - Output (compatible/markdown-it): `<p>**あああ。<strong>iii</strong></p>`
   - Input (English-only): `**aaa.**iii**`
-  - Output (default): `<p>**aaa.<strong>iii</strong></p>`
   - Output (aggressive): `<p><strong>aaa.</strong>iii**</p>`
-  - Output (compatible): `<p>**aaa.<strong>iii</strong></p>`
+  - Output (default/compatible/markdown-it): `<p>**aaa.<strong>iii</strong></p>`
   - Input (English-only, two `**` runs): `**aaa.**eee.**eeee**`
-  - Output (default): `<p>**aaa.**eee.<strong>eeee</strong></p>`
   - Output (aggressive): `<p><strong>aaa.</strong>eee.<strong>eeee</strong></p>`
-  - Output (compatible): `<p>**aaa.**eee.<strong>eeee</strong></p>`
+  - Output (default/compatible/markdown-it): `<p>**aaa.**eee.<strong>eeee</strong></p>`
 
 Inline link/HTML/code blocks stay intact (see Link / Inline code examples above): the plugin re-wraps `[label](url)` / `[label][]` after pairing to avoid broken emphasis tokens around anchors, inline HTML, or inline code. This also covers clusters of `*` with no spaces around the link or code span.
 
 - Link (cluster of `*` without spaces):
   - Input (English-only): `string**[text](url)**`
-  - Output (default): `<p>string**<a href="url">text</a>**</p>`
   - Output (aggressive): `<p>string<strong><a href="url">text</a></strong></p>`
-  - Output (compatible): `<p>string**<a href="url">text</a>**</p>`
+  - Output (default/compatible/markdown-it): `<p>string**<a href="url">text</a>**</p>`
   - Input (Japanese mixed): `これは**[text](url)**です`
   - Output (default/aggressive): `<p>これは<strong><a href="url">text</a></strong>です</p>`
-  - Output (compatible): `<p>これは**<a href="url">text</a>**です</p>`
+  - Output (compatible/markdown-it): `<p>これは**<a href="url">text</a>**です</p>`
 - Inline code (cluster of `*` without spaces):
   - Input (English-only): `` **aa`code`**aa ``
-  - Output (default): `<p>**aa<code>code</code>**aa</p>`
   - Output (aggressive): `<p><strong>aa<code>code</code></strong>aa</p>`
-  - Output (compatible): `<p>**aa<code>code</code>**aa</p>`
+  - Output (default/compatible/markdown-it): `<p>**aa<code>code</code>**aa</p>`
   - Input (Japanese mixed): `` これは**`code`**です ``
   - Output (default/aggressive): `<p>これは<strong><code>code</code></strong>です</p>`
-  - Output (compatible): `<p>これは**<code>code</code>**です</p>`
+  - Output (compatible/markdown-it): `<p>これは**<code>code</code>**です</p>`
 
 Notice. The plugin keeps inline HTML / angle-bracket regions intact so rendered HTML keeps correct nesting (for example, it avoids mis-nesting in inputs like `**aaa<code>**bbb</code>` when HTML output is enabled).
 

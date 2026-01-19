@@ -12,6 +12,18 @@
 [markdown-it]
 <p><strong>「test」</strong></p>
 
+[case punctuation-in-sentence]
+[markdown]
+これは**「test」**です
+[default]
+<p>これは<strong>「test」</strong>です</p>
+[aggressive]
+<p>これは<strong>「test」</strong>です</p>
+[compatible]
+<p>これは**「test」**です</p>
+[markdown-it]
+<p>これは**「test」**です</p>
+
 [case mixed-japanese]
 [markdown]
 **あああ。**iii**
