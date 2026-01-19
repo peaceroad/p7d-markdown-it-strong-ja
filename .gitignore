@@ -16,7 +16,7 @@ index_*
 optimization_*
 performance_*
 simple_*
-test_*
-test-*
+./test_*
+./test-*
 verify_*
 webapp_*
