@@ -43,7 +43,6 @@ const registerTokenCompat = (md, baseOpt) => {
     md.__strongJaTokenSoftbreakSpacingRegistered = true
     const normalizeSoftbreakSpacing = (state) => {
       if (!state) return
-      const opt = getRuntimeOpt(state, baseOpt)
       if (baseOpt.hasCjkBreaks !== true && state.md) {
         baseOpt.hasCjkBreaks = hasCjkBreaksRule(state.md)
       }

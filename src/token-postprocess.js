@@ -193,7 +193,7 @@ const fixTailAfterLinkStrongClose = (tokens, md, env) => {
   return false
 }
 
-const registerTokenPostprocess = (md, baseOpt, getNoLinkMd) => {
+const registerTokenPostprocess = (md, baseOpt, getNoLinkMdInstance) => {
   if (md.__strongJaTokenPostprocessRegistered) return
   md.__strongJaTokenPostprocessRegistered = true
   md.core.ruler.after('inline', 'strong_ja_token_postprocess', (state) => {
@@ -288,7 +288,7 @@ const registerTokenPostprocess = (md, baseOpt, getNoLinkMd) => {
                 if (shouldReparseSegment(children, brokenRefStart, closeIdx)) {
                   const originalMap = getMapFromTokenRange(children, brokenRefStart, closeIdx)
                   const raw = buildRawFromTokens(children, brokenRefStart, closeIdx)
-                  const noLink = getNoLinkMd(md, opt)
+                  const noLink = getNoLinkMdInstance(md, opt)
                   const parsed = parseInlineWithFixes(noLink, raw, state.env)
                   if (parsed && parsed.length > 0) {
                     if (originalMap) {

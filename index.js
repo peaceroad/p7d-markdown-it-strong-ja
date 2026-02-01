@@ -3,39 +3,39 @@ import { patchScanDelims } from './src/token-core.js'
 import { registerTokenCompat } from './src/token-compat.js'
 import { registerTokenPostprocess } from './src/token-postprocess.js'
 
-const buildNoLinkKey = (opt) => {
+const buildNoLinkCacheKey = (opt) => {
   const mode = resolveMode(opt)
   const mditAttrs = opt && opt.mditAttrs === false ? '0' : '1'
   const mdBreaks = opt && opt.mdBreaks === true ? '1' : '0'
   return `${mode}|${mditAttrs}|${mdBreaks}`
 }
 
-const getNoLinkMd = (md, opt) => {
+const getNoLinkMdInstance = (md, opt) => {
   const baseOpt = opt || md.__strongJaTokenOpt || { mode: 'japanese' }
-  const key = buildNoLinkKey(baseOpt)
+  const key = buildNoLinkCacheKey(baseOpt)
   if (!md.__strongJaTokenNoLinkCache) {
     md.__strongJaTokenNoLinkCache = new Map()
   }
   const cache = md.__strongJaTokenNoLinkCache
   if (cache.has(key)) return cache.get(key)
   const noLink = new md.constructor(md.options)
-  tokenEngine(noLink, { ...baseOpt, _skipPostprocess: true })
+  mditStrongJa(noLink, { ...baseOpt, _skipPostprocess: true })
   noLink.inline.ruler.disable(['link'])
   cache.set(key, noLink)
   return noLink
 }
 
-const tokenEngine = (md, option) => {
+const mditStrongJa = (md, option) => {
   if (option && typeof option.engine === 'string' && option.engine !== 'token') {
     throw new Error('mditStrongJa: legacy engine was removed; use token (default)')
   }
   const opt = {
-    mditAttrs: true,
-    mdBreaks: md.options.breaks,
-    mode: 'japanese',
-    coreRulesBeforePostprocess: [],
-    postprocess: true,
-    patchCorePush: true
+    mditAttrs: true, // assume markdown-it-attrs integration by default
+    mdBreaks: md.options.breaks, // inherit md.options.breaks for compat handling
+    mode: 'japanese', // 'japanese' | 'aggressive' | 'compatible' (pairing behavior)
+    coreRulesBeforePostprocess: [], // e.g. ['cjk_breaks'] to keep rules ahead of postprocess
+    postprocess: true, // enable link/ref reconstruction pass
+    patchCorePush: true // keep restore-softbreaks after late cjk_breaks
   }
   if (option) Object.assign(opt, option)
   opt.hasCjkBreaks = hasCjkBreaksRule(md)
@@ -45,7 +45,7 @@ const tokenEngine = (md, option) => {
   registerTokenCompat(md, opt)
 
   if (!opt._skipPostprocess) {
-    registerTokenPostprocess(md, opt, getNoLinkMd)
+    registerTokenPostprocess(md, opt, getNoLinkMdInstance)
     const rawCoreRules = opt.coreRulesBeforePostprocess
     const hasCoreRuleConfig = Array.isArray(rawCoreRules)
       ? rawCoreRules.length > 0
@@ -59,4 +59,4 @@ const tokenEngine = (md, option) => {
   return md
 }
 
-export default tokenEngine
+export default mditStrongJa
