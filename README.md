@@ -27,11 +27,13 @@ Default output pairs `*` / `**` as it scans left-to-right: when a line contains 
 - `mode: 'japanese-only'` (default) … Japanese ⇒ aggressive, English-only ⇒ markdown-it compatible
 - `mode: 'aggressive'` … always aggressive (lead `**` pairs greedily)
 - `mode: 'compatible'` … markdown-it compatible (lead `**` stays literal)
+- `engine: 'legacy'` (default) … current inline parser (full feature set)
 
 ```js
 const mdDefault = mdit().use(mditStrongJa) // mode: 'japanese-only'
 const mdCompat = mdit().use(mditStrongJa, { mode: 'compatible' }) // markdown-it pairing
 const mdAggressive = mdit().use(mditStrongJa, { mode: 'aggressive' }) // always pair leading **
+const mdTokenEngine = mdit().use(mditStrongJa, { engine: 'token' }) // experimental (parity work in progress)
 ```
 
 Default (japanese-only) pairs aggressively only when Japanese is present in the paragraph (the full inline content); detection is not line-by-line. Aggressive always pairs the leading `**`, and compatible matches markdown-it.
@@ -243,3 +245,42 @@ const md = mdit()
 - Pass an empty array if you do not want `mditStrongJa` to reorder any core rules.
 
 Most setups can leave this option untouched; use it only when you must keep another plugin's core rule ahead of `strong_ja_postprocess`.
+
+### engine
+
+Selects the parsing engine.
+
+```js
+const mdLegacy = mdit().use(mditStrongJa, { engine: 'legacy' })
+const mdToken = mdit().use(mditStrongJa, { engine: 'token' })
+```
+
+- Default: `'legacy'`
+- `'token'` is experimental and currently mirrors the legacy behavior while the token-based refactor is in progress.
+
+### postprocess
+
+Toggle the link/reference reconstruction pass and the link-adjacent mark cleanup that runs after inline parsing.
+
+```js
+const md = mdit().use(mditStrongJa, {
+  postprocess: false
+})
+```
+
+- Default: `true`
+- Set `false` when you want to minimize core-rule interference and accept that some link/reference + emphasis combinations remain literal (for example, `**[text](url)**`, `[**Text**][]`).
+
+### patchCorePush
+
+Controls whether `mditStrongJa` patches `md.core.ruler.push` to track late-registered `cjk_breaks` rules (used only when `mditAttrs: false`).
+
+```js
+const md = mdit().use(mditStrongJa, {
+  mditAttrs: false,
+  patchCorePush: false
+})
+```
+
+- Default: `true`
+- Disable if you want to avoid monkey-patching core rule registration and can ensure rule ordering yourself.

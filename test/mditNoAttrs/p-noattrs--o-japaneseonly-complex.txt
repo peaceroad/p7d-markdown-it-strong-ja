@@ -1024,6 +1024,14 @@ A [**para**][pa]graph.
 
 
 [Markdown]
+**壊れ1[参照*ラベル1][ref-a と [ok1](https://example.com/a*1) と 壊れ2[参照*ラベル2][ref-b と [ok2](https://example.com/b*2) の組み合わせ**
+
+[ref-a]: https://example.com/ref*a
+[ref-b]: https://example.com/ref*b
+[HTML:false]
+<p><strong>壊れ1[参照<em>ラベル1][ref-a と [ok1](https://example.com/a*1) と 壊れ2[参照</em>ラベル2][ref-b と [ok2](https://example.com/b*2) の組み合わせ</strong></p>
+
+[Markdown]
 [リンク内で *強調* と `*code*` と **太字** *終端*](https://example.com/foo*bar)の後ろに*補足*があります。
 [HTML]
 <p><a href="https://example.com/foo*bar">リンク内で <em>強調</em> と <code>*code*</code> と <strong>太字</strong> <em>終端</em></a>の後ろに<em>補足</em>があります。</p>
