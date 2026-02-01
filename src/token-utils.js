@@ -51,8 +51,10 @@ const findNextNonSpace = (src, start, max) => {
 }
 
 const resolveMode = (opt) => {
-  const raw = opt && typeof opt.mode === 'string' ? opt.mode : 'japanese-only'
-  return raw.toLowerCase()
+  const raw = opt && typeof opt.mode === 'string' ? opt.mode : 'japanese'
+  const mode = raw.toLowerCase()
+  if (mode === 'japanese-only') return 'japanese'
+  return mode
 }
 
 const shouldUseJapaneseRule = (state, opt, mode) => {
@@ -63,7 +65,6 @@ const shouldUseJapaneseRule = (state, opt, mode) => {
     hasJapanese = hasJapaneseText(state.src)
     state.__strongJaTokenHasJapanese = hasJapanese
   }
-  if (opt && opt.disallowMixed === true) return hasJapanese
   return hasJapanese
 }
 

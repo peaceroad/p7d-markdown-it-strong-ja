@@ -61,16 +61,17 @@ const summarizeTokens = (tokens) => {
 
 const signature = (summary) => JSON.stringify(summary)
 
-const run = (markdown, engine) => {
-  const md = new MarkdownIt().use(mditStrongJa, { engine })
+// Token-only: map diffs indicate where postprocess rewrites inline tokens.
+// Some diffs are expected because inline child tokens often lack map data.
+const run = (markdown) => {
+  const md = new MarkdownIt().use(mditStrongJa)
   let before = null
   let after = null
 
-  const ruleName = engine === 'token' ? 'strong_ja_token_postprocess' : 'strong_ja_postprocess'
-  md.core.ruler.before(ruleName, 'map_snapshot_before', (state) => {
+  md.core.ruler.before('strong_ja_token_postprocess', 'map_snapshot_before', (state) => {
     before = summarizeTokens(state.tokens)
   })
-  md.core.ruler.after(ruleName, 'map_snapshot_after', (state) => {
+  md.core.ruler.after('strong_ja_token_postprocess', 'map_snapshot_after', (state) => {
     after = summarizeTokens(state.tokens)
   })
 
@@ -97,30 +98,8 @@ const formatInline = (summary, limit = 20) => {
 }
 
 const args = process.argv.slice(2)
-let engine = 'legacy'
-const fileArgs = []
-for (let i = 0; i < args.length; i++) {
-  const arg = args[i]
-  if (arg === '--engine' && args[i + 1]) {
-    engine = args[i + 1]
-    i++
-    continue
-  }
-  if (arg.startsWith('--engine=')) {
-    engine = arg.slice('--engine='.length)
-    continue
-  }
-  if (arg === 'token' || arg === 'legacy') {
-    engine = arg
-    continue
-  }
-  fileArgs.push(arg)
-}
-if (engine !== 'token' && engine !== 'legacy') {
-  engine = 'legacy'
-}
-const files = fileArgs.length > 0
-  ? fileArgs.map((p) => (p.includes('/') ? p : path.join(__dirname, p)))
+const files = args.length > 0
+  ? args.map((p) => (p.includes('/') ? p : path.join(__dirname, p)))
   : [path.join(__dirname, 'p-attrs--o-japaneseonly-complex.txt')]
 
 const maxDiff = 10
@@ -135,7 +114,7 @@ for (const file of files) {
     const markdown = examples[idx].markdown
     if (!markdown.includes('[') && !markdown.includes('**') && !markdown.includes('*')) continue
     total++
-    const { before, after } = run(markdown, engine)
+    const { before, after } = run(markdown)
     const sigBefore = signature(before || [])
     const sigAfter = signature(after || [])
     if (sigBefore !== sigAfter) {

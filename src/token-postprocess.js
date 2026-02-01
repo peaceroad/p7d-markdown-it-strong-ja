@@ -1,5 +1,5 @@
 import Token from 'markdown-it/lib/token.mjs'
-import { convertCollapsedReferenceLinks, mergeBrokenMarksAroundLinks, getMapFromTokenRange } from './link-utils.js'
+import { convertCollapsedReferenceLinks, mergeBrokenMarksAroundLinks, getMapFromTokenRange } from './token-link-utils.js'
 import {
   rebuildInlineLevels,
   findLinkClose,
@@ -9,8 +9,12 @@ import {
 } from './token-core.js'
 import { getRuntimeOpt } from './token-utils.js'
 
-const scanBrokenRefState = (text) => {
-  if (!text || text.indexOf('][') === -1) return { depth: 0, brokenEnd: false }
+const scanBrokenRefState = (text, out) => {
+  if (!text || text.indexOf('][') === -1) {
+    out.depth = 0
+    out.brokenEnd = false
+    return out
+  }
   let depth = 0
   let lastOpen = -1
   let lastClose = -1
@@ -24,7 +28,9 @@ const scanBrokenRefState = (text) => {
       lastClose = i
     }
   }
-  return { depth, brokenEnd: depth > 0 && lastOpen > lastClose }
+  out.depth = depth
+  out.brokenEnd = depth > 0 && lastOpen > lastClose
+  return out
 }
 
 const updateBracketDepth = (text, depth) => {
@@ -208,41 +214,21 @@ const registerTokenPostprocess = (md, baseOpt, getNoLinkMd) => {
       let hasLinkClose = false
       let reparseCount = 0
       let maxReparse = 0
+      const scanState = { depth: 0, brokenEnd: false }
       for (let j = 0; j < children.length; j++) {
         const child = children[j]
         if (!child || child.type !== 'text' || !child.content) continue
-        if (scanBrokenRefState(child.content).brokenEnd) {
+        if (scanBrokenRefState(child.content, scanState).brokenEnd) {
           maxReparse++
         }
       }
-      let allowReparse = maxReparse > 0
-      while (true) {
-        let didReparse = false
-        let brokenRefStart = -1
-        let brokenRefDepth = 0
-        hasBracketText = false
-        hasEmphasis = false
-        hasLinkClose = false
+      if (maxReparse === 0) {
         for (let j = 0; j < children.length; j++) {
           const child = children[j]
           if (!child) continue
           if (child.type === 'text' && child.content) {
             if (!hasBracketText && (child.content.indexOf('[') !== -1 || child.content.indexOf(']') !== -1)) {
               hasBracketText = true
-            }
-            if (brokenRefStart === -1) {
-              const scan = scanBrokenRefState(child.content)
-              if (scan.brokenEnd) {
-                brokenRefStart = j
-                brokenRefDepth = scan.depth
-                continue
-              }
-            } else {
-              brokenRefDepth = updateBracketDepth(child.content, brokenRefDepth)
-              if (brokenRefDepth <= 0) {
-                brokenRefStart = -1
-                brokenRefDepth = 0
-              }
             }
           }
           if (!hasEmphasis &&
@@ -252,49 +238,89 @@ const registerTokenPostprocess = (md, baseOpt, getNoLinkMd) => {
           if (!hasLinkClose && child.type === 'link_close') {
             hasLinkClose = true
           }
-          if (allowReparse && brokenRefStart !== -1 && child.type === 'link_open') {
-            if (brokenRefDepth <= 0) {
-              brokenRefStart = -1
-              brokenRefDepth = 0
-              continue
+        }
+      } else {
+        let allowReparse = true
+        while (true) {
+          let didReparse = false
+          let brokenRefStart = -1
+          let brokenRefDepth = 0
+          hasBracketText = false
+          hasEmphasis = false
+          hasLinkClose = false
+          for (let j = 0; j < children.length; j++) {
+            const child = children[j]
+            if (!child) continue
+            if (child.type === 'text' && child.content) {
+              if (!hasBracketText && (child.content.indexOf('[') !== -1 || child.content.indexOf(']') !== -1)) {
+                hasBracketText = true
+              }
+              if (brokenRefStart === -1) {
+                const scan = scanBrokenRefState(child.content, scanState)
+                if (scan.brokenEnd) {
+                  brokenRefStart = j
+                  brokenRefDepth = scan.depth
+                  continue
+                }
+              } else {
+                brokenRefDepth = updateBracketDepth(child.content, brokenRefDepth)
+                if (brokenRefDepth <= 0) {
+                  brokenRefStart = -1
+                  brokenRefDepth = 0
+                }
+              }
             }
-            const closeIdx = findLinkClose(children, j)
-            if (closeIdx !== -1) {
-              if (shouldReparseSegment(children, brokenRefStart, closeIdx)) {
-                const originalMap = getMapFromTokenRange(children, brokenRefStart, closeIdx)
-                const raw = buildRawFromTokens(children, brokenRefStart, closeIdx)
-                const noLink = getNoLinkMd(md, opt)
-                const parsed = parseInlineWithFixes(noLink, raw, state.env)
-                if (parsed && parsed.length > 0) {
-                  if (originalMap) {
-                    for (let k = 0; k < parsed.length; k++) {
-                      const childToken = parsed[k]
-                      if (childToken && !childToken.map) childToken.map = [originalMap[0], originalMap[1]]
+            if (!hasEmphasis &&
+                (child.type === 'strong_open' || child.type === 'strong_close' || child.type === 'em_open' || child.type === 'em_close')) {
+              hasEmphasis = true
+            }
+            if (!hasLinkClose && child.type === 'link_close') {
+              hasLinkClose = true
+            }
+            if (allowReparse && brokenRefStart !== -1 && child.type === 'link_open') {
+              if (brokenRefDepth <= 0) {
+                brokenRefStart = -1
+                brokenRefDepth = 0
+                continue
+              }
+              const closeIdx = findLinkClose(children, j)
+              if (closeIdx !== -1) {
+                if (shouldReparseSegment(children, brokenRefStart, closeIdx)) {
+                  const originalMap = getMapFromTokenRange(children, brokenRefStart, closeIdx)
+                  const raw = buildRawFromTokens(children, brokenRefStart, closeIdx)
+                  const noLink = getNoLinkMd(md, opt)
+                  const parsed = parseInlineWithFixes(noLink, raw, state.env)
+                  if (parsed && parsed.length > 0) {
+                    if (originalMap) {
+                      for (let k = 0; k < parsed.length; k++) {
+                        const childToken = parsed[k]
+                        if (childToken && !childToken.map) childToken.map = [originalMap[0], originalMap[1]]
+                      }
                     }
+                    children.splice(brokenRefStart, closeIdx - brokenRefStart + 1, ...parsed)
+                  } else {
+                    const text = new Token('text', '', 0)
+                    text.content = raw
+                    if (originalMap) text.map = [originalMap[0], originalMap[1]]
+                    children.splice(brokenRefStart, closeIdx - brokenRefStart + 1, text)
                   }
-                  children.splice(brokenRefStart, closeIdx - brokenRefStart + 1, ...parsed)
-                } else {
-                  const text = new Token('text', '', 0)
-                  text.content = raw
-                  if (originalMap) text.map = [originalMap[0], originalMap[1]]
-                  children.splice(brokenRefStart, closeIdx - brokenRefStart + 1, text)
+                  brokenRefStart = -1
+                  changed = true
+                  didReparse = true
+                  break
                 }
                 brokenRefStart = -1
-                changed = true
-                didReparse = true
-                break
               }
-              brokenRefStart = -1
             }
           }
-        }
-        if (!didReparse) break
-        reparseCount++
-        if (reparseCount >= maxReparse) {
-          allowReparse = false
-        }
-        if (!allowReparse) {
-          continue
+          if (!didReparse) break
+          reparseCount++
+          if (reparseCount >= maxReparse) {
+            allowReparse = false
+          }
+          if (!allowReparse) {
+            continue
+          }
         }
       }
       if (hasEmphasis) {

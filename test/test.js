@@ -31,8 +31,6 @@ const mdLeadingGreedy = mdit().use(mditStrongJa, {mode: 'aggressive'}).use(mditA
 const mdLeadingGreedyWithHtml = mdit({html: true}).use(mditStrongJa, {mode: 'aggressive'}).use(mditAttrs)
 const mdLeadingMarkdownIt = mdit().use(mditStrongJa, {mode: 'compatible'}).use(mditAttrs)
 const mdLeadingMarkdownItWithHtml = mdit({html: true}).use(mditStrongJa, {mode: 'compatible'}).use(mditAttrs)
-const mdLeadingMarkdownItDisallowMixed = mdit().use(mditStrongJa, {mode: 'compatible', disallowMixed: true}).use(mditAttrs)
-const mdLeadingMarkdownItDisallowMixedWithHtml = mdit({html: true}).use(mditStrongJa, {mode: 'compatible', disallowMixed: true}).use(mditAttrs)
 
 const mdNoAttrsPlugin = mdit().use(mditStrongJa).use(mditSemanticContainer)
 const mdNoAttrsPluginWithHtml = mdit({html: true}).use(mditStrongJa).use(mditSemanticContainer)
@@ -46,12 +44,6 @@ const mditNoAttrsCJKBreaksNormalizeSoftBreaksWithHtml = mdit({html: true}).use(m
 
 const mditNoAttrsLinebreak = mdit({breaks: true}).use(mditStrongJa, {mditAttrs: false})
 const mditNoAttrsLinebreakWithHtml = mdit({html: true, breaks: true}).use(mditStrongJa, {mditAttrs: false})
-
-// For disallowMixed: true tests
-const mdDisallowMixed = mdit().use(mditStrongJa, {disallowMixed: true}).use(mditAttrs)
-const mdDisallowMixedWithHtml = mdit({html: true}).use(mditStrongJa, {disallowMixed: true}).use(mditAttrs)
-const mditNoAttrsDisallowMixed = mdit().use(mditStrongJa, {mditAttrs: false, disallowMixed: true})
-const mditNoAttrsDisallowMixedWithHtml = mdit({html: true}).use(mditStrongJa, {mditAttrs: false, disallowMixed: true})
 
 const mdSupSub = mdit().use(mditStrongJa).use(mditAttrs).use(mditSemanticContainer).use(mditSup).use(mditSub)
 const mdSupSubWithHtml = mdit({html: true}).use(mditStrongJa).use(mditAttrs).use(mditSemanticContainer).use(mditSup).use(mditSub)
@@ -122,32 +114,6 @@ const checkBreaks = (ms, example, allPass, useAttrs) => {
   return allPass
 }
 
-const checkDisallowMixed = (ms, example, allPass, useAttrs) => {
-  let n = 1
-  while (n < ms.length) {
-    const m = ms[n].markdown
-    const h = useAttrs ? mdDisallowMixed.render(m) : mditNoAttrsDisallowMixed.render(m)
-    try {
-      assert.strictEqual(h, ms[n].html)
-    } catch(e) {
-      console.log('Test [disallowMixed: true, ' + n + ', HTML: false, useAttrs: ' + useAttrs + '] >>>')
-      console.log('Input: ' + ms[n].markdown + '\nOutput: ' + h + 'Correct: ' + ms[n].html)
-      allPass = false
-    }
-    if (ms[n].htmlWithHtmlTrue) {
-      const hh = useAttrs ? mdDisallowMixedWithHtml.render(m) : mditNoAttrsDisallowMixedWithHtml.render(m)
-      try {
-        assert.strictEqual(hh, ms[n].htmlWithHtmlTrue)
-      } catch(e) {
-        console.log('Test [disallowMixed: true, ' + n + ', HTML: true, useAttrs: ' + useAttrs + '] >>>')
-        console.log('Input: ' + ms[n].markdown + '\nOutput: ' + hh + 'Correct: ' + ms[n].htmlWithHtmlTrue)
-        allPass = false
-      }
-    }
-    n++
-  }
-  return allPass
-}
 
 const checkSupSub = (ms, example, allPass) => {
   let n = 1
@@ -231,9 +197,6 @@ const checkLeadingCompat = (ms, example, allPass) => {
   return checkWithCustomMd(ms, example, allPass, mdLeadingMarkdownIt, mdLeadingMarkdownItWithHtml, 'leading-compat')
 }
 
-const checkLeadingCompatDisallowMixed = (ms, example, allPass) => {
-  return checkWithCustomMd(ms, example, allPass, mdLeadingMarkdownItDisallowMixed, mdLeadingMarkdownItDisallowMixedWithHtml, 'leading-compat-disallowMixed')
-}
 
 const checkNoAttrsPlugin = (ms, example, allPass) => {
   let n = 1
@@ -278,10 +241,6 @@ const examplesMditNoAttrs = {
 
 const examplesMditBreaks = {
   linebreak: __dirname + '/mditNoAttrs/p-noattrs--o-japaneseonly-breaks-true-linebreaks.txt',
-}
-
-const examplesDisallowMixed = {
-  disallowMixed: __dirname + '/p-attrs--o-japaneseonly-disallowmixed.txt',
 }
 
 const examplesNoAttrsPlugin = {
@@ -390,23 +349,20 @@ const runTestsCrlf = (examples, checkFunction, useAttrs, labelPrefix) => {
   return allPass
 }
 
-let allPass = runTests(examples, check, true, 'attrs mode=japanese-only default')
+let allPass = runTests(examples, check, true, 'attrs mode=japanese default')
 allPass = runTests(examplesLeadingAggressive, checkLeadingGreedy, true, 'attrs mode=aggressive') && allPass
 allPass = runTests(examplesLeadingCompat, checkLeadingCompat, true, 'attrs mode=compatible') && allPass
-allPass = runTests(examplesDisallowMixed, checkDisallowMixed, true, 'attrs mode=japanese-only disallowMixed=true') && allPass
-allPass = runTests(examplesLeadingCompat, checkLeadingCompatDisallowMixed, true, 'attrs mode=compatible disallowMixed=true') && allPass
-allPass = runTests(examplesSupSub, checkSupSub, true, 'attrs mode=japanese-only sup/sub') && allPass
-allPass = runTests(examplesCjkBreaksSpaceHalf, checkCjkBreaksSpaceHalf, true, 'attrs mode=japanese-only cjk_breaks either=true space=half') && allPass
-allPass = runTests(examplesCjkBreaksEitherFalse, checkCjkBreaksEitherFalse, true, 'attrs mode=japanese-only cjk_breaks either=false') && allPass
-allPass = runTests(examplesCjkBreaksNormalizeSoftBreaks, checkCjkBreaksNormalizeSoftBreaks, true, 'attrs mode=japanese-only cjk_breaks normalizeSoftBreaks=true space=half') && allPass
-allPass = runTests(examplesCjkBreaksOnly, checkCjkBreaksOnly, true, 'attrs mode=japanese-only cjk_breaks only') && allPass
-allPass = runTestsCrlf(examplesCjkBreaksCrlf, checkCjkBreaksSpaceHalf, true, 'attrs mode=japanese-only cjk_breaks either=true space=half CRLF') && allPass
-allPass = runTestsCrlf(examplesCjkBreaksCrlf, checkCjkBreaksNormalizeSoftBreaks, true, 'attrs mode=japanese-only cjk_breaks normalizeSoftBreaks=true CRLF') && allPass
-allPass = runTests(examplesNoAttrsPlugin, checkNoAttrsPlugin, true, 'attrs mode=japanese-only attrs-plugin-disabled') && allPass
-allPass = runTests(examplesMditNoAttrs, check, false, 'noattrs mode=japanese-only default') && allPass
-allPass = runTests(examplesMditBreaks, checkBreaks, false, 'noattrs mode=japanese-only breaks=true') && allPass
-allPass = runTests(examplesDisallowMixed, checkDisallowMixed, false, 'noattrs mode=japanese-only disallowMixed=true') && allPass
-allPass = runTests(examplesCjkBreaksOnly, checkCjkBreaksOnly, false, 'noattrs mode=japanese-only cjk_breaks only') && allPass
+allPass = runTests(examplesSupSub, checkSupSub, true, 'attrs mode=japanese sup/sub') && allPass
+allPass = runTests(examplesCjkBreaksSpaceHalf, checkCjkBreaksSpaceHalf, true, 'attrs mode=japanese cjk_breaks either=true space=half') && allPass
+allPass = runTests(examplesCjkBreaksEitherFalse, checkCjkBreaksEitherFalse, true, 'attrs mode=japanese cjk_breaks either=false') && allPass
+allPass = runTests(examplesCjkBreaksNormalizeSoftBreaks, checkCjkBreaksNormalizeSoftBreaks, true, 'attrs mode=japanese cjk_breaks normalizeSoftBreaks=true space=half') && allPass
+allPass = runTests(examplesCjkBreaksOnly, checkCjkBreaksOnly, true, 'attrs mode=japanese cjk_breaks only') && allPass
+allPass = runTestsCrlf(examplesCjkBreaksCrlf, checkCjkBreaksSpaceHalf, true, 'attrs mode=japanese cjk_breaks either=true space=half CRLF') && allPass
+allPass = runTestsCrlf(examplesCjkBreaksCrlf, checkCjkBreaksNormalizeSoftBreaks, true, 'attrs mode=japanese cjk_breaks normalizeSoftBreaks=true CRLF') && allPass
+allPass = runTests(examplesNoAttrsPlugin, checkNoAttrsPlugin, true, 'attrs mode=japanese attrs-plugin-disabled') && allPass
+allPass = runTests(examplesMditNoAttrs, check, false, 'noattrs mode=japanese default') && allPass
+allPass = runTests(examplesMditBreaks, checkBreaks, false, 'noattrs mode=japanese breaks=true') && allPass
+allPass = runTests(examplesCjkBreaksOnly, checkCjkBreaksOnly, false, 'noattrs mode=japanese cjk_breaks only') && allPass
 allPass = runTests(examplesCjkBreaksNormalizeSoftBreaksNoAttrs, checkCjkBreaksNormalizeSoftBreaksNoAttrs, false) && allPass
 
 allPass = runAutoLeadingTests() && allPass
