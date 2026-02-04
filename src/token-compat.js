@@ -7,6 +7,12 @@ import {
   moveRuleAfter
 } from './token-utils.js'
 
+const isAsciiWordCode = (code) => {
+  return (code >= 0x30 && code <= 0x39) ||
+    (code >= 0x41 && code <= 0x5A) ||
+    (code >= 0x61 && code <= 0x7A)
+}
+
 const registerTokenCompat = (md, baseOpt) => {
   const hasTextJoinRule = Array.isArray(md.core?.ruler?.__rules__)
     ? md.core.ruler.__rules__.some((rule) => rule && rule.name === 'text_join')
@@ -60,20 +66,21 @@ const registerTokenCompat = (md, baseOpt) => {
             break
           }
         }
+        if (!hasEmphasis) continue
         for (let j = 0; j < token.children.length; j++) {
           const child = token.children[j]
           if (!child) continue
           if (child.type === 'softbreak') {
-            if (!hasEmphasis) continue
             const prevToken = token.children[j - 1]
             const nextToken = token.children[j + 1]
             if (!prevToken || !nextToken) continue
             if (prevToken.type !== 'text' || !prevToken.content) continue
             if (nextToken.type !== 'text' || !nextToken.content) continue
-            const prevChar = prevToken.content.slice(-1)
-            const nextChar = nextToken.content.charAt(0)
-            const isAsciiWord = nextChar >= '0' && nextChar <= 'z' && /[A-Za-z0-9]/.test(nextChar)
-            const shouldReplace = isAsciiWord && nextChar !== '{' && nextChar !== '\\' && isJapaneseChar(prevChar) && !isJapaneseChar(nextChar)
+            const prevCharCode = prevToken.content.charCodeAt(prevToken.content.length - 1)
+            const nextCharCode = nextToken.content.charCodeAt(0)
+            const isAsciiWord = isAsciiWordCode(nextCharCode)
+            const shouldReplace = isAsciiWord && nextCharCode !== 0x7B && nextCharCode !== 0x5C &&
+              isJapaneseChar(prevCharCode) && !isJapaneseChar(nextCharCode)
             if (!shouldReplace) continue
             child.type = 'text'
             child.tag = ''
@@ -89,10 +96,11 @@ const registerTokenCompat = (md, baseOpt) => {
           for (let idx = 0; idx < child.content.length; idx++) {
             const ch = child.content[idx]
             if (ch === '\n') {
-              const prevChar = idx > 0 ? child.content[idx - 1] : ''
-              const nextChar = idx + 1 < child.content.length ? child.content[idx + 1] : ''
-              const isAsciiWord = nextChar && nextChar >= '0' && nextChar <= 'z' && /[A-Za-z0-9]/.test(nextChar)
-              const shouldReplace = isAsciiWord && nextChar !== '{' && nextChar !== '\\' && isJapaneseChar(prevChar) && !isJapaneseChar(nextChar)
+              const prevCharCode = idx > 0 ? child.content.charCodeAt(idx - 1) : 0
+              const nextCharCode = idx + 1 < child.content.length ? child.content.charCodeAt(idx + 1) : 0
+              const isAsciiWord = isAsciiWordCode(nextCharCode)
+              const shouldReplace = isAsciiWord && nextCharCode !== 0x7B && nextCharCode !== 0x5C &&
+                isJapaneseChar(prevCharCode) && !isJapaneseChar(nextCharCode)
               if (shouldReplace) {
                 normalized += ' '
                 continue
@@ -127,27 +135,26 @@ const registerTokenCompat = (md, baseOpt) => {
       const token = state.tokens[i]
       if (!token || token.type !== 'inline' || !token.children || token.children.length === 0) continue
       const children = token.children
+      let prevTextCharCode = 0
       for (let j = 0; j < children.length; j++) {
         const child = children[j]
-        if (!child || child.type !== 'text' || child.content !== '') continue
-        let prevChar = ''
-        for (let k = j - 1; k >= 0; k--) {
-          const prev = children[k]
-          if (prev && prev.type === 'text' && prev.content) {
-            prevChar = prev.content.charAt(prev.content.length - 1)
-            break
+        if (!child) continue
+        if (child.type === 'text') {
+          if (child.content === '') {
+            if (!prevTextCharCode || !isJapaneseChar(prevTextCharCode)) continue
+            const next = children[j + 1]
+            if (!next || next.type !== 'text' || !next.content) continue
+            const nextCharCode = next.content.charCodeAt(0)
+            if (nextCharCode !== 0x7B) continue
+            child.type = 'softbreak'
+            child.tag = ''
+            child.content = '\n'
+            child.markup = ''
+            child.info = ''
+            continue
           }
+          prevTextCharCode = child.content.charCodeAt(child.content.length - 1)
         }
-        if (!prevChar || !isJapaneseChar(prevChar)) continue
-        const next = children[j + 1]
-        if (!next || next.type !== 'text' || !next.content) continue
-        const nextChar = next.content.charAt(0)
-        if (nextChar !== '{') continue
-        child.type = 'softbreak'
-        child.tag = ''
-        child.content = '\n'
-        child.markup = ''
-        child.info = ''
       }
     }
   }

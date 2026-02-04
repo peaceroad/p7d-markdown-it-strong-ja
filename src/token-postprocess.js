@@ -217,29 +217,23 @@ const registerTokenPostprocess = (md, baseOpt, getNoLinkMdInstance) => {
       const scanState = { depth: 0, brokenEnd: false }
       for (let j = 0; j < children.length; j++) {
         const child = children[j]
-        if (!child || child.type !== 'text' || !child.content) continue
+        if (!child) continue
+        if (!hasEmphasis &&
+            (child.type === 'strong_open' || child.type === 'strong_close' || child.type === 'em_open' || child.type === 'em_close')) {
+          hasEmphasis = true
+        }
+        if (!hasLinkClose && child.type === 'link_close') {
+          hasLinkClose = true
+        }
+        if (child.type !== 'text' || !child.content) continue
+        if (!hasBracketText && (child.content.indexOf('[') !== -1 || child.content.indexOf(']') !== -1)) {
+          hasBracketText = true
+        }
         if (scanBrokenRefState(child.content, scanState).brokenEnd) {
           maxReparse++
         }
       }
-      if (maxReparse === 0) {
-        for (let j = 0; j < children.length; j++) {
-          const child = children[j]
-          if (!child) continue
-          if (child.type === 'text' && child.content) {
-            if (!hasBracketText && (child.content.indexOf('[') !== -1 || child.content.indexOf(']') !== -1)) {
-              hasBracketText = true
-            }
-          }
-          if (!hasEmphasis &&
-              (child.type === 'strong_open' || child.type === 'strong_close' || child.type === 'em_open' || child.type === 'em_close')) {
-            hasEmphasis = true
-          }
-          if (!hasLinkClose && child.type === 'link_close') {
-            hasLinkClose = true
-          }
-        }
-      } else {
+      if (maxReparse !== 0) {
         let allowReparse = true
         while (true) {
           let didReparse = false

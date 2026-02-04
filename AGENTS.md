@@ -38,6 +38,8 @@
 - Caches: `md.__strongJaHasCjkBreaks`, `md.__strongJaTokenNoLinkCache`, `state.__strongJaTokenRuntimeOpt`.
 - Postprocess skips paragraphs without brackets or emphasis.
 - Reparse is capped and avoids extra passes when no broken refs exist.
+- Token-link helpers memoize bracket presence per token via `__strongJaHasBracket`/`__strongJaBracketAtomic`.
+- Compat softbreak passes short-circuit when no emphasis; restore-softbreaks tracks the last text char in a single pass.
 
 ## Risks / Watchpoints
 - Prototype patch affects all MarkdownIt instances in the same process.
