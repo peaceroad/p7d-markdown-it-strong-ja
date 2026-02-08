@@ -242,6 +242,7 @@ const md = mdit()
 - Default: `[]`
 - Specify `['cjk_breaks']` (or other rule names) when you rely on plugins such as `@peaceroad/markdown-it-cjk-breaks-mod` and need them to run first.
 - Pass an empty array if you do not want `mditStrongJa` to reorder any core rules.
+- Reordering is setup-time behavior and still applies even when `postprocess: false` is set.
 
 Most setups can leave this option untouched; use it only when you must keep another plugin's core rule ahead of `strong_ja_token_postprocess`.
 
@@ -257,6 +258,7 @@ const md = mdit().use(mditStrongJa, {
 
 - Default: `true`
 - Set `false` when you want to minimize core-rule interference and accept that some link/reference + emphasis combinations remain literal (for example, `**[text](url)**`, `[**Text**][]`).
+- `postprocess: false` disables the runtime reconstruction pass, but the `strong_ja_token_postprocess` rule remains registered in the core chain.
 
 ### patchCorePush
 

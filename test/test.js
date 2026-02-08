@@ -11,6 +11,7 @@ import mditSub from 'markdown-it-sub'
 import mditSup from 'markdown-it-sup'
 import mditStrongJa from '../index.js'
 import { runAutoLeadingTests } from './auto-leading.test.js'
+import { runOptionEdgeTests } from './options-edge.test.js'
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url)).replace(/\\/g, '/')
 
@@ -366,5 +367,6 @@ allPass = runTests(examplesCjkBreaksOnly, checkCjkBreaksOnly, false, 'noattrs mo
 allPass = runTests(examplesCjkBreaksNormalizeSoftBreaksNoAttrs, checkCjkBreaksNormalizeSoftBreaksNoAttrs, false) && allPass
 
 allPass = runAutoLeadingTests() && allPass
+allPass = runOptionEdgeTests() && allPass
 
 if (allPass) console.log('Passed all tests.')

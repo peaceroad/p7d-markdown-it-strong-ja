@@ -11,7 +11,10 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "node test/test.js"
+    "test": "node test/test.js",
+    "test:readme": "node test/test-readme.js",
+    "test:map": "node test/test-map.js",
+    "test:all": "npm test && npm run test:readme"
   },
   "repository": "https://github.com/peaceroad/p7d-markdown-it-strong-ja.git",
   "author": "peaceroad <peaceroad@gmail.com>",
@@ -20,7 +23,7 @@
     "markdown-it": "^14.1.0"
   },
   "devDependencies": {
-    "@peaceroad/markdown-it-cjk-breaks-mod": "^0.1.5",
+    "@peaceroad/markdown-it-cjk-breaks-mod": "^0.1.7",
     "@peaceroad/markdown-it-hr-sandwiched-semantic-container": "^0.8.2",
     "markdown-it-attrs": "^4.3.1",
     "markdown-it-sub": "^2.0.0",

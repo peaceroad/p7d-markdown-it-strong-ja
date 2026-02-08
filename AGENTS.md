@@ -17,7 +17,7 @@
 - `mditAttrs`: set `false` to disable attrs plugin coupling.
 - `dollarMath`, `mdBreaks`: compat switches for `$...$` and `breaks`.
 - `coreRulesBeforePostprocess`: core rule names to keep before `strong_ja_token_postprocess`.
-- `postprocess`: enable/disable link/ref reconstruction pass.
+- `postprocess`: enable/disable runtime link/ref reconstruction pass.
 - `patchCorePush`: track late `cjk_breaks` registration when `mditAttrs: false` (rule name comes from the cjk-breaks plugin).
 
 ## Per-render override
@@ -27,7 +27,8 @@
 1. Build options and cache `hasCjkBreaks` on `md`.
 2. Patch `scanDelims` to relax `*` boundary rules in Japanese contexts.
 3. Register compat rules (trailing space trim, softbreak normalization, attrs guard).
-4. Register postprocess and reorder core rules if `coreRulesBeforePostprocess` is set.
+4. Register `strong_ja_token_postprocess`; if `coreRulesBeforePostprocess` is set, reorder matching core rules before it.
+5. At runtime, skip postprocess internals when `postprocess: false`.
 
 ## Postprocess Notes
 - Repairs collapsed refs and inline links; cleans broken marks around links.
@@ -49,8 +50,11 @@
 - `md.__strongJaTokenNoLinkCache` can grow if many option combinations are used in a long-lived process.
 - `patchCorePush` monkey-patches core rule registration and relies on a rule name containing `cjk_breaks`.
 - Japanese detection is Hiragana/Katakana/Han + fullwidth punctuation only (not full CJK/Hangul).
-- `coreRulesBeforePostprocess` only reorders when `postprocess` is enabled.
+- `coreRulesBeforePostprocess` reorders at setup even when `postprocess: false`; `postprocess` controls runtime behavior only.
 
 ## Tests & Bench
 - Tests: `npm test`
-- Bench: `node test/material/performance_compare.mjs ./index.js 500 3`
+- Full regression: `npm run test:all`
+- Readme parity only: `npm run test:readme`
+- Map diagnostics: `npm run test:map`
+- Bench (from repo root): `node test/material/performance_compare.mjs ../../index.js 500 3`
