@@ -1,16 +1,9 @@
 const CHAR_ASTERISK = 0x2A // *
-const CHAR_OPEN_BRACKET = 0x5B // [
-const CHAR_CLOSE_BRACKET = 0x5D // ]
 const CHAR_SPACE = 0x20 // ' '
 const CHAR_TAB = 0x09 // '\t'
 const CHAR_NEWLINE = 0x0A // '\n'
 const REG_JAPANESE = /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}\u3000-\u303F\uFF00-\uFFEF]/u
 const REG_ATTRS = /{[^{}\n!@#%^&*()]+?}$/
-
-const hasJapaneseText = (str) => {
-  if (!str) return false
-  return REG_JAPANESE.test(str)
-}
 
 const isJapaneseChar = (ch) => {
   if (!ch) return false
@@ -61,17 +54,6 @@ const resolveMode = (opt) => {
   const mode = raw.toLowerCase()
   if (mode === 'japanese-only') return 'japanese'
   return mode
-}
-
-const shouldUseJapaneseRule = (state, mode) => {
-  if (mode === 'aggressive') return true
-  if (mode === 'compatible') return false
-  let hasJapanese = state.__strongJaTokenHasJapanese
-  if (hasJapanese === undefined) {
-    hasJapanese = hasJapaneseText(state.src)
-    state.__strongJaTokenHasJapanese = hasJapanese
-  }
-  return hasJapanese
 }
 
 const getRuntimeOpt = (state, baseOpt) => {
@@ -151,19 +133,15 @@ function moveRuleAfter(ruler, ruleName, afterName) {
 
 export {
   CHAR_ASTERISK,
-  CHAR_OPEN_BRACKET,
-  CHAR_CLOSE_BRACKET,
   CHAR_SPACE,
   CHAR_TAB,
   CHAR_NEWLINE,
   REG_ATTRS,
-  hasJapaneseText,
   isJapaneseChar,
   hasCjkBreaksRule,
   findPrevNonSpace,
   findNextNonSpace,
   resolveMode,
-  shouldUseJapaneseRule,
   getRuntimeOpt,
   normalizeCoreRulesBeforePostprocess,
   ensureCoreRuleOrder,

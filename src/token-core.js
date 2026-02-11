@@ -4,10 +4,11 @@ import {
   CHAR_ASTERISK,
   CHAR_SPACE,
   CHAR_TAB,
+  CHAR_NEWLINE,
   findPrevNonSpace,
   findNextNonSpace,
+  isJapaneseChar,
   resolveMode,
-  shouldUseJapaneseRule,
   getRuntimeOpt
 } from './token-utils.js'
 
@@ -38,20 +39,6 @@ const rebuildInlineLevels = (tokens) => {
   }
 }
 
-const findLinkClose = (tokens, startIdx) => {
-  let depth = 0
-  for (let i = startIdx; i < tokens.length; i++) {
-    const t = tokens[i]
-    if (!t) continue
-    if (t.type === 'link_open') depth++
-    if (t.type === 'link_close') {
-      depth--
-      if (depth === 0) return i
-    }
-  }
-  return -1
-}
-
 const findLinkOpen = (tokens, closeIdx) => {
   let depth = 0
   for (let i = closeIdx; i >= 0; i--) {
@@ -74,6 +61,44 @@ const nextNonEmptyIndex = (tokens, startIdx) => {
     if (t.content) return i
   }
   return -1
+}
+
+const isSingleStarBoundary = (code) => {
+  return code === 0 ||
+    code === CHAR_SPACE ||
+    code === CHAR_TAB ||
+    code === CHAR_NEWLINE ||
+    code === 0x28 || // (
+    code === 0x5B || // [
+    code === 0x7B // {
+}
+
+const hasJapaneseCharBetween = (src, start, end) => {
+  if (!src || start >= end) return false
+  for (let i = start; i < end; i++) {
+    const code = src.charCodeAt(i)
+    if (code === CHAR_NEWLINE) return false
+    if (isJapaneseChar(code)) return true
+  }
+  return false
+}
+
+const hasPrevJapaneseSingleStarOpener = (src, start) => {
+  for (let i = start - 1; i >= 0; i--) {
+    const code = src.charCodeAt(i)
+    if (code === CHAR_NEWLINE) break
+    if (code !== CHAR_ASTERISK) continue
+    const prevCode = i > 0 ? src.charCodeAt(i - 1) : 0
+    const nextCode = i + 1 < src.length ? src.charCodeAt(i + 1) : 0
+    if (prevCode === CHAR_ASTERISK || nextCode === CHAR_ASTERISK) return false
+    if (!isSingleStarBoundary(prevCode)) return false
+    if (!isSingleStarBoundary(nextCode)) {
+      if (isJapaneseChar(nextCode)) return true
+      if (!hasJapaneseCharBetween(src, i + 1, start)) return false
+    }
+    return true
+  }
+  return false
 }
 
 const fixTrailingStrong = (tokens) => {
@@ -228,39 +253,23 @@ function fixEmOuterStrongSequence(tokens) {
     const strongClose = new Token('strong_close', 'strong', -1)
     strongClose.markup = '**'
 
-    const removeIndices = [idx7, idx5, idx3, idx1].sort((a, b) => b - a)
-    for (const removeIdx of removeIndices) {
-      if (removeIdx >= 0 && removeIdx < tokens.length) {
-        tokens.splice(removeIdx, 1)
-      }
-    }
+    tokens.splice(idx7, 1)
+    tokens.splice(idx5, 1)
+    tokens.splice(idx3, 1)
+    tokens.splice(idx1, 1)
 
-    const idxT4 = tokens.indexOf(t4)
-    if (idxT4 === -1) {
-      changed = true
-      i = idx0 + 1
-      continue
-    }
-    tokens.splice(idxT4, 0, emOpen)
+    const idx4AfterRemove = idx4 - 2
+    const idx6AfterRemove = idx6 - 3
+    tokens.splice(idx4AfterRemove, 0, emOpen)
 
-    let idxT6 = tokens.indexOf(t6)
-    if (idxT6 === -1) {
-      changed = true
-      i = idx0 + 1
-      continue
-    }
-    tokens.splice(idxT6, 0, emClose)
+    const idx6BeforeEmClose = idx6AfterRemove + 1
+    tokens.splice(idx6BeforeEmClose, 0, emClose)
 
-    idxT6 = tokens.indexOf(t6)
-    if (idxT6 === -1) {
-      changed = true
-      i = idx0 + 1
-      continue
-    }
-    tokens.splice(idxT6 + 1, 0, strongClose)
+    const idx6AfterEmClose = idx6BeforeEmClose + 1
+    tokens.splice(idx6AfterEmClose + 1, 0, strongClose)
 
     changed = true
-    i = idxT6 + 2
+    i = idx6AfterEmClose + 2
   }
   return changed
 }
@@ -281,10 +290,10 @@ const shiftEmWithLeadingStar = (tokens, rangeStart, rangeEnd, closeIdx) => {
     if (!t || t.type !== 'text' || !t.content) continue
     const pos = t.content.lastIndexOf('*')
     if (pos <= 0) continue
-    const prevChar = t.content.charAt(pos - 1)
-    const nextChar = pos + 1 < t.content.length ? t.content.charAt(pos + 1) : ''
-    if (!/\s/.test(prevChar)) continue
-    if (!nextChar || /\s/.test(nextChar) || nextChar === '*') continue
+    const prevCode = t.content.charCodeAt(pos - 1)
+    const nextCode = pos + 1 < t.content.length ? t.content.charCodeAt(pos + 1) : 0
+    if (!isWhiteSpace(prevCode)) continue
+    if (!nextCode || isWhiteSpace(nextCode) || nextCode === CHAR_ASTERISK) continue
     starTokenIdx = i
     starPos = pos
     break
@@ -374,39 +383,39 @@ const patchScanDelims = (md) => {
     if (marker !== CHAR_ASTERISK) {
       return original.call(this, start, canSplitWord)
     }
+    const base = original.call(this, start, canSplitWord)
 
     const baseOpt = this.md ? this.md.__strongJaTokenOpt : null
     const overrideOpt = this.env && this.env.__strongJaTokenOpt
     const opt = overrideOpt ? getRuntimeOpt(this, baseOpt) : baseOpt
     if (!opt) {
-      return original.call(this, start, canSplitWord)
+      return base
     }
-    let useJapaneseRule
-    if (this.__strongJaTokenUseJapaneseRuleOpt === opt) {
-      useJapaneseRule = this.__strongJaTokenUseJapaneseRule
-    } else {
-      useJapaneseRule = shouldUseJapaneseRule(this, resolveMode(opt))
-      this.__strongJaTokenUseJapaneseRuleOpt = opt
-      this.__strongJaTokenUseJapaneseRule = useJapaneseRule
+    const mode = resolveMode(opt)
+    if (mode === 'compatible') {
+      return base
     }
-    if (!useJapaneseRule) {
-      return original.call(this, start, canSplitWord)
-    }
-
     const max = this.posMax
     const lastChar = start > 0 ? this.src.charCodeAt(start - 1) : 0x20
 
-    let pos = start
-    while (pos < max && this.src.charCodeAt(pos) === marker) { pos++ }
-    const count = pos - start
+    const count = base && base.length ? base.length : 1
+    const pos = start + count
 
     const nextChar = pos < max ? this.src.charCodeAt(pos) : 0x20
+
+    const leftJapanese = isJapaneseChar(lastChar)
+    const rightJapanese = isJapaneseChar(nextChar)
+    const hasJapaneseContext = leftJapanese || rightJapanese
+    const useRelaxed = mode === 'aggressive' || hasJapaneseContext
+    if (!useRelaxed) {
+      return base
+    }
 
     let isLastWhiteSpace = isWhiteSpace(lastChar)
     let isNextWhiteSpace = isWhiteSpace(nextChar)
     if (isLastWhiteSpace && (lastChar === CHAR_SPACE || lastChar === CHAR_TAB)) {
-      const prevNonSpace = findPrevNonSpace(this.src, start - 2)
-      if (prevNonSpace && prevNonSpace !== CHAR_ASTERISK) {
+      const prevNonSpaceLocal = findPrevNonSpace(this.src, start - 2)
+      if (prevNonSpaceLocal && prevNonSpaceLocal !== CHAR_ASTERISK) {
         isLastWhiteSpace = false
       }
     }
@@ -425,9 +434,37 @@ const patchScanDelims = (md) => {
 
     const forbidClose = lastChar === 0x5B || lastChar === 0x28
     const forbidOpen = nextChar === 0x5D || nextChar === 0x29
+    let relaxedOpen = forbidOpen ? false : can_open
+    let relaxedClose = forbidClose ? false : can_close
+    if (mode !== 'aggressive' && count === 1) {
+      // Keep local directionality to avoid degrading markdown-it-valid runs,
+      // e.g. `[。*a**](u)` where the first `*` should remain opener-only.
+      const rightIsBoundary =
+        pos >= max ||
+        nextChar === CHAR_SPACE ||
+        nextChar === CHAR_TAB ||
+        nextChar === 0x29 || // )
+        nextChar === 0x5D || // ]
+        nextChar === 0x7D // }
+      const leftIsBoundary =
+        start === 0 ||
+        lastChar === CHAR_SPACE ||
+        lastChar === CHAR_TAB ||
+        lastChar === 0x28 || // (
+        lastChar === 0x5B || // [
+        lastChar === 0x7B // {
+
+      if (leftJapanese && !rightJapanese && !rightIsBoundary) {
+        if (!hasPrevJapaneseSingleStarOpener(this.src, start)) {
+          relaxedClose = false
+        }
+      } else if (!leftJapanese && rightJapanese && !leftIsBoundary) {
+        relaxedOpen = false
+      }
+    }
     return {
-      can_open: forbidOpen ? false : can_open,
-      can_close: forbidClose ? false : can_close,
+      can_open: (base && base.can_open) || relaxedOpen,
+      can_close: (base && base.can_close) || relaxedClose,
       length: count
     }
   }
@@ -436,7 +473,6 @@ const patchScanDelims = (md) => {
 
 export {
   rebuildInlineLevels,
-  findLinkClose,
   findLinkOpen,
   nextNonEmptyIndex,
   fixTrailingStrong,

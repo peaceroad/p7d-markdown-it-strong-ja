@@ -369,4 +369,8 @@ allPass = runTests(examplesCjkBreaksNormalizeSoftBreaksNoAttrs, checkCjkBreaksNo
 allPass = runAutoLeadingTests() && allPass
 allPass = runOptionEdgeTests() && allPass
 
-if (allPass) console.log('Passed all tests.')
+if (allPass) {
+  console.log('Passed all tests.')
+} else {
+  process.exitCode = 1
+}

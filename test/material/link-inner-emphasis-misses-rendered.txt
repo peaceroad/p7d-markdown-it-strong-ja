@@ -1,0 +1,4 @@
+# Link-Inner Cases Rendered (japanese vs compatible)
+
+cases: 0
+

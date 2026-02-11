@@ -1,0 +1,14 @@
+# Japanese Mode Link-Inner Emphasis Misses vs markdown-it
+
+total: 0
+
+template index map:
+0=[x](u)
+1=**[x](u)**
+2=*[x](u)*
+3=[**x**][] + [ref]
+4=[*x*][] + [ref]
+5=[**x**][] + [nohit]
+6=[*x*][] + [nohit]
+7=broken ref template
+

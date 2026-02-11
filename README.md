@@ -1,276 +1,279 @@
 # p7d-markdown-it-strong-ja
 
-This is a plugin for markdown-it. It is an alternative to the standard `**` (strong) and `*` (em) processing. It also processes strings that cannot be converted by the standard.
+`@peaceroad/markdown-it-strong-ja` is a `markdown-it` plugin that extends `*` / `**` emphasis handling for Japanese text, while keeping normal Markdown behavior as close to `markdown-it` as possible.
 
-## Use
+## Install
+
+```bash
+npm i @peaceroad/markdown-it-strong-ja
+```
+
+## Quick Start
 
 ```js
-import mdit from 'markdown-it'
-import mditStrongJa from '@peaceroad/markdown-it-strong-ja'
-import mditAttrs from 'markdown-it-attrs'
-const md = mdit().use(mditStrongJa).use(mditAttrs)
+import MarkdownIt from 'markdown-it'
+import strongJa from '@peaceroad/markdown-it-strong-ja'
 
-md.render('HTMLは**「HyperText Markup Language」**の略です。')
-// <p>HTMLは<strong>「HyperText Markup Language」</strong>の略です。</p>
+const md = MarkdownIt().use(strongJa)
 
-
-md.render('HTMLは*「HyperText Markup Language」*の略です。')
-// <p>HTMLは<em>「HyperText Markup Language」</em>の略です。</p>
+md.render('和食では**「だし」**が料理の土台です。')
+// <p>和食では<strong>「だし」</strong>が料理の土台です。</p>
 ```
 
-Note: this plugin assumes `markdown-it-attrs` is used. If you do not use it, pass `use(mditStrongJa, { mditAttrs: false })`.
+## Scope and Modes
 
-### How this differs from vanilla markdown-it
+This plugin targets emphasis markers (`*`, `**`). It does not replace all inline parsing behavior of `markdown-it`. The goal is to help only where emphasis tends to break in Japanese text. When input is heavily malformed, the plugin prefers safe output and leaves markers as literal text instead of forcing unstable HTML.
 
-Default output pairs `*` / `**` as it scans left-to-right: when a line contains Japanese (hiragana / katakana / kanji (Han) / fullwidth punctuation), japanese mode treats the leading `**` aggressively; English-only lines follow markdown-it style pairing. Pick one mode for the examples below:
+Mode selection controls how aggressively the plugin helps:
 
-- `mode: 'japanese'` (default, alias: `'japanese-only'`) … Japanese ⇒ aggressive, English-only ⇒ markdown-it compatible
-- `mode: 'aggressive'` … always aggressive (lead `**` pairs greedily)
-- `mode: 'compatible'` … markdown-it compatible (lead `**` stays literal)
+- `japanese` (default): starts from `markdown-it` decisions, then applies Japanese-focused local help only where needed. For pure-English malformed tails, it stays close to `markdown-it`.
+- `aggressive`: more willing to treat early `**` as opening markers.
+- `compatible`: prioritizes `markdown-it` output and skips postprocess repairs.
 
-```js
-const mdDefault = mdit().use(mditStrongJa) // mode: 'japanese'
-const mdCompat = mdit().use(mditStrongJa, { mode: 'compatible' }) // markdown-it pairing
-const mdAggressive = mdit().use(mditStrongJa, { mode: 'aggressive' }) // always pair leading **
+## How `japanese` Decides (Step by Step)
+
+This section follows the implementation flow for `mode: 'japanese'`.
+
+Terms used below:
+
+- Opening marker: `*` or `**` that starts emphasis.
+- Closing marker: `*` or `**` that ends emphasis.
+- Run: a contiguous group of the same marker (`*`, `**`, `***`, ...).
+- Line: text split by `\n`.
+
+### Step 0: Decide whether Japanese helper logic is used
+
+`japanese` does not rewrite every `*`. It first inspects characters adjacent to a candidate marker and enters the helper path only when local Japanese context exists. The context check is Japanese-focused and mainly looks at Hiragana, Katakana, Kanji (Han), and fullwidth punctuation/symbol ranges commonly used in Japanese text.
+
+Example that stops here:
+
+- Input: `海外向けメモでは**sushi.**umami**という表記があります。`
+- Output (`japanese`): `<p>海外向けメモでは**sushi.<strong>umami</strong>という表記があります。</p>`
+- Why: local context is English-side, so the helper path is not applied.
+
+Example that proceeds:
+
+- Input: `説明文では**味噌汁。**umami**という書き方があります。`
+- Why: `。` and adjacent Japanese context are present.
+
+### Step 1: Keep valid `markdown-it` decisions
+
+`japanese` is baseline-first. If `markdown-it` already produced a stable and valid decision, that decision is kept. The plugin adds candidates only where malformed input is likely to misdirect pairing.
+
+Example that stops here:
+
+- Input: `*寿司*は人気です。`
+- Output: `<p><em>寿司</em>は人気です。</p>`
+
+Example that proceeds:
+
+- Input: `*味噌汁。*umai* という表記です。`
+- Why: leaving the first `*` literal can make the later `*` pair first (`*味噌汁。<em>umai</em> という表記です。`). `japanese` checks whether local correction should prefer the Japanese-side pair.
+
+### Step 2: Use same-line local context only
+
+Local direction checks use non-whitespace characters on the same line only. They do not look across `\n`. A paragraph may contain multiple lines, but local helper decisions are line-based.
+
+Example that stops here:
+
+- Input: `説明は次の2行です。\n*味噌汁。\n*umai*`
+- Output (`japanese`): `<p>説明は次の2行です。\n*味噌汁。\n<em>umai</em></p>`
+- Why: the first `*` does not see the next line in local context.
+
+Example that proceeds:
+
+- Input: `*味噌汁。*umai* という表記です。`
+- Why: Japanese and English context are on the same line.
+
+### Step 3: Apply extra direction correction only to single `*`
+
+Extra direction correction is applied only to run length `1` (`*`). This is where malformed input most often flips opener/closer direction unintentionally. In `japanese` and `aggressive`, this can change which side pairs first. In `compatible`, base `markdown-it` behavior remains.
+
+Example that stops here:
+
+- Input: `*味噌汁。*umai* という表記です。`
+- `japanese` / `aggressive`: `<p><em>味噌汁。</em>umai* という表記です。</p>`
+- `compatible` / `markdown-it`: `<p>*味噌汁。<em>umai</em> という表記です。</p>`
+
+Example that proceeds:
+
+- Input: `比較用メモでは**味噌汁。**umami**という書き方を使います。`
+- Why: this is not a single-star run.
+
+### Step 4: Do not apply Step 3 single-star correction to `**` and above
+
+`**`, `***`, `****` still use normal `markdown-it` logic and japanese relaxations. What is intentionally excluded is the single-star-only direction correction from Step 3. Extending the same correction to multi-star runs pushes `japanese` too far toward `compatible` behavior and breaks expected Japanese-side recovery.
+
+Example:
+
+- Input: `**味噌汁。**umami**という表現を使います。`
+- `japanese`: `<p><strong>味噌汁。</strong>umami**という表現を使います。</p>`
+- `compatible`: `<p>**味噌汁。<strong>umami</strong>という表現を使います。</p>`
+
+### Step 5: Build pairs normally; keep literals when forced pairing is unsafe
+
+After marker direction candidates are fixed, inline pairing builds final tokens. If forcing tags would produce unstable structure, markers are left as literal text.
+
+Example:
+
+- Input: `**[**[x](v)](u)** という壊れた入力です。`
+- Output: `<p><strong>[</strong><a href="v">x</a>](u)** という壊れた入力です。</p>`
+
+### Step 6: Postprocess link/reference-adjacent breakage
+
+Steps 0-5 are marker-direction and inline-pairing. Step 6 is a separate phase that repairs link/reference-adjacent breakage in the already-built inline token stream.
+
+#### Step 6-1: Collapsed reference matching follows `markdown-it` normalization
+
+Collapsed reference matching (`[label][]`) follows `markdown-it` key normalization. The plugin does not force matching by deleting emphasis markers from labels.
+
+Mismatch example:
+
+```markdown
+献立は「[**寿司**][]」です。
+
+[寿司]: https://example.com/
 ```
 
-Default (japanese) pairs aggressively only when Japanese is present in the paragraph (the full inline content); detection is not line-by-line. Aggressive always pairs the leading `**`, and compatible matches markdown-it. Detection keys off hiragana/katakana/kanji (Han) and fullwidth punctuation; it does not treat Hangul as Japanese, so it is not full CJK detection.
-
-Quick mode guide:
-- Pick `compatible` for markdown-it behavior everywhere.
-- Pick `japanese` to be aggressive only when Japanese text is present.
-- Pick `aggressive` if you want leading `**` to always pair.
-
-Japanese-first pairing around punctuation and mixed sentences: leading/trailing Japanese quotes or brackets (`「`, `」`, `（`, `、` etc.) are wrapped in Japanese paragraphs. Mixed sentences here mean one paragraph that contains multiple `*` runs; Japanese text keeps the leading `**` aggressive, while English-only stays compatible unless you pick aggressive mode.
-
-- Punctuation (Japanese quotes / fullwidth punctuation):
-  - Input: `**「test」**`
-  - Output (default/aggressive/compatible/markdown-it): `<p><strong>「test」</strong></p>`
-  - Input: `これは**「test」**です`
-  - Output (default/aggressive): `<p>これは<strong>「test」</strong>です</p>`
-  - Output (compatible/markdown-it): `<p>これは**「test」**です</p>`
-
-- Mixed sentence (multiple `*` runs): English-only stays markdown-it compatible unless you pick aggressive mode; earlier `**` runs can remain literal while later ones pair.
-  - Input (Japanese mixed): `**あああ。**iii**`
-  - Output (default/aggressive): `<p><strong>あああ。</strong>iii**</p>`
-  - Output (compatible/markdown-it): `<p>**あああ。<strong>iii</strong></p>`
-  - Input (English-only): `**aaa.**iii**`
-  - Output (aggressive): `<p><strong>aaa.</strong>iii**</p>`
-  - Output (default/compatible/markdown-it): `<p>**aaa.<strong>iii</strong></p>`
-  - Input (English-only, two `**` runs): `**aaa.**eee.**eeee**`
-  - Output (aggressive): `<p><strong>aaa.</strong>eee.<strong>eeee</strong></p>`
-  - Output (default/compatible/markdown-it): `<p>**aaa.**eee.<strong>eeee</strong></p>`
-
-Inline link/HTML/code blocks stay intact (see Link / Inline code examples above): the plugin re-wraps `[label](url)` / `[label][]` after pairing to avoid broken emphasis tokens around anchors, inline HTML, or inline code. This also covers clusters of `*` with no spaces around the link or code span.
-
-- Link (cluster of `*` without spaces):
-  - Input (English-only): `string**[text](url)**`
-  - Output (aggressive): `<p>string<strong><a href="url">text</a></strong></p>`
-  - Output (default/compatible/markdown-it): `<p>string**<a href="url">text</a>**</p>`
-  - Input (Japanese mixed): `これは**[text](url)**です`
-  - Output (default/aggressive): `<p>これは<strong><a href="url">text</a></strong>です</p>`
-  - Output (compatible/markdown-it): `<p>これは**<a href="url">text</a>**です</p>`
-- Inline code (cluster of `*` without spaces):
-  - Input (English-only): `` **aa`code`**aa ``
-  - Output (aggressive): `<p><strong>aa<code>code</code></strong>aa</p>`
-  - Output (default/compatible/markdown-it): `<p>**aa<code>code</code>**aa</p>`
-  - Input (Japanese mixed): `` これは**`code`**です ``
-  - Output (default/aggressive): `<p>これは<strong><code>code</code></strong>です</p>`
-  - Output (compatible/markdown-it): `<p>これは**<code>code</code>**です</p>`
-
-Notice. The plugin keeps inline HTML / angle-bracket regions intact so rendered HTML keeps correct nesting (for example, it avoids mis-nesting in inputs like `**aaa<code>**bbb</code>` when HTML output is enabled).
-
-
-
-## Example
-
-The following examples are for strong. The process for em is roughly the same.
-
-````markdown
-[Markdown]
-HTMLは「**HyperText Markup Language**」の略です。
-[HTML]
-<p>HTMLは「<strong>HyperText Markup Language</strong>」の略です。</p>
-
-
-[Markdown]
-HTMLは**「HyperText Markup Language」**の略です。
-[HTML]
-<p>HTMLは<strong>「HyperText Markup Language」</strong>の略です。</p>
-
-
-[Markdown]
-HTMLは**「HyperText *Markup* Language」**の略です。
-[HTML]
-<p>HTMLは<strong>「HyperText <em>Markup</em> Language」</strong>の略です。</p>
-
-
-[Markdown]
-HTMLは**「HyperText *Markup* `Language`」**の略です。
-[HTML]
-<p>HTMLは<strong>「HyperText <em>Markup</em> <code>Language</code>」</strong>の略です。</p>
-
-
-[Markdown]
-HTMLは**「HyperText Mark
-
-up Language」**の略です。
-[HTML]
-<p>HTMLは**「HyperText Mark</p>
-<p>up Language」**の略です。</p>
-
-
-[Markdown]
-HTMLは\**「HyperText Markup Language」**の略です。
-[HTML]
-<p>HTMLは**「HyperText Markup Language」**の略です。</p>
-
-
-[Markdown]
-HTMLは\\**「HyperText Markup Language」**の略です。
-[HTML]
-<p>HTMLは\<strong>「HyperText Markup Language」</strong>の略です。</p>
-
-
-[Markdown]
-HTMLは\\\**「HyperText Markup Language」**の略です。
-[HTML]
-<p>HTMLは\**「HyperText Markup Language」**の略です。</p>
-
-
-[Markdown]
-HTMLは`**`は**「HyperText Markup Language」**の略です。
-[HTML]
-<p>HTMLは<code>**</code>は<strong>「HyperText Markup Language」</strong>の略です。</p>
-
-[Markdown]
-HTMLは`**`は**「HyperText** <b>Markup</b> Language」の略です。
-[HTML:false]
-<p>HTMLは<code>**</code>は<strong>「HyperText</strong> &lt;b&gt;Markup&lt;/b&gt; Language」の略です。</p>
-[HTML:true]
-<p>HTMLは<code>**</code>は<strong>「HyperText</strong> <b>Markup</b> Language」の略です。</p>
-
-
-[Markdown]
-HTMLは`**`は**「HyperText <b>Markup</b> Language」**の略です。
-[HTML:false]
-<p>HTMLは<code>**</code>は<strong>「HyperText &lt;b&gt;Markup&lt;/b&gt; Language」</strong>の略です。</p>
-[HTML:true]
-<p>HTMLは<code>**</code>は<strong>「HyperText <b>Markup</b> Language」</strong>の略です。</p>
-
-
-[Markdown]
-```
-HTMLは`**`は**「HyperText Markup Language」**の略です。
-```
-[HTML:false]
-<pre><code>HTMLは`**`は**「HyperText Markup Language」**の略です。
-</code></pre>
-[HTML:true]
-<pre><code>HTMLは`**`は**「HyperText Markup Language」**の略です。
-</code></pre>
-
-
-[Markdown]
-HTMLは**「HyperText <b>Markup</b> Language」**
-[HTML:false]
-<p>HTMLは<strong>「HyperText &lt;b&gt;Markup&lt;/b&gt; Language」</strong></p>
-[HTML:true]
-<p>HTMLは<strong>「HyperText <b>Markup</b> Language」</strong></p>
-
-[Markdown]
-これは**[text](url)**と**`code`**と**<b>HTML</b>**です
-[HTML html:true]
-<p>これは<strong><a href="url">text</a></strong>と<strong><code>code</code></strong>と<strong><b>HTML</b></strong>です</p>
-
-
-[Markdown]
-HTMLは「**HyperText Markup Language**」
-[HTML]
-<p>HTMLは「<strong>HyperText Markup Language</strong>」</p>
-
-[Markdown]
-HTMLは**「HyperText Markup Language」**。
-[HTML]
-<p>HTMLは<strong>「HyperText Markup Language」</strong>。</p>
-
-[Markdown]
-HTMLは**「HyperText Markup Language」**
-[HTML]
-<p>HTMLは<strong>「HyperText Markup Language」</strong></p>
-
-
-[Markdown]
-HTMLは**「HyperText Markup Language」**。
-[HTML]
-<p>HTMLは<strong>「HyperText Markup Language」</strong>。</p>
-
-[Markdown]
-***強調と*入れ子*の検証***を行う。
-[HTML]
-<p><em><em><em>強調と</em>入れ子</em>の検証</em>**を行う。</p>
-
-[Markdown]
-****
-[HTML]
-<hr>
-
-[Markdown]
-a****b
-[HTML]
-<p>a****b</p>
-
-[Markdown]
-a****
-[HTML]
-<p>a****</p>
-````
-
-
-### coreRulesBeforePostprocess
-
-`strong_ja_token_postprocess` runs inside the markdown-it core pipeline. When other plugins register core rules, you can keep their rules ahead of `strong_ja_token_postprocess` by listing them in `coreRulesBeforePostprocess`. Each name is normalized, deduplicated, and re-ordered once during plugin setup.
-
-```js
-const md = mdit()
-  .use(cjkBreaks)
-  .use(mditStrongJa, {
-    coreRulesBeforePostprocess: ['cjk_breaks', 'my_custom_rule']
-  })
+```html
+<p>献立は「[<strong>寿司</strong>][]」です。</p>
 ```
 
+Match example:
+
+```markdown
+献立は「[**寿司**][]」です。
+
+[**寿司**]: https://example.com/
+```
+
+```html
+<p>献立は「<a href="https://example.com/"><strong>寿司</strong></a>」です。</p>
+```
+
+#### Step 6-2: Postprocess by mode
+
+`japanese` and `aggressive` run postprocess repairs for broken emphasis around links and collapsed references. `compatible` intentionally skips these repairs to stay aligned with plain `markdown-it` output.
+
+#### Step 6-3: Why postprocess can skip or normalize
+
+Postprocess is conservative by design. It prioritizes stable output over aggressive conversion. If a segment has no useful repair target, cannot be bounded safely, or fails reparse, the plugin keeps the existing token result rather than applying risky rewrites.
+
+During successful rewrites, markdown-equivalent normalization can occur. For example, link title escaping or line-break representation can be normalized. Tokens with `meta`, or links with attrs beyond `href` / `title`, are preserved via island placeholders and restored after reparse, instead of being destructively rebuilt. If placeholder collision is detected, strong-ja retries marker generation up to 16 times before abandoning that rewrite path.
+
+In short, for ambiguous malformed input, strong-ja prioritizes safe and readable output over maximum conversion.
+
+## Behavior Examples
+
+These examples are synchronized with `test/readme-mode.txt`.
+
+### Punctuation with Japanese text
+
+This is the typical Japanese punctuation case where `japanese` / `aggressive` recover emphasis.
+
+- Input: `**「だし」**は和食の基本です。`
+- `japanese` / `aggressive`: `<p><strong>「だし」</strong>は和食の基本です。</p>`
+- `compatible` / `markdown-it`: `<p>**「だし」**は和食の基本です。</p>`
+
+### Mixed Japanese and English
+
+This case shows the mode difference when Japanese-side closing is preferred.
+
+- Input: `**天ぷら。**crunch**という表現を使います。`
+- `japanese` / `aggressive`: `<p><strong>天ぷら。</strong>crunch**という表現を使います。</p>`
+- `compatible` / `markdown-it`: `<p>**天ぷら。<strong>crunch</strong>という表現を使います。</p>`
+
+### Single-star edge case in plain text
+
+This is the main single-star direction-correction case.
+
+- Input: `*うどん。*chewy* という表記です。`
+- `japanese` / `aggressive`: `<p><em>うどん。</em>chewy* という表記です。</p>`
+- `compatible` / `markdown-it`: `<p>*うどん。<em>chewy</em> という表記です。</p>`
+
+- Input: `日本語 *broth。*taste* という比較です。`
+- `japanese` / `aggressive`: `<p>日本語 <em>broth。</em>taste* という比較です。</p>`
+- `compatible` / `markdown-it`: `<p>日本語 *broth。<em>taste</em> という比較です。</p>`
+
+### Single-star edge case inside link label
+
+The same single-star local correction applies inside inline link labels.
+
+- Input: `記録では[*天丼。*crispy*]()という表記を確認します。`
+- `japanese` / `aggressive`: `<p>記録では<a href=""><em>天丼。</em>crispy*</a>という表記を確認します。</p>`
+- `compatible` / `markdown-it`: `<p>記録では<a href="">*天丼。<em>crispy</em></a>という表記を確認します。</p>`
+
+### Malformed link marker sequence
+
+For malformed marker/link mixtures, safe output is preferred over forced tag completion.
+
+- Input: `**[**[x](v)](u)** という壊れた入力です。`
+- All modes: `<p><strong>[</strong><a href="v">x</a>](u)** という壊れた入力です。</p>`
+
+### Pure-English malformed tail
+
+For pure-English malformed tails, `japanese` stays close to `markdown-it`.
+
+- Input: `For diagnostics, we keep broken **tail [aa**aa***Text***and*More*bb**bb](https://x.test) after this note.`
+- `japanese` / `compatible` / `markdown-it`:  
+  `<p>For diagnostics, we keep broken **tail <a href="https://x.test">aa<strong>aa</strong><em>Text</em><em><em>and</em>More</em>bb**bb</a> after this note.</p>`
+- `aggressive`:  
+  `<p>For diagnostics, we keep broken **tail <a href="https://x.test">aa<strong>aa</strong><em>Text</em><strong>and<em>More</em>bb</strong>bb</a> after this note.</p>`
+
+### Link and code near emphasis
+
+These cases show mode differences around links and inline code.
+
+- Input: `説明文ではこれは**[ラーメン](url)**です。`
+- `japanese` / `aggressive`: `<p>説明文ではこれは<strong><a href="url">ラーメン</a></strong>です。</p>`
+- `compatible` / `markdown-it`: `<p>説明文ではこれは**<a href="url">ラーメン</a>**です。</p>`
+
+- Input: `注記では**aa\`stock\`**aaという記法を試します。`
+- `japanese` / `compatible` / `markdown-it`: `<p>注記では**aa<code>stock</code>**aaという記法を試します。</p>`
+- `aggressive`: `<p>注記では<strong>aa<code>stock</code></strong>aaという記法を試します。</p>`
+
+## Options
+
+### `mode`
+
+- Type: `'japanese' | 'japanese-only' | 'aggressive' | 'compatible'`
+- Default: `'japanese'`
+
+### `mditAttrs`
+
+- Type: `boolean`
+- Default: `true`
+- Set `false` if your stack does not use `markdown-it-attrs`.
+
+### `postprocess`
+
+- Type: `boolean`
+- Default: `true`
+- Set `false` to disable link/reference postprocess repairs.
+- In `mode: 'compatible'`, repairs are skipped even when this is `true`.
+
+### `coreRulesBeforePostprocess`
+
+- Type: `string[]`
 - Default: `[]`
-- Specify `['cjk_breaks']` (or other rule names) when you rely on plugins such as `@peaceroad/markdown-it-cjk-breaks-mod` and need them to run first.
-- Pass an empty array if you do not want `mditStrongJa` to reorder any core rules.
-- Reordering is setup-time behavior and still applies even when `postprocess: false` is set.
+- Names of core rules that must run before `strong_ja_token_postprocess`.
 
-Most setups can leave this option untouched; use it only when you must keep another plugin's core rule ahead of `strong_ja_token_postprocess`.
+### `patchCorePush`
 
-### postprocess
-
-Toggle the link/reference reconstruction pass and the link-adjacent mark cleanup that runs after inline parsing.
-
-```js
-const md = mdit().use(mditStrongJa, {
-  postprocess: false
-})
-```
-
+- Type: `boolean`
 - Default: `true`
-- Set `false` when you want to minimize core-rule interference and accept that some link/reference + emphasis combinations remain literal (for example, `**[text](url)**`, `[**Text**][]`).
-- `postprocess: false` disables the runtime reconstruction pass, but the `strong_ja_token_postprocess` rule remains registered in the core chain.
+- Helper hook to keep rule order stable when `mditAttrs: false` and `cjk_breaks` is registered later.
 
-### patchCorePush
+### About `markdown-it` `breaks`
 
-Controls whether `mditStrongJa` patches `md.core.ruler.push` to keep `strong_ja_restore_softbreaks` ordered after `cjk_breaks` when other plugins register their core rules after `mditStrongJa` (used only when `mditAttrs: false`).
+`breaks` is controlled by `markdown-it` itself. This plugin does not override `md.options.breaks`. However, with `cjk_breaks`, compatibility handling may adjust softbreak-related tokens, so rendered line-break behavior can still differ in some cases.
 
-```js
-const md = mdit().use(mditStrongJa, {
-  mditAttrs: false,
-  patchCorePush: false
-})
-```
+## Per-render Override
 
-- Default: `true`
-- Disable if you want to avoid monkey-patching core rule registration and can guarantee rule ordering (or you do not use `cjk_breaks`).
-- If disabled and `cjk_breaks` is registered later, softbreak normalization can run too early and spacing around CJK punctuation can differ in no-attrs mode.
+Use `state.env.__strongJaTokenOpt` to override options per render. It merges with plugin options. Setup-time behavior (rule registration/order) is fixed at plugin initialization and cannot be fully switched at render time.
+
+## Runtime and Integration Notes
+
+- ESM plugin (`type: module`)
+- Works in Node.js, browser bundlers, and VS Code extension pipelines that use `markdown-it` ESM
+- `scanDelims` patch is applied once per `MarkdownIt` prototype in the same process

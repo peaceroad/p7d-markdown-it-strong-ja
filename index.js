@@ -3,26 +3,26 @@ import { patchScanDelims } from './src/token-core.js'
 import { registerTokenCompat } from './src/token-compat.js'
 import { registerTokenPostprocess } from './src/token-postprocess.js'
 
-const buildNoLinkCacheKey = (opt) => {
+const buildReparseCacheKey = (opt) => {
   const mode = resolveMode(opt)
   const mditAttrs = opt && opt.mditAttrs === false ? '0' : '1'
   return `${mode}|${mditAttrs}`
 }
 
-const getNoLinkMdInstance = (md, opt) => {
+const getReparseMdInstance = (md, opt) => {
   const baseOpt = opt || md.__strongJaTokenOpt || { mode: 'japanese' }
-  const key = buildNoLinkCacheKey(baseOpt)
-  if (!md.__strongJaTokenNoLinkCache) {
-    md.__strongJaTokenNoLinkCache = new Map()
+  const key = buildReparseCacheKey(baseOpt)
+  if (!md.__strongJaTokenReparseCache) {
+    md.__strongJaTokenReparseCache = new Map()
   }
-  const cache = md.__strongJaTokenNoLinkCache
+  const cache = md.__strongJaTokenReparseCache
   const cached = cache.get(key)
   if (cached) return cached
-  const noLink = new md.constructor(md.options)
-  mditStrongJa(noLink, { ...baseOpt, _skipPostprocess: true })
-  noLink.inline.ruler.disable(['link'])
-  cache.set(key, noLink)
-  return noLink
+
+  const reparseMd = new md.constructor(md.options)
+  mditStrongJa(reparseMd, { ...baseOpt, _skipPostprocess: true })
+  cache.set(key, reparseMd)
+  return reparseMd
 }
 
 const mditStrongJa = (md, option) => {
@@ -31,7 +31,6 @@ const mditStrongJa = (md, option) => {
   }
   const opt = {
     mditAttrs: true, // assume markdown-it-attrs integration by default
-    mdBreaks: md.options.breaks, // inherit md.options.breaks for compat handling
     mode: 'japanese', // 'japanese' | 'aggressive' | 'compatible' (pairing behavior)
     coreRulesBeforePostprocess: [], // e.g. ['cjk_breaks'] to keep rules ahead of postprocess
     postprocess: true, // enable link/ref reconstruction pass
@@ -45,7 +44,7 @@ const mditStrongJa = (md, option) => {
   registerTokenCompat(md, opt)
 
   if (!opt._skipPostprocess) {
-    registerTokenPostprocess(md, opt, getNoLinkMdInstance)
+    registerTokenPostprocess(md, opt, getReparseMdInstance)
     const coreRulesBeforePostprocess = normalizeCoreRulesBeforePostprocess(opt.coreRulesBeforePostprocess)
     ensureCoreRuleOrder(md, coreRulesBeforePostprocess, 'strong_ja_token_postprocess')
   }

@@ -17,7 +17,6 @@ const sample = `
 
 const md = new MarkdownIt()
 md.use(markdownItStrongJa, {
-  disallowMixed: false,
   dollarMath: true,
   mditAttrs: true
 })
@@ -61,4 +60,3 @@ console.log(`  Avg RPS: ${(1000 / avgPerRender).toFixed(1)}`)
 
 console.log('\nMemory usage:')
 console.log(process.memoryUsage())
-

@@ -634,12 +634,33 @@ a*`b`*a
 <p>a*<code>b</code>*a</p>
 
 [Markdown]
+テストは「[**Text**][]」です。
+
+[Text]: https://example.com/
+[HTML:false]
+<p>テストは「[<strong>Text</strong>][]」です。</p>
+
+[Markdown]
+テストは「[**Text**][]」です。
+
+[**Text**]: https://example.com/
+[HTML:false]
+<p>テストは「<a href="https://example.com/"><strong>Text</strong></a>」です。</p>
+
+[Markdown]
+テストは「[**Text**][]」です。
+
+[**text**]: https://example.com/
+[HTML:false]
+<p>テストは「<a href="https://example.com/"><strong>Text</strong></a>」です。</p>
+
+[Markdown]
 テストは「[**Text**][]と[**More**][]」です。
 
 [Text]: https://example.com/
 [More]: https://example.org/
 [HTML:false]
-<p>テストは「<a href="https://example.com/"><strong>Text</strong></a>と<a href="https://example.org/"><strong>More</strong></a>」です。</p>
+<p>テストは「[<strong>Text</strong>][]と[<strong>More</strong>][]」です。</p>
 
 [Markdown]
 テストは**「[**Text**][]と[**More**][]」**です。
@@ -647,7 +668,7 @@ a*`b`*a
 [Text]: https://example.com/
 [More]: https://example.org/
 [HTML:false]
-<p>テストは<strong>「<a href="https://example.com/"><strong>Text</strong></a>と<a href="https://example.org/"><strong>More</strong></a>」</strong>です。</p>
+<p>テストは<strong>「[<strong>Text</strong>][]と[<strong>More</strong>][]」</strong>です。</p>
 
 [Markdown]
 テストは[**Text**と**More**][]です。
@@ -721,7 +742,7 @@ aa**aa***Text***と*More*bb**bbテストは[aa**aa***Text***と*More*bb**bb][]�
 [Two]: https://example.com/two/
 [Three]: https://example.com/three/
 [HTML:false]
-<p>テストは「<a href="https://example.com/one/"><strong>One</strong></a>と<a href="https://example.com/two/"><strong>Two</strong></a>と<a href="https://example.com/three/"><strong>Three</strong></a>」です。</p>
+<p>テストは「[<strong>One</strong>][]と[<strong>Two</strong>][]と[<strong>Three</strong>][]」です。</p>
 
 [Markdown]
 テキスト1「[**One**][]」段落です。
@@ -733,8 +754,8 @@ aa**aa***Text***と*More*bb**bbテストは[aa**aa***Text***と*More*bb**bb][]�
 [Two]: https://example.com/two/
 [Three]: https://example.com/three/
 [HTML:false]
-<p>テキスト1「<a href="https://example.com/one/"><strong>One</strong></a>」段落です。</p>
-<p>別段落で「<a href="https://example.com/two/"><strong>Two</strong></a>」と「<a href="https://example.com/three/"><strong>Three</strong></a>」があります。</p>
+<p>テキスト1「[<strong>One</strong>][]」段落です。</p>
+<p>別段落で「[<strong>Two</strong>][]」と「[<strong>Three</strong>][]」があります。</p>
 
 [Markdown]
 リンクが未定義の「[**Missing**][]」は強調テキストとして残る。
@@ -1020,7 +1041,7 @@ A [**para**][pa]graph.
 
 [ref-star]: https://example.com/ref*star
 [HTML:false]
-<p><strong>崩れた[参照<em>リンクラベル][ref-star と [inline</em>link<em>broken](https://example.com/in</em>complete) と <a href="https://example.com/path*with">urlwithstar</a> の組み合わせ</strong></p>
+<p><strong>崩れた[参照*リンクラベル][ref-star と <a href="https://example.com/in*complete">inline<em>link</em>broken</a> と <a href="https://example.com/path*with">urlwithstar</a> の組み合わせ</strong></p>
 
 
 [Markdown]
@@ -1029,7 +1050,7 @@ A [**para**][pa]graph.
 [ref-a]: https://example.com/ref*a
 [ref-b]: https://example.com/ref*b
 [HTML:false]
-<p><strong>壊れ1[参照<em>ラベル1][ref-a と [ok1](https://example.com/a*1) と 壊れ2[参照</em>ラベル2][ref-b と [ok2](https://example.com/b*2) の組み合わせ</strong></p>
+<p><strong>壊れ1[参照<em>ラベル1][ref-a と <a href="https://example.com/a*1">ok1</a> と 壊れ2[参照</em>ラベル2][ref-b と <a href="https://example.com/b*2">ok2</a> の組み合わせ</strong></p>
 
 [Markdown]
 [リンク内で *強調* と `*code*` と **太字** *終端*](https://example.com/foo*bar)の後ろに*補足*があります。

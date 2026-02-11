@@ -31,15 +31,8 @@ const buildReferenceLabelRange = (tokens, startIdx, endIdx) => {
   return label
 }
 
-const cleanLabelText = (label) => {
-  if (label.indexOf('*') === -1 && label.indexOf('_') === -1) return label
-  return label.replace(/^[*_]+/, '').replace(/[*_]+$/, '')
-}
-
-const normalizeReferenceCandidate = (state, text, options) => {
-  const useClean = !!(options && options.useClean)
-  const source = useClean ? cleanLabelText(text) : text
-  return normalizeRefKey(state, source)
+const normalizeReferenceCandidate = (state, text) => {
+  return getNormalizeRef(state)(text)
 }
 
 const getNormalizeRef = (state) => {
@@ -49,10 +42,6 @@ const getNormalizeRef = (state) => {
     : (str) => str.trim().replace(/\s+/g, ' ').toUpperCase()
   state.__strongJaNormalizeRef = normalize
   return normalize
-}
-
-const normalizeRefKey = (state, label) => {
-  return getNormalizeRef(state)(label)
 }
 
 const adjustTokenLevels = (tokens, startIdx, endIdx, delta) => {
@@ -100,6 +89,19 @@ const cloneTextToken = (source, content) => {
   return newToken
 }
 
+const applyBracketSegmentFlags = (token, seg) => {
+  if (seg === '[' || seg === ']') {
+    token.__strongJaHasBracket = true
+    token.__strongJaBracketAtomic = true
+  } else if (seg === '[]') {
+    token.__strongJaHasBracket = true
+    token.__strongJaBracketAtomic = false
+  } else {
+    token.__strongJaHasBracket = false
+    token.__strongJaBracketAtomic = false
+  }
+}
+
 const splitBracketToken = (tokens, index) => {
   const token = tokens[index]
   if (!token || token.type !== 'text') return false
@@ -120,74 +122,48 @@ const splitBracketToken = (tokens, index) => {
     token.__strongJaHasBracket = true
   }
   const segments = []
-  let buffer = ''
+  const contentLen = content.length
   let pos = 0
-  while (pos < content.length) {
+  let segmentStart = 0
+  while (pos < contentLen) {
     const code = content.charCodeAt(pos)
     if (code === CHAR_OPEN_BRACKET &&
         content.charCodeAt(pos + 1) === CHAR_CLOSE_BRACKET) {
-      if (buffer) {
-        segments.push(buffer)
-        buffer = ''
+      if (segmentStart < pos) {
+        segments.push(content.slice(segmentStart, pos))
       }
       segments.push('[]')
       pos += 2
+      segmentStart = pos
       continue
     }
     if (code === CHAR_OPEN_BRACKET || code === CHAR_CLOSE_BRACKET) {
-      if (buffer) {
-        segments.push(buffer)
-        buffer = ''
+      if (segmentStart < pos) {
+        segments.push(content.slice(segmentStart, pos))
       }
       segments.push(code === CHAR_OPEN_BRACKET ? '[' : ']')
       pos++
+      segmentStart = pos
       continue
     }
-    buffer += content[pos]
     pos++
   }
-  if (buffer) segments.push(buffer)
+  if (segmentStart < contentLen) segments.push(content.slice(segmentStart))
   if (segments.length <= 1) {
-    const seg = segments[0]
-    if (seg === '[' || seg === ']') {
-      token.__strongJaHasBracket = true
-      token.__strongJaBracketAtomic = true
-    } else if (seg === '[]') {
-      token.__strongJaHasBracket = true
-      token.__strongJaBracketAtomic = false
-    } else {
-      token.__strongJaHasBracket = false
-      token.__strongJaBracketAtomic = false
-    }
+    applyBracketSegmentFlags(token, segments[0])
     return false
   }
+
   token.content = segments[0]
-  if (token.content === '[' || token.content === ']') {
-    token.__strongJaHasBracket = true
-    token.__strongJaBracketAtomic = true
-  } else if (token.content === '[]') {
-    token.__strongJaHasBracket = true
-    token.__strongJaBracketAtomic = false
-  } else {
-    token.__strongJaHasBracket = false
-    token.__strongJaBracketAtomic = false
-  }
-  let insertIdx = index + 1
+  applyBracketSegmentFlags(token, token.content)
+
+  const replacements = [token]
   for (let s = 1; s < segments.length; s++) {
     const newToken = cloneTextToken(token, segments[s])
-    if (segments[s] === '[' || segments[s] === ']') {
-      newToken.__strongJaHasBracket = true
-      newToken.__strongJaBracketAtomic = true
-    } else if (segments[s] === '[]') {
-      newToken.__strongJaHasBracket = true
-      newToken.__strongJaBracketAtomic = false
-    } else {
-      newToken.__strongJaHasBracket = false
-      newToken.__strongJaBracketAtomic = false
-    }
-    tokens.splice(insertIdx, 0, newToken)
-    insertIdx++
+    applyBracketSegmentFlags(newToken, segments[s])
+    replacements.push(newToken)
   }
+  tokens.splice(index, 1, ...replacements)
   return true
 }
 
@@ -320,7 +296,6 @@ const convertCollapsedReferenceLinks = (tokens, state) => {
     const labelEnd = closeIdx - 1
     const labelLength = closeIdx - i - 1
     const labelText = buildReferenceLabelRange(tokens, labelStart, labelEnd)
-    const cleanedLabel = cleanLabelText(labelText)
     const whitespaceStart = closeIdx + 1
     let refRemoveStart = whitespaceStart
     while (refRemoveStart < tokens.length && isWhitespaceToken(tokens[refRemoveStart])) {
@@ -336,7 +311,7 @@ const convertCollapsedReferenceLinks = (tokens, state) => {
     let existingLinkClose = null
     const nextToken = tokens[refRemoveStart]
     if (isBracketToken(nextToken, '[]')) {
-      refKey = normalizeReferenceCandidate(state, cleanedLabel)
+      refKey = normalizeReferenceCandidate(state, labelText)
       refRemoveCount = 1
     } else if (isBracketToken(nextToken, '[')) {
       let refCloseIdx = refRemoveStart + 1
@@ -350,7 +325,7 @@ const convertCollapsedReferenceLinks = (tokens, state) => {
       const refStart = refRemoveStart + 1
       const refEnd = refCloseIdx - 1
       if (refStart > refEnd) {
-        refKey = normalizeReferenceCandidate(state, cleanedLabel)
+        refKey = normalizeReferenceCandidate(state, labelText)
       } else {
         const refLabelText = buildReferenceLabelRange(tokens, refStart, refEnd)
         refKey = normalizeReferenceCandidate(state, refLabelText)

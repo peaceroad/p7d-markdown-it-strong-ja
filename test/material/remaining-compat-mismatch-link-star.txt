@@ -1,0 +1,280 @@
+# Remaining Compatible-Mode Mismatch Cases (Generated)
+
+segments: 1463
+mismatches: 254
+
+template index map:
+0=[x](u)
+1=**[x](u)**
+2=*[x](u)*
+3=[**x**][] + [ref]
+4=[*x*][] + [ref]
+5=[**x**][] + [nohit]
+6=[*x*][] + [nohit]
+7=broken ref template
+
+counts by template:
+tpl:0 => 0
+tpl:1 => 78
+tpl:2 => 78
+tpl:3 => 10
+tpl:4 => 10
+tpl:5 => 10
+tpl:6 => 10
+tpl:7 => 58
+
+cases:
+tpl:1 | **[**[x](v)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[x](v)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[y](w)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[y](w)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:2 | *[*[x](v)](u)*
+tpl:2 | *[*[y](w)](u)*
+tpl:2 | *[a*a*[x](v)](u)*
+tpl:2 | *[a*a*[y](w)](u)*
+tpl:1 | **[a**a**[x](v)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [a**a**[x](v)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[a**a**[y](w)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [a**a**[y](w)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[a***a***[x](v)](u)**
+tpl:2 | *[a***a***[x](v)](u)*
+tpl:1 | **[a***a***[y](w)](u)**
+tpl:2 | *[a***a***[y](w)](u)*
+tpl:1 | **[a**[x](v)](u)**
+tpl:2 | *[a**[x](v)](u)*
+tpl:7 | **壊れ[参照*ラベル][ref と [a**[x](v)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[a**[y](w)](u)**
+tpl:2 | *[a**[y](w)](u)*
+tpl:7 | **壊れ[参照*ラベル][ref と [a**[y](w)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[a*[x](v)](u)**
+tpl:2 | *[a*[x](v)](u)*
+tpl:1 | **[a*[y](w)](u)**
+tpl:2 | *[a*[y](w)](u)*
+tpl:2 | *[あ*a*[x](v)](u)*
+tpl:2 | *[あ*a*[y](w)](u)*
+tpl:1 | **[あ**a**[x](v)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [あ**a**[x](v)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[あ**a**[y](w)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [あ**a**[y](w)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[あ***a***[x](v)](u)**
+tpl:2 | *[あ***a***[x](v)](u)*
+tpl:1 | **[あ***a***[y](w)](u)**
+tpl:2 | *[あ***a***[y](w)](u)*
+tpl:1 | **[あ**[x](v)](u)**
+tpl:2 | *[あ**[x](v)](u)*
+tpl:7 | **壊れ[参照*ラベル][ref と [あ**[x](v)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[あ**[y](w)](u)**
+tpl:2 | *[あ**[y](w)](u)*
+tpl:7 | **壊れ[参照*ラベル][ref と [あ**[y](w)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[あ*[x](v)](u)**
+tpl:2 | *[あ*[x](v)](u)*
+tpl:1 | **[あ*[y](w)](u)**
+tpl:2 | *[あ*[y](w)](u)*
+tpl:1 | **[。**[x](v)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [。**[x](v)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[。**[y](w)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [。**[y](w)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:2 | *[。*[x](v)](u)*
+tpl:2 | *[。*[y](w)](u)*
+tpl:1 | **[*a**a*[x](v)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [*a**a*[x](v)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[*a**a*[y](w)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [*a**a*[y](w)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[*a***a**[x](v)](u)**
+tpl:2 | *[*a***a**[x](v)](u)*
+tpl:1 | **[*a***a**[y](w)](u)**
+tpl:2 | *[*a***a**[y](w)](u)*
+tpl:2 | *[*a****a***[x](v)](u)*
+tpl:2 | *[*a****a***[y](w)](u)*
+tpl:1 | **[*a***[x](v)](u)**
+tpl:2 | *[*a***[x](v)](u)*
+tpl:1 | **[*a***[y](w)](u)**
+tpl:2 | *[*a***[y](w)](u)*
+tpl:1 | **[*a**[x](v)](u)**
+tpl:2 | *[*a**[x](v)](u)*
+tpl:7 | **壊れ[参照*ラベル][ref と [*a**[x](v)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[*a**[y](w)](u)**
+tpl:2 | *[*a**[y](w)](u)*
+tpl:7 | **壊れ[参照*ラベル][ref と [*a**[y](w)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**a***a*[x](v)](u)**
+tpl:2 | *[**a***a*[x](v)](u)*
+tpl:1 | **[**a***a*[y](w)](u)**
+tpl:2 | *[**a***a*[y](w)](u)*
+tpl:2 | *[**a****a**[x](v)](u)*
+tpl:2 | *[**a****a**[y](w)](u)*
+tpl:1 | **[**a*****a***[x](v)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**a*****a***[x](v)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**a*****a***[y](w)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**a*****a***[y](w)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**a****[x](v)](u)**
+tpl:2 | *[**a****[x](v)](u)*
+tpl:1 | **[**a****[y](w)](u)**
+tpl:2 | *[**a****[y](w)](u)*
+tpl:1 | **[**a***[x](v)](u)**
+tpl:2 | *[**a***[x](v)](u)*
+tpl:1 | **[**a***[y](w)](u)**
+tpl:2 | *[**a***[y](w)](u)*
+tpl:2 | *[***a****a*[x](v)](u)*
+tpl:2 | *[***a****a*[y](w)](u)*
+tpl:1 | **[***a*****a**[x](v)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [***a*****a**[x](v)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[***a*****a**[y](w)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [***a*****a**[y](w)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[***a******a***[x](v)](u)**
+tpl:2 | *[***a******a***[x](v)](u)*
+tpl:1 | **[***a******a***[y](w)](u)**
+tpl:2 | *[***a******a***[y](w)](u)*
+tpl:1 | **[***a*****[x](v)](u)**
+tpl:2 | *[***a*****[x](v)](u)*
+tpl:7 | **壊れ[参照*ラベル][ref と [***a*****[x](v)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[***a*****[y](w)](u)**
+tpl:2 | *[***a*****[y](w)](u)*
+tpl:7 | **壊れ[参照*ラベル][ref と [***a*****[y](w)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[***a****[x](v)](u)**
+tpl:2 | *[***a****[x](v)](u)*
+tpl:1 | **[***a****[y](w)](u)**
+tpl:2 | *[***a****[y](w)](u)*
+tpl:1 | **[`a*b`**[x](v)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [`a*b`**[x](v)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[`a*b`**[y](w)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [`a*b`**[y](w)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:2 | *[`a*b`*[x](v)](u)*
+tpl:2 | *[`a*b`*[y](w)](u)*
+tpl:3 | [**[x](v)*a**a***][]\n\n[ref]: https://example.com
+tpl:5 | [**[x](v)*a**a***][]\n\n[nohit]: https://example.com
+tpl:4 | [*[x](v)*a***a***][]\n\n[ref]: https://example.com
+tpl:6 | [*[x](v)*a***a***][]\n\n[nohit]: https://example.com
+tpl:7 | **壊れ[参照*ラベル][ref と [[x](v)*a***a**](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:4 | [*[x](v)*a****a****][]\n\n[ref]: https://example.com
+tpl:6 | [*[x](v)*a****a****][]\n\n[nohit]: https://example.com
+tpl:4 | [*[x](v)*a****][]\n\n[ref]: https://example.com
+tpl:6 | [*[x](v)*a****][]\n\n[nohit]: https://example.com
+tpl:4 | [*[x](v)*a***][]\n\n[ref]: https://example.com
+tpl:6 | [*[x](v)*a***][]\n\n[nohit]: https://example.com
+tpl:3 | [**[x](v)**a***a***][]\n\n[ref]: https://example.com
+tpl:5 | [**[x](v)**a***a***][]\n\n[nohit]: https://example.com
+tpl:4 | [*[x](v)**a****a***][]\n\n[ref]: https://example.com
+tpl:6 | [*[x](v)**a****a***][]\n\n[nohit]: https://example.com
+tpl:3 | [**[x](v)**a*****a*****][]\n\n[ref]: https://example.com
+tpl:5 | [**[x](v)**a*****a*****][]\n\n[nohit]: https://example.com
+tpl:3 | [**[x](v)**a******][]\n\n[ref]: https://example.com
+tpl:5 | [**[x](v)**a******][]\n\n[nohit]: https://example.com
+tpl:3 | [**[x](v)**a*****][]\n\n[ref]: https://example.com
+tpl:5 | [**[x](v)**a*****][]\n\n[nohit]: https://example.com
+tpl:3 | [**[y](w)*a**a***][]\n\n[ref]: https://example.com
+tpl:5 | [**[y](w)*a**a***][]\n\n[nohit]: https://example.com
+tpl:4 | [*[y](w)*a***a***][]\n\n[ref]: https://example.com
+tpl:6 | [*[y](w)*a***a***][]\n\n[nohit]: https://example.com
+tpl:7 | **壊れ[参照*ラベル][ref と [[y](w)*a***a**](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:4 | [*[y](w)*a****a****][]\n\n[ref]: https://example.com
+tpl:6 | [*[y](w)*a****a****][]\n\n[nohit]: https://example.com
+tpl:4 | [*[y](w)*a****][]\n\n[ref]: https://example.com
+tpl:6 | [*[y](w)*a****][]\n\n[nohit]: https://example.com
+tpl:4 | [*[y](w)*a***][]\n\n[ref]: https://example.com
+tpl:6 | [*[y](w)*a***][]\n\n[nohit]: https://example.com
+tpl:3 | [**[y](w)**a***a***][]\n\n[ref]: https://example.com
+tpl:5 | [**[y](w)**a***a***][]\n\n[nohit]: https://example.com
+tpl:4 | [*[y](w)**a****a***][]\n\n[ref]: https://example.com
+tpl:6 | [*[y](w)**a****a***][]\n\n[nohit]: https://example.com
+tpl:3 | [**[y](w)**a*****a*****][]\n\n[ref]: https://example.com
+tpl:5 | [**[y](w)**a*****a*****][]\n\n[nohit]: https://example.com
+tpl:3 | [**[y](w)**a******][]\n\n[ref]: https://example.com
+tpl:5 | [**[y](w)**a******][]\n\n[nohit]: https://example.com
+tpl:3 | [**[y](w)**a*****][]\n\n[ref]: https://example.com
+tpl:5 | [**[y](w)**a*****][]\n\n[nohit]: https://example.com
+tpl:1 | **[**。[x](v)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**。[x](v)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**。[y](w)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**。[y](w)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**`a*b`[x](v)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**`a*b`[x](v)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**`a*b`[y](w)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**`a*b`[y](w)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[x](v)a](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[x](v)a](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[x](v)あ](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[x](v)あ](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[x](v)。](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[x](v)。](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[x](v)*a*](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[x](v)*a*](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[x](v)**a**](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[x](v)**a**](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[x](v)***a***](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[x](v)***a***](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[x](v)`a*b`](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[x](v)`a*b`](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[x](v)[x](v)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[x](v)[x](v)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[x](v)[y](w)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[x](v)[y](w)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[x](v)**](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[x](v)**](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[x](v)*](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[x](v)*](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[y](w)a](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[y](w)a](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[y](w)あ](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[y](w)あ](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[y](w)。](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[y](w)。](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[y](w)*a*](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[y](w)*a*](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[y](w)**a**](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[y](w)**a**](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[y](w)***a***](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[y](w)***a***](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[y](w)`a*b`](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[y](w)`a*b`](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[y](w)[x](v)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[y](w)[x](v)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[y](w)[y](w)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[y](w)[y](w)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[y](w)**](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[y](w)**](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[y](w)*](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[y](w)*](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:2 | *[****[x](v)](u)*
+tpl:2 | *[****[y](w)](u)*
+tpl:1 | **[***[x](v)](u)**
+tpl:2 | *[***[x](v)](u)*
+tpl:1 | **[***[y](w)](u)**
+tpl:2 | *[***[y](w)](u)*
+tpl:2 | *[*。[x](v)](u)*
+tpl:2 | *[*。[y](w)](u)*
+tpl:2 | *[*`a*b`[x](v)](u)*
+tpl:2 | *[*`a*b`[y](w)](u)*
+tpl:2 | *[*[x](v)a](u)*
+tpl:2 | *[*[x](v)あ](u)*
+tpl:2 | *[*[x](v)。](u)*
+tpl:2 | *[*[x](v)*a*](u)*
+tpl:7 | **壊れ[参照*ラベル][ref と [*[x](v)*a*](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:2 | *[*[x](v)**a**](u)*
+tpl:2 | *[*[x](v)***a***](u)*
+tpl:7 | **壊れ[参照*ラベル][ref と [*[x](v)***a***](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:2 | *[*[x](v)`a*b`](u)*
+tpl:2 | *[*[x](v)[x](v)](u)*
+tpl:2 | *[*[x](v)[y](w)](u)*
+tpl:2 | *[*[x](v)**](u)*
+tpl:2 | *[*[x](v)*](u)*
+tpl:2 | *[*[y](w)a](u)*
+tpl:2 | *[*[y](w)あ](u)*
+tpl:2 | *[*[y](w)。](u)*
+tpl:2 | *[*[y](w)*a*](u)*
+tpl:7 | **壊れ[参照*ラベル][ref と [*[y](w)*a*](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:2 | *[*[y](w)**a**](u)*
+tpl:2 | *[*[y](w)***a***](u)*
+tpl:7 | **壊れ[参照*ラベル][ref と [*[y](w)***a***](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:2 | *[*[y](w)`a*b`](u)*
+tpl:2 | *[*[y](w)[x](v)](u)*
+tpl:2 | *[*[y](w)[y](w)](u)*
+tpl:2 | *[*[y](w)**](u)*
+tpl:2 | *[*[y](w)*](u)*
+tpl:1 | **[***[x](v)](u)**
+tpl:2 | *[***[x](v)](u)*
+tpl:1 | **[***[y](w)](u)**
+tpl:2 | *[***[y](w)](u)*
+tpl:1 | **[**[x](v)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[x](v)](u) の組み合わせ**\n\n[ref]: https://example.com
+tpl:1 | **[**[y](w)](u)**
+tpl:7 | **壊れ[参照*ラベル][ref と [**[y](w)](u) の組み合わせ**\n\n[ref]: https://example.com
