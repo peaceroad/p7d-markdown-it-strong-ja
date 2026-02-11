@@ -364,7 +364,6 @@ const patchScanDelims = (md) => {
   if (!md || !md.inline || !md.inline.State || !md.inline.State.prototype) return
   const proto = md.inline.State.prototype
   if (proto[SCAN_DELIMS_PATCHED] === true) {
-    md.__strongJaTokenScanDelimsPatched = true
     return
   }
   const original = proto.scanDelims
@@ -376,13 +375,20 @@ const patchScanDelims = (md) => {
       return original.call(this, start, canSplitWord)
     }
 
-    const baseOpt = this.md && this.md.__strongJaTokenOpt ? this.md.__strongJaTokenOpt : null
-    const opt = getRuntimeOpt(this, baseOpt)
+    const baseOpt = this.md ? this.md.__strongJaTokenOpt : null
+    const overrideOpt = this.env && this.env.__strongJaTokenOpt
+    const opt = overrideOpt ? getRuntimeOpt(this, baseOpt) : baseOpt
     if (!opt) {
       return original.call(this, start, canSplitWord)
     }
-    const mode = resolveMode(opt)
-    const useJapaneseRule = shouldUseJapaneseRule(this, opt, mode)
+    let useJapaneseRule
+    if (this.__strongJaTokenUseJapaneseRuleOpt === opt) {
+      useJapaneseRule = this.__strongJaTokenUseJapaneseRule
+    } else {
+      useJapaneseRule = shouldUseJapaneseRule(this, resolveMode(opt))
+      this.__strongJaTokenUseJapaneseRuleOpt = opt
+      this.__strongJaTokenUseJapaneseRule = useJapaneseRule
+    }
     if (!useJapaneseRule) {
       return original.call(this, start, canSplitWord)
     }
@@ -396,33 +402,26 @@ const patchScanDelims = (md) => {
 
     const nextChar = pos < max ? this.src.charCodeAt(pos) : 0x20
 
-    const isLastPunctChar = false
-    const isNextPunctChar = false
-
     let isLastWhiteSpace = isWhiteSpace(lastChar)
     let isNextWhiteSpace = isWhiteSpace(nextChar)
-    if (useJapaneseRule) {
-      if (isLastWhiteSpace && (lastChar === CHAR_SPACE || lastChar === CHAR_TAB)) {
-        const prevNonSpace = findPrevNonSpace(this.src, start - 2)
-        if (prevNonSpace && prevNonSpace !== CHAR_ASTERISK) {
-          isLastWhiteSpace = false
-        }
+    if (isLastWhiteSpace && (lastChar === CHAR_SPACE || lastChar === CHAR_TAB)) {
+      const prevNonSpace = findPrevNonSpace(this.src, start - 2)
+      if (prevNonSpace && prevNonSpace !== CHAR_ASTERISK) {
+        isLastWhiteSpace = false
       }
-      if (isNextWhiteSpace && (nextChar === CHAR_SPACE || nextChar === CHAR_TAB)) {
-        const nextNonSpace = findNextNonSpace(this.src, pos, max)
-        if (nextNonSpace && nextNonSpace !== CHAR_ASTERISK) {
-          isNextWhiteSpace = false
-        }
+    }
+    if (isNextWhiteSpace && (nextChar === CHAR_SPACE || nextChar === CHAR_TAB)) {
+      const nextNonSpace = findNextNonSpace(this.src, pos, max)
+      if (nextNonSpace && nextNonSpace !== CHAR_ASTERISK) {
+        isNextWhiteSpace = false
       }
     }
 
-    const left_flanking =
-      !isNextWhiteSpace && (!isNextPunctChar || isLastWhiteSpace || isLastPunctChar)
-    const right_flanking =
-      !isLastWhiteSpace && (!isLastPunctChar || isNextWhiteSpace || isNextPunctChar)
+    const left_flanking = !isNextWhiteSpace
+    const right_flanking = !isLastWhiteSpace
 
-    const can_open = left_flanking && (canSplitWord || !right_flanking || isLastPunctChar)
-    const can_close = right_flanking && (canSplitWord || !left_flanking || isNextPunctChar)
+    const can_open = left_flanking && (canSplitWord || !right_flanking)
+    const can_close = right_flanking && (canSplitWord || !left_flanking)
 
     const forbidClose = lastChar === 0x5B || lastChar === 0x28
     const forbidOpen = nextChar === 0x5D || nextChar === 0x29
@@ -433,7 +432,6 @@ const patchScanDelims = (md) => {
     }
   }
   proto[SCAN_DELIMS_PATCHED] = true
-  md.__strongJaTokenScanDelimsPatched = true
 }
 
 export {

@@ -24,9 +24,7 @@ const buildReferenceLabelRange = (tokens, startIdx, endIdx) => {
       label += token.content
     } else if (token.type === 'softbreak' || token.type === 'hardbreak') {
       label += ' '
-    } else if (token.type && token.type.endsWith('_open') && token.markup) {
-      label += token.markup
-    } else if (token.type && token.type.endsWith('_close') && token.markup) {
+    } else if (token.type && token.markup && (token.type.endsWith('_open') || token.type.endsWith('_close'))) {
       label += token.markup
     }
   }
@@ -38,7 +36,8 @@ const cleanLabelText = (label) => {
   return label.replace(/^[*_]+/, '').replace(/[*_]+$/, '')
 }
 
-const normalizeReferenceCandidate = (state, text, { useClean = false } = {}) => {
+const normalizeReferenceCandidate = (state, text, options) => {
+  const useClean = !!(options && options.useClean)
   const source = useClean ? cleanLabelText(text) : text
   return normalizeRefKey(state, source)
 }
@@ -98,7 +97,6 @@ const cloneTextToken = (source, content) => {
   Object.assign(newToken, source)
   newToken.content = content
   if (source.meta) newToken.meta = { ...source.meta }
-  if (source.map) newToken.map = source.map
   return newToken
 }
 
@@ -125,7 +123,8 @@ const splitBracketToken = (tokens, index) => {
   let buffer = ''
   let pos = 0
   while (pos < content.length) {
-    if (content.charCodeAt(pos) === CHAR_OPEN_BRACKET &&
+    const code = content.charCodeAt(pos)
+    if (code === CHAR_OPEN_BRACKET &&
         content.charCodeAt(pos + 1) === CHAR_CLOSE_BRACKET) {
       if (buffer) {
         segments.push(buffer)
@@ -135,36 +134,30 @@ const splitBracketToken = (tokens, index) => {
       pos += 2
       continue
     }
-    const ch = content[pos]
-    if (ch === '[' || ch === ']') {
+    if (code === CHAR_OPEN_BRACKET || code === CHAR_CLOSE_BRACKET) {
       if (buffer) {
         segments.push(buffer)
         buffer = ''
       }
-      segments.push(ch)
+      segments.push(code === CHAR_OPEN_BRACKET ? '[' : ']')
       pos++
       continue
     }
-    buffer += ch
+    buffer += content[pos]
     pos++
   }
   if (buffer) segments.push(buffer)
   if (segments.length <= 1) {
-    if (segments.length === 0) {
-      token.__strongJaHasBracket = false
+    const seg = segments[0]
+    if (seg === '[' || seg === ']') {
+      token.__strongJaHasBracket = true
+      token.__strongJaBracketAtomic = true
+    } else if (seg === '[]') {
+      token.__strongJaHasBracket = true
       token.__strongJaBracketAtomic = false
     } else {
-      const seg = segments[0]
-      if (seg === '[' || seg === ']') {
-        token.__strongJaHasBracket = true
-        token.__strongJaBracketAtomic = true
-      } else if (seg === '[]') {
-        token.__strongJaHasBracket = true
-        token.__strongJaBracketAtomic = false
-      } else {
-        token.__strongJaHasBracket = false
-        token.__strongJaBracketAtomic = false
-      }
+      token.__strongJaHasBracket = false
+      token.__strongJaBracketAtomic = false
     }
     return false
   }
@@ -215,7 +208,7 @@ const findLinkCloseIndex = (tokens, startIdx) => {
   return -1
 }
 
-const wrapLabelTokensWithLink = (tokens, labelStartIdx, labelEndIdx, linkOpenToken, linkCloseToken, labelSource) => {
+const wrapLabelTokensWithLink = (tokens, labelStartIdx, labelEndIdx, linkOpenToken, linkCloseToken) => {
   const wrapperPairs = []
   let startIdx = labelStartIdx
   let endIdx = labelEndIdx
@@ -223,7 +216,7 @@ const wrapLabelTokensWithLink = (tokens, labelStartIdx, labelEndIdx, linkOpenTok
     const prevToken = tokens[startIdx - 1]
     const nextToken = tokens[endIdx + 1]
     if (!prevToken || !nextToken) break
-    if (!/_close$/.test(prevToken.type)) break
+    if (!prevToken.type || !prevToken.type.endsWith('_close')) break
     const expectedOpen = prevToken.type.replace('_close', '_open')
     if (nextToken.type !== expectedOpen) break
     wrapperPairs.push({
@@ -239,17 +232,7 @@ const wrapLabelTokensWithLink = (tokens, labelStartIdx, labelEndIdx, linkOpenTok
     endIdx -= 1
   }
 
-  if (startIdx > endIdx) {
-    if (labelSource !== undefined && labelSource !== null) {
-      const placeholder = new Token('text', '', 0)
-      placeholder.content = labelSource
-      placeholder.level = linkOpenToken.level + 1
-      tokens.splice(startIdx, 0, placeholder)
-      endIdx = startIdx
-    } else {
-      return startIdx
-    }
-  }
+  if (startIdx > endIdx) return startIdx
 
   let labelLength = endIdx - startIdx + 1
   const firstLabelToken = tokens[startIdx]
@@ -436,7 +419,7 @@ const mergeBrokenMarksAroundLinks = (tokens) => {
   let i = 0
   while (i < tokens.length) {
     const closeToken = tokens[i]
-    if (!closeToken || !/_close$/.test(closeToken.type)) {
+    if (!closeToken || !closeToken.type || !closeToken.type.endsWith('_close')) {
       i++
       continue
     }

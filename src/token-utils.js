@@ -63,7 +63,7 @@ const resolveMode = (opt) => {
   return mode
 }
 
-const shouldUseJapaneseRule = (state, opt, mode) => {
+const shouldUseJapaneseRule = (state, mode) => {
   if (mode === 'aggressive') return true
   if (mode === 'compatible') return false
   let hasJapanese = state.__strongJaTokenHasJapanese

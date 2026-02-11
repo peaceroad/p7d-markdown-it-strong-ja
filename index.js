@@ -6,8 +6,7 @@ import { registerTokenPostprocess } from './src/token-postprocess.js'
 const buildNoLinkCacheKey = (opt) => {
   const mode = resolveMode(opt)
   const mditAttrs = opt && opt.mditAttrs === false ? '0' : '1'
-  const mdBreaks = opt && opt.mdBreaks === true ? '1' : '0'
-  return `${mode}|${mditAttrs}|${mdBreaks}`
+  return `${mode}|${mditAttrs}`
 }
 
 const getNoLinkMdInstance = (md, opt) => {
@@ -47,13 +46,7 @@ const mditStrongJa = (md, option) => {
 
   if (!opt._skipPostprocess) {
     registerTokenPostprocess(md, opt, getNoLinkMdInstance)
-    const rawCoreRules = opt.coreRulesBeforePostprocess
-    const hasCoreRuleConfig = Array.isArray(rawCoreRules)
-      ? rawCoreRules.length > 0
-      : !!rawCoreRules
-    const coreRulesBeforePostprocess = hasCoreRuleConfig
-      ? normalizeCoreRulesBeforePostprocess(rawCoreRules)
-      : []
+    const coreRulesBeforePostprocess = normalizeCoreRulesBeforePostprocess(opt.coreRulesBeforePostprocess)
     ensureCoreRuleOrder(md, coreRulesBeforePostprocess, 'strong_ja_token_postprocess')
   }
 

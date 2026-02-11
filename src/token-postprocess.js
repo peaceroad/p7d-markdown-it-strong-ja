@@ -119,7 +119,11 @@ const parseInlineWithFixes = (md, raw, env) => {
 
 const hasUnsafeAttrs = (token) => {
   if (!token) return false
-  if (token.meta && Object.keys(token.meta).length > 0) return true
+  if (token.meta) {
+    for (const key in token.meta) {
+      if (Object.prototype.hasOwnProperty.call(token.meta, key)) return true
+    }
+  }
   if (!token.attrs || token.attrs.length === 0) return false
   if (token.type !== 'link_open') return true
   for (let i = 0; i < token.attrs.length; i++) {
@@ -246,7 +250,6 @@ const registerTokenPostprocess = (md, baseOpt, getNoLinkMdInstance) => {
         }
       }
       if (maxReparse !== 0 && hasLinkOpen) {
-        let allowReparse = true
         while (true) {
           let didReparse = false
           let brokenRefStart = -1
@@ -283,7 +286,7 @@ const registerTokenPostprocess = (md, baseOpt, getNoLinkMdInstance) => {
             if (!hasLinkClose && child.type === 'link_close') {
               hasLinkClose = true
             }
-            if (allowReparse && brokenRefStart !== -1 && child.type === 'link_open') {
+            if (reparseCount < maxReparse && brokenRefStart !== -1 && child.type === 'link_open') {
               if (brokenRefDepth <= 0) {
                 brokenRefStart = -1
                 brokenRefDepth = 0
@@ -321,12 +324,6 @@ const registerTokenPostprocess = (md, baseOpt, getNoLinkMdInstance) => {
           }
           if (!didReparse) break
           reparseCount++
-          if (reparseCount >= maxReparse) {
-            allowReparse = false
-          }
-          if (!allowReparse) {
-            continue
-          }
         }
       }
       if (hasEmphasis) {

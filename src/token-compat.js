@@ -14,9 +14,19 @@ const isAsciiWordCode = (code) => {
 }
 
 const registerTokenCompat = (md, baseOpt) => {
-  const hasTextJoinRule = Array.isArray(md.core?.ruler?.__rules__)
-    ? md.core.ruler.__rules__.some((rule) => rule && rule.name === 'text_join')
-    : false
+  let hasTextJoinRule = false
+  const coreRules = md.core && md.core.ruler && Array.isArray(md.core.ruler.__rules__)
+    ? md.core.ruler.__rules__
+    : null
+  if (coreRules) {
+    for (let i = 0; i < coreRules.length; i++) {
+      const rule = coreRules[i]
+      if (rule && rule.name === 'text_join') {
+        hasTextJoinRule = true
+        break
+      }
+    }
+  }
 
   if (!md.__strongJaTokenTrimTrailingRegistered) {
     md.__strongJaTokenTrimTrailingRegistered = true
@@ -32,6 +42,8 @@ const registerTokenCompat = (md, baseOpt) => {
         if (idx < 0) continue
         const tail = token.children[idx]
         if (!tail || tail.type !== 'text' || !tail.content) continue
+        const lastCode = tail.content.charCodeAt(tail.content.length - 1)
+        if (lastCode !== 0x20 && lastCode !== 0x09) continue
         const trimmed = tail.content.replace(/[ \t]+$/, '')
         if (trimmed !== tail.content) {
           tail.content = trimmed
@@ -79,7 +91,7 @@ const registerTokenCompat = (md, baseOpt) => {
             const prevCharCode = prevToken.content.charCodeAt(prevToken.content.length - 1)
             const nextCharCode = nextToken.content.charCodeAt(0)
             const isAsciiWord = isAsciiWordCode(nextCharCode)
-            const shouldReplace = isAsciiWord && nextCharCode !== 0x7B && nextCharCode !== 0x5C &&
+            const shouldReplace = isAsciiWord &&
               isJapaneseChar(prevCharCode) && !isJapaneseChar(nextCharCode)
             if (!shouldReplace) continue
             child.type = 'text'
@@ -98,7 +110,7 @@ const registerTokenCompat = (md, baseOpt) => {
               const prevCharCode = idx > 0 ? child.content.charCodeAt(idx - 1) : 0
               const nextCharCode = idx + 1 < child.content.length ? child.content.charCodeAt(idx + 1) : 0
               const isAsciiWord = isAsciiWordCode(nextCharCode)
-              const shouldReplace = isAsciiWord && nextCharCode !== 0x7B && nextCharCode !== 0x5C &&
+              const shouldReplace = isAsciiWord &&
                 isJapaneseChar(prevCharCode) && !isJapaneseChar(nextCharCode)
               if (shouldReplace) {
                 normalized += ' '
@@ -122,8 +134,11 @@ const registerTokenCompat = (md, baseOpt) => {
 
   const restoreSoftbreaksAfterCjk = (state) => {
     if (!state) return
-    const opt = getRuntimeOpt(state, baseOpt)
-    if (opt.mditAttrs !== false) return
+    const overrideOpt = state.env && state.env.__strongJaTokenOpt
+    if (overrideOpt) {
+      const opt = getRuntimeOpt(state, baseOpt)
+      if (opt.mditAttrs !== false) return
+    }
     if (!state.md || state.md.__strongJaRestoreSoftbreaksForAttrs !== true) return
     if (baseOpt.hasCjkBreaks !== true && state.md) {
       baseOpt.hasCjkBreaks = hasCjkBreaksRule(state.md)
@@ -166,15 +181,12 @@ const registerTokenCompat = (md, baseOpt) => {
     if (added !== false) {
       md.__strongJaTokenRestoreRegistered = true
       md.__strongJaRestoreSoftbreaksForAttrs = baseOpt.mditAttrs === false
-      if (baseOpt.hasCjkBreaks) {
-        moveRuleAfter(md.core.ruler, 'strong_ja_restore_softbreaks', 'cjk_breaks')
-      }
       if (baseOpt.patchCorePush !== false && !md.__strongJaTokenPatchCorePush) {
         md.__strongJaTokenPatchCorePush = true
         const originalPush = md.core.ruler.push.bind(md.core.ruler)
         md.core.ruler.push = (name, fn, options) => {
           const res = originalPush(name, fn, options)
-          if (name && name.indexOf && name.indexOf('cjk_breaks') !== -1) {
+          if (typeof name === 'string' && name.indexOf('cjk_breaks') !== -1) {
             baseOpt.hasCjkBreaks = true
             moveRuleAfter(md.core.ruler, 'strong_ja_restore_softbreaks', name)
           }
@@ -192,8 +204,11 @@ const registerTokenCompat = (md, baseOpt) => {
     md.__strongJaTokenPreAttrsRegistered = true
     md.core.ruler.before('linkify', 'strong_ja_token_pre_attrs', (state) => {
       if (!state || !state.tokens) return
-      const opt = getRuntimeOpt(state, baseOpt)
-      if (opt.mditAttrs === false) return
+      const overrideOpt = state.env && state.env.__strongJaTokenOpt
+      if (overrideOpt) {
+        const opt = getRuntimeOpt(state, baseOpt)
+        if (opt.mditAttrs === false) return
+      }
       for (let i = 0; i < state.tokens.length; i++) {
         const token = state.tokens[i]
         if (!token || token.type !== 'inline' || !token.children || token.children.length === 0) continue
