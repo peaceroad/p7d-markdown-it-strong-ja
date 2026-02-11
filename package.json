@@ -12,9 +12,11 @@
   ],
   "scripts": {
     "test": "node test/test.js",
+    "test:fixtures": "node test/test-fixtures.js",
+    "test:edge": "node test/test-edge.js",
     "test:readme": "node test/test-readme.js",
     "test:map": "node test/test-map.js",
-    "test:all": "npm test && npm run test:readme"
+    "test:all": "npm test && npm run test:readme && npm run test:map"
   },
   "repository": "https://github.com/peaceroad/p7d-markdown-it-strong-ja.git",
   "author": "peaceroad <peaceroad@gmail.com>",
