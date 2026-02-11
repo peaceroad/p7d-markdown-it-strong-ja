@@ -211,6 +211,7 @@ const registerTokenPostprocess = (md, baseOpt, getNoLinkMdInstance) => {
       let changed = false
       let hasBracketText = false
       let hasEmphasis = false
+      let hasLinkOpen = false
       let hasLinkClose = false
       let reparseCount = 0
       let maxReparse = 0
@@ -221,6 +222,9 @@ const registerTokenPostprocess = (md, baseOpt, getNoLinkMdInstance) => {
         if (!hasEmphasis &&
             (child.type === 'strong_open' || child.type === 'strong_close' || child.type === 'em_open' || child.type === 'em_close')) {
           hasEmphasis = true
+        }
+        if (!hasLinkOpen && child.type === 'link_open') {
+          hasLinkOpen = true
         }
         if (!hasLinkClose && child.type === 'link_close') {
           hasLinkClose = true
@@ -233,7 +237,7 @@ const registerTokenPostprocess = (md, baseOpt, getNoLinkMdInstance) => {
           maxReparse++
         }
       }
-      if (maxReparse !== 0) {
+      if (maxReparse !== 0 && hasLinkOpen) {
         let allowReparse = true
         while (true) {
           let didReparse = false

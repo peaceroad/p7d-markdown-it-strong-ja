@@ -11,6 +11,8 @@ import {
   getRuntimeOpt
 } from './token-utils.js'
 
+const SCAN_DELIMS_PATCHED = Symbol.for('strongJaTokenScanDelimsPatched')
+
 const findMatchingEmOpen = (tokens, closeIdx) => {
   let depth = 0
   for (let i = closeIdx; i >= 0; i--) {
@@ -359,11 +361,16 @@ const fixLeadingAsteriskEm = (tokens) => {
 }
 
 const patchScanDelims = (md) => {
-  if (md.__strongJaTokenScanDelimsPatched) return
-  md.__strongJaTokenScanDelimsPatched = true
+  if (!md || !md.inline || !md.inline.State || !md.inline.State.prototype) return
+  const proto = md.inline.State.prototype
+  if (proto[SCAN_DELIMS_PATCHED] === true) {
+    md.__strongJaTokenScanDelimsPatched = true
+    return
+  }
+  const original = proto.scanDelims
+  if (typeof original !== 'function') return
 
-  const original = md.inline.State.prototype.scanDelims
-  md.inline.State.prototype.scanDelims = function strongJaTokenScanDelims(start, canSplitWord) {
+  proto.scanDelims = function strongJaTokenScanDelims(start, canSplitWord) {
     const marker = this.src.charCodeAt(start)
     if (marker !== CHAR_ASTERISK) {
       return original.call(this, start, canSplitWord)
@@ -425,6 +432,8 @@ const patchScanDelims = (md) => {
       length: count
     }
   }
+  proto[SCAN_DELIMS_PATCHED] = true
+  md.__strongJaTokenScanDelimsPatched = true
 }
 
 export {

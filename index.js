@@ -17,7 +17,8 @@ const getNoLinkMdInstance = (md, opt) => {
     md.__strongJaTokenNoLinkCache = new Map()
   }
   const cache = md.__strongJaTokenNoLinkCache
-  if (cache.has(key)) return cache.get(key)
+  const cached = cache.get(key)
+  if (cached) return cached
   const noLink = new md.constructor(md.options)
   mditStrongJa(noLink, { ...baseOpt, _skipPostprocess: true })
   noLink.inline.ruler.disable(['link'])

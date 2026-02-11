@@ -9,7 +9,7 @@
 - `src/token-core.js`: scanDelims patch + emphasis fixers.
 - `src/token-compat.js`: attrs/cjk_breaks compatibility rules.
 - `src/token-postprocess.js`: link/ref reconstruction + guarded reparse.
-- `src/token-link-utils.js`: link/reference helpers + map utilities.
+- `src/token-link-utils.js`: collapsed-ref helpers + link-mark cleanup + map utilities.
 - `src/token-utils.js`: shared helpers, caches, rule ordering.
 
 ## Options (public)
@@ -22,6 +22,7 @@
 
 ## Per-render override
 - `state.env.__strongJaTokenOpt` can override options per render; merged with `md.__strongJaTokenOpt`.
+- Runtime-only in practice: setup-time registration/order options are fixed at plugin initialization.
 
 ## Processing Flow
 1. Build options and cache `hasCjkBreaks` on `md`.
@@ -31,19 +32,22 @@
 5. At runtime, skip postprocess internals when `postprocess: false`.
 
 ## Postprocess Notes
-- Repairs collapsed refs and inline links; cleans broken marks around links.
+- Repairs collapsed refs; cleans broken marks around links.
 - Reparse is guarded (avoids attrs/meta tokens) and limited by broken-ref count.
 - Map is copied from the original token range when possible.
 
 ## Performance Notes
 - Caches: `md.__strongJaHasCjkBreaks`, `md.__strongJaTokenNoLinkCache`, `state.__strongJaTokenRuntimeOpt`.
+- `scanDelims` patch is idempotent per inline-state prototype (avoids multi-instance re-wrapping).
+- no-link parser cache hit uses single `Map#get`.
 - Postprocess skips paragraphs without brackets or emphasis.
+- Postprocess reparse loop is skipped when no `link_open` exists in the inline children.
 - Reparse is capped and avoids extra passes when no broken refs exist.
 - Token-link helpers memoize bracket presence per token via `__strongJaHasBracket`/`__strongJaBracketAtomic`.
 - Compat softbreak passes short-circuit when no emphasis; restore-softbreaks tracks the last text char in a single pass.
 
 ## Risks / Watchpoints
-- Prototype patch affects all MarkdownIt instances in the same process.
+- Prototype patch is shared across MarkdownIt instances in the same process (now patched once per prototype).
 - Pattern-based fixers (e.g., `fixEmOuterStrongSequence`) are sensitive to Markdown-it output changes.
 - Reparse can drop attrs/meta data; guarded but not fully avoidable.
 - Map repair is coarse (range-level); per-token source positions can still be lost.

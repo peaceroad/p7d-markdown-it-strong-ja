@@ -1,11 +1,8 @@
 import Token from 'markdown-it/lib/token.mjs'
-import { parseLinkDestination, parseLinkTitle } from 'markdown-it/lib/helpers/index.mjs'
-import { isSpace, isWhiteSpace } from 'markdown-it/lib/common/utils.mjs'
+import { isWhiteSpace } from 'markdown-it/lib/common/utils.mjs'
 
 const CHAR_OPEN_BRACKET = 0x5B // [
 const CHAR_CLOSE_BRACKET = 0x5D // ]
-const CHAR_OPEN_PAREN = 0x28 // (
-const CHAR_CLOSE_PAREN = 0x29 // )
 
 const isWhitespaceToken = (token) => {
   if (!token || token.type !== 'text') return false
@@ -17,7 +14,6 @@ const isWhitespaceToken = (token) => {
   return true
 }
 
-// Collapsed reference helpers
 const buildReferenceLabelRange = (tokens, startIdx, endIdx) => {
   if (startIdx > endIdx) return ''
   let label = ''
@@ -106,8 +102,7 @@ const cloneTextToken = (source, content) => {
   return newToken
 }
 
-// Split only text tokens that actually contain bracket characters
-const splitBracketToken = (tokens, index, options) => {
+const splitBracketToken = (tokens, index) => {
   const token = tokens[index]
   if (!token || token.type !== 'text') return false
   if (token.__strongJaBracketAtomic) return false
@@ -126,13 +121,11 @@ const splitBracketToken = (tokens, index, options) => {
     }
     token.__strongJaHasBracket = true
   }
-  const splitEmptyPair = options && options.splitEmptyPair
   const segments = []
   let buffer = ''
   let pos = 0
   while (pos < content.length) {
-    if (!splitEmptyPair &&
-        content.charCodeAt(pos) === CHAR_OPEN_BRACKET &&
+    if (content.charCodeAt(pos) === CHAR_OPEN_BRACKET &&
         content.charCodeAt(pos + 1) === CHAR_CLOSE_BRACKET) {
       if (buffer) {
         segments.push(buffer)
@@ -222,26 +215,6 @@ const findLinkCloseIndex = (tokens, startIdx) => {
   return -1
 }
 
-const consumeCharactersFromTokens = (tokens, startIdx, count) => {
-  let remaining = count
-  let idx = startIdx
-  while (idx < tokens.length && remaining > 0) {
-    const token = tokens[idx]
-    if (!token || token.type !== 'text') {
-      return false
-    }
-    const len = token.content.length
-    if (remaining >= len) {
-      remaining -= len
-      tokens.splice(idx, 1)
-      continue
-    }
-    token.content = token.content.slice(remaining)
-    remaining = 0
-  }
-  return remaining === 0
-}
-
 const wrapLabelTokensWithLink = (tokens, labelStartIdx, labelEndIdx, linkOpenToken, linkCloseToken, labelSource) => {
   const wrapperPairs = []
   let startIdx = labelStartIdx
@@ -318,269 +291,6 @@ const wrapLabelTokensWithLink = (tokens, labelStartIdx, labelEndIdx, linkOpenTok
   }
 
   return startIdx + labelLength + 2
-}
-
-const parseInlineLinkTail = (content, md) => {
-  if (!content || content.charCodeAt(0) !== CHAR_OPEN_PAREN) return null
-  const max = content.length
-  let pos = 1
-  while (pos < max) {
-    const code = content.charCodeAt(pos)
-    if (!isSpace(code) && code !== 0x0A) break
-    pos++
-  }
-  if (pos >= max) return null
-
-  let href = ''
-  let destPos = pos
-  if (pos < max && content.charCodeAt(pos) === CHAR_CLOSE_PAREN) {
-    href = ''
-  } else {
-    const dest = parseLinkDestination(content, pos, max)
-    if (!dest.ok) return null
-    href = md.normalizeLink(dest.str)
-    if (!md.validateLink(href)) {
-      return null
-    }
-    pos = dest.pos
-    destPos = dest.pos
-  }
-
-  while (pos < max) {
-    const code = content.charCodeAt(pos)
-    if (!isSpace(code) && code !== 0x0A) break
-    pos++
-  }
-
-  let title = ''
-  const titleRes = parseLinkTitle(content, pos, max)
-  if (pos < max && pos !== destPos && titleRes.ok) {
-    title = titleRes.str
-    pos = titleRes.pos
-    while (pos < max) {
-      const code = content.charCodeAt(pos)
-      if (!isSpace(code) && code !== 0x0A) break
-      pos++
-    }
-  }
-
-  if (pos >= max || content.charCodeAt(pos) !== CHAR_CLOSE_PAREN) {
-    return null
-  }
-  pos++
-  return { href, title, consumed: pos }
-}
-
-const INLINE_LINK_BRACKET_SPLIT_OPTIONS = { splitEmptyPair: true }
-
-const removeGhostLabelText = (tokens, linkCloseIndex, labelText) => {
-  if (!labelText) return
-  if (linkCloseIndex === null || linkCloseIndex === undefined) return
-  if (linkCloseIndex < 0 || linkCloseIndex >= tokens.length) return
-  const closeToken = tokens[linkCloseIndex]
-  if (!closeToken || closeToken.type !== 'link_close') return
-  let idx = linkCloseIndex + 1
-  while (idx < tokens.length) {
-    const token = tokens[idx]
-    if (!token) {
-      idx++
-      continue
-    }
-    if (token.type === 'text') {
-      if (token.content.startsWith(labelText)) {
-        if (token.content.length === labelText.length) {
-          tokens.splice(idx, 1)
-        } else {
-          token.content = token.content.slice(labelText.length)
-        }
-      }
-      break
-    }
-    if (!/_close$/.test(token.type)) {
-      break
-    }
-    idx++
-  }
-}
-
-const restoreLabelWhitespace = (tokens, labelSources) => {
-  if (!tokens || !labelSources || labelSources.length === 0) return
-  let labelIdx = 0
-  for (let i = 0; i < tokens.length && labelIdx < labelSources.length; i++) {
-    if (tokens[i].type !== 'link_open') continue
-    const closeIdx = findLinkCloseIndex(tokens, i)
-    if (closeIdx === -1) continue
-    const labelSource = labelSources[labelIdx] || ''
-    if (!labelSource) {
-      labelIdx++
-      continue
-    }
-    let cursor = 0
-    for (let pos = i + 1; pos < closeIdx; pos++) {
-      const t = tokens[pos]
-      const markup = t.markup || ''
-      const text = t.content || ''
-      const startPos = cursor
-      if (t.type === 'text') {
-        cursor += text.length
-      } else if (t.type === 'code_inline') {
-        cursor += markup.length + text.length + markup.length
-      } else if (markup) {
-        cursor += markup.length
-      }
-      if ((t.type === 'strong_open' || t.type === 'em_open') && startPos > 0) {
-        const prevToken = tokens[pos - 1]
-        if (prevToken && prevToken.type === 'text' && prevToken.content && !prevToken.content.endsWith(' ')) {
-          const hasSpaceBefore = startPos - 1 >= 0 && startPos - 1 < labelSource.length && labelSource[startPos - 1] === ' '
-          const hasSpaceAt = startPos >= 0 && startPos < labelSource.length && labelSource[startPos] === ' '
-          if (hasSpaceBefore || hasSpaceAt) {
-            prevToken.content += ' '
-          }
-        }
-      }
-    }
-    labelIdx++
-  }
-}
-
-const convertInlineLinks = (tokens, state) => {
-  if (!tokens || tokens.length === 0) return
-  let labelSources = tokens.__strongJaInlineLabelSources
-  if ((!labelSources || labelSources.length === 0) && state && state.env && Array.isArray(state.env.__strongJaInlineLabelSourceList) && state.env.__strongJaInlineLabelSourceList.length > 0) {
-    labelSources = state.env.__strongJaInlineLabelSourceList.shift()
-  }
-  let labelSourceIndex = tokens.__strongJaInlineLabelIndex || 0
-  let i = 0
-  while (i < tokens.length) {
-    if (splitBracketToken(tokens, i, INLINE_LINK_BRACKET_SPLIT_OPTIONS)) {
-      continue
-    }
-    if (!isBracketToken(tokens[i], '[')) {
-      i++
-      continue
-    }
-    let closeIdx = i + 1
-    let invalid = false
-    while (closeIdx < tokens.length && !isBracketToken(tokens[closeIdx], ']')) {
-      if (splitBracketToken(tokens, closeIdx, INLINE_LINK_BRACKET_SPLIT_OPTIONS)) {
-        continue
-      }
-      if (tokens[closeIdx].type === 'link_open') {
-        invalid = true
-        break
-      }
-      closeIdx++
-    }
-    if (invalid || closeIdx >= tokens.length) {
-      i++
-      continue
-    }
-    const currentLabelSource = labelSources && labelSourceIndex < labelSources.length
-      ? labelSources[labelSourceIndex]
-      : undefined
-
-    const labelLength = closeIdx - i - 1
-    const needsPlaceholder = labelLength <= 0
-    if (needsPlaceholder && !currentLabelSource) {
-      i++
-      continue
-    }
-
-    let tailIdx = closeIdx + 1
-    let tailContent = ''
-    let parsedTail = null
-    let tailHasCloseParen = false
-    while (tailIdx < tokens.length) {
-      if (splitBracketToken(tokens, tailIdx, INLINE_LINK_BRACKET_SPLIT_OPTIONS)) {
-        continue
-      }
-      const tailToken = tokens[tailIdx]
-      if (tailToken.type !== 'text' || !tailToken.content) {
-        break
-      }
-      tailContent += tailToken.content
-      if (!tailHasCloseParen) {
-        if (tailToken.content.indexOf(')') === -1) {
-          tailIdx++
-          continue
-        }
-        tailHasCloseParen = true
-      }
-      parsedTail = parseInlineLinkTail(tailContent, state.md)
-      if (parsedTail) break
-      tailIdx++
-    }
-
-    if (!parsedTail) {
-      i++
-      continue
-    }
-
-    if (!consumeCharactersFromTokens(tokens, closeIdx + 1, parsedTail.consumed)) {
-      i++
-      continue
-    }
-
-    tokens.splice(closeIdx, 1)
-    tokens.splice(i, 1)
-
-    const linkOpenToken = new Token('link_open', 'a', 1)
-    linkOpenToken.attrs = [['href', parsedTail.href]]
-    if (parsedTail.title) linkOpenToken.attrPush(['title', parsedTail.title])
-    linkOpenToken.markup = '[]()'
-    linkOpenToken.info = 'auto'
-    const linkCloseToken = new Token('link_close', 'a', -1)
-    linkCloseToken.markup = '[]()'
-    linkCloseToken.info = 'auto'
-
-    const nextIndex = wrapLabelTokensWithLink(tokens, i, i + labelLength - 1, linkOpenToken, linkCloseToken, currentLabelSource)
-    if (nextIndex === i) {
-      i++
-      continue
-    }
-    if (currentLabelSource) {
-      const linkCloseIdx = findLinkCloseIndex(tokens, i)
-      if (linkCloseIdx !== -1) {
-        let cursor = 0
-        for (let pos = i + 1; pos < linkCloseIdx; pos++) {
-          const t = tokens[pos]
-          const markup = t.markup || ''
-          const text = t.content || ''
-          const startPos = cursor
-          if (t.type === 'text') {
-            cursor += text.length
-          } else if (t.type === 'code_inline') {
-            cursor += markup.length + text.length + markup.length
-          } else if (markup) {
-            cursor += markup.length
-          }
-          if ((t.type === 'strong_open' || t.type === 'em_open') && startPos > 0) {
-            const prevToken = tokens[pos - 1]
-            if (prevToken && prevToken.type === 'text' && prevToken.content && !prevToken.content.endsWith(' ')) {
-              const labelHasSpaceBefore = startPos - 1 >= 0 && startPos - 1 < currentLabelSource.length && currentLabelSource[startPos - 1] === ' '
-              const labelHasSpaceAt = startPos >= 0 && startPos < currentLabelSource.length && currentLabelSource[startPos] === ' '
-              if (labelHasSpaceBefore || labelHasSpaceAt) {
-                prevToken.content += ' '
-              }
-            }
-          }
-        }
-      }
-    }
-    if (needsPlaceholder && currentLabelSource) {
-      removeGhostLabelText(tokens, nextIndex - 1, currentLabelSource)
-    }
-
-    if (labelSources && labelSources.length > 0) {
-      if (labelSourceIndex < labelSources.length) {
-        labelSourceIndex++
-      }
-    }
-    i = nextIndex
-  }
-  if (labelSources) {
-    tokens.__strongJaInlineLabelIndex = labelSourceIndex
-  }
 }
 
 const convertCollapsedReferenceLinks = (tokens, state) => {
@@ -722,7 +432,6 @@ const convertCollapsedReferenceLinks = (tokens, state) => {
   }
 }
 
-// Link cleanup helpers
 const mergeBrokenMarksAroundLinks = (tokens) => {
   let i = 0
   while (i < tokens.length) {
@@ -766,8 +475,6 @@ const mergeBrokenMarksAroundLinks = (tokens) => {
 
 export {
   normalizeReferenceCandidate,
-  restoreLabelWhitespace,
-  convertInlineLinks,
   convertCollapsedReferenceLinks,
   mergeBrokenMarksAroundLinks,
   getMapFromTokenRange

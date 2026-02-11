@@ -90,7 +90,6 @@ const registerTokenCompat = (md, baseOpt) => {
             continue
           }
           if (child.type !== 'text' || !child.content) continue
-          if (!hasEmphasis) continue
           if (child.content.indexOf('\n') === -1) continue
           let normalized = ''
           for (let idx = 0; idx < child.content.length; idx++) {

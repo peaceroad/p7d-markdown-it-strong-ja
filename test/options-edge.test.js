@@ -23,6 +23,13 @@ export const runOptionEdgeTests = () => {
     assert.strictEqual(mdAlias.render(input), mdDefault.render(input))
   }, allPassRef)
 
+  runCase('scanDelims patch is idempotent per prototype', () => {
+    const md1 = new MarkdownIt().use(mditStrongJa)
+    const patched = md1.inline.State.prototype.scanDelims
+    const md2 = new MarkdownIt().use(mditStrongJa)
+    assert.strictEqual(md2.inline.State.prototype.scanDelims, patched)
+  }, allPassRef)
+
   runCase('per-render mode override', () => {
     const input = 'これは**[text](url)**です'
     const md = new MarkdownIt().use(mditStrongJa, { mode: 'compatible' })
