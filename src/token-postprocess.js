@@ -207,6 +207,14 @@ const registerTokenPostprocess = (md, baseOpt, getNoLinkMdInstance) => {
     for (let i = 0; i < state.tokens.length; i++) {
       const token = state.tokens[i]
       if (!token || token.type !== 'inline' || !token.children || token.children.length === 0) continue
+      const inlineContent = token.content
+      if (typeof inlineContent === 'string' &&
+          inlineContent.indexOf('[') === -1 &&
+          inlineContent.indexOf(']') === -1 &&
+          inlineContent.indexOf('*') === -1 &&
+          inlineContent.indexOf('_') === -1) {
+        continue
+      }
       const children = token.children
       let changed = false
       let hasBracketText = false

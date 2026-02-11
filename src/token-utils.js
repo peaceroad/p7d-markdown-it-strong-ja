@@ -25,9 +25,15 @@ const isJapaneseChar = (ch) => {
 const hasCjkBreaksRule = (md) => {
   if (!md || !md.core || !md.core.ruler || !Array.isArray(md.core.ruler.__rules__)) return false
   if (md.__strongJaHasCjkBreaks === true) return true
-  const found = md.core.ruler.__rules__.some((rule) => rule && typeof rule.name === 'string' && rule.name.indexOf('cjk_breaks') !== -1)
-  if (found) md.__strongJaHasCjkBreaks = true
-  return found
+  const rules = md.core.ruler.__rules__
+  for (let idx = 0; idx < rules.length; idx++) {
+    const rule = rules[idx]
+    if (rule && typeof rule.name === 'string' && rule.name.indexOf('cjk_breaks') !== -1) {
+      md.__strongJaHasCjkBreaks = true
+      return true
+    }
+  }
+  return false
 }
 
 const findPrevNonSpace = (src, start) => {
