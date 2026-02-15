@@ -2,6 +2,19 @@ const CHAR_ASTERISK = 0x2A // *
 const CHAR_SPACE = 0x20 // ' '
 const CHAR_TAB = 0x09 // '\t'
 const CHAR_NEWLINE = 0x0A // '\n'
+const CHAR_IDEOGRAPHIC_SPACE = 0x3000 // fullwidth space
+const MODE_FLAG_COMPATIBLE = 1 << 0
+const MODE_FLAG_AGGRESSIVE = 1 << 1
+const MODE_FLAG_JAPANESE_BASE = 1 << 2
+const MODE_FLAG_JAPANESE_PLUS = 1 << 3
+const MODE_FLAG_JAPANESE_ANY = MODE_FLAG_JAPANESE_BASE | MODE_FLAG_JAPANESE_PLUS
+const REG_CJK_BREAKS_RULE_NAME = /(^|[_-])cjk_breaks([_-]|$)/
+const VALID_CANONICAL_MODES = new Set([
+  'compatible',
+  'aggressive',
+  'japanese-boundary',
+  'japanese-boundary-guard'
+])
 const REG_JAPANESE = /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}\u3000-\u303F\uFF00-\uFFEF]/u
 const REG_ATTRS = /{[^{}\n!@#%^&*()]+?}$/
 
@@ -11,53 +24,92 @@ const isJapaneseChar = (ch) => {
   if (code < 128) return false
   if (code >= 0x3040 && code <= 0x309F) return true
   if (code >= 0x30A0 && code <= 0x30FF) return true
-  if (code >= 0x4E00 && code <= 0x9FAF) return true
+  // Han + CJK punctuation/fullwidth ranges are common hot-path hits.
+  // Keep these as cheap numeric checks before the fallback regex.
+  if (code >= 0x3400 && code <= 0x4DBF) return true
+  if (code >= 0x4E00 && code <= 0x9FFF) return true
+  if (code >= 0xF900 && code <= 0xFAFF) return true
+  if (code >= 0x3000 && code <= 0x303F) return true
+  if (code >= 0xFF00 && code <= 0xFFEF) return true
   return REG_JAPANESE.test(String.fromCharCode(code))
+}
+
+const getInlineWrapperBase = (type) => {
+  if (!type || typeof type !== 'string') return ''
+  if (type === 'link_open' || type === 'link_close') return ''
+  if (type.endsWith('_open')) return type.slice(0, -5)
+  if (type.endsWith('_close')) return type.slice(0, -6)
+  return ''
 }
 
 const hasCjkBreaksRule = (md) => {
   if (!md || !md.core || !md.core.ruler || !Array.isArray(md.core.ruler.__rules__)) return false
   if (md.__strongJaHasCjkBreaks === true) return true
   const rules = md.core.ruler.__rules__
+  if (md.__strongJaHasCjkBreaks === false &&
+      md.__strongJaCjkBreaksRuleCount === rules.length) {
+    return false
+  }
   for (let idx = 0; idx < rules.length; idx++) {
     const rule = rules[idx]
-    if (rule && typeof rule.name === 'string' && rule.name.indexOf('cjk_breaks') !== -1) {
+    if (rule && typeof rule.name === 'string' && isCjkBreaksRuleName(rule.name)) {
       md.__strongJaHasCjkBreaks = true
+      md.__strongJaCjkBreaksRuleCount = rules.length
       return true
     }
   }
+  md.__strongJaHasCjkBreaks = false
+  md.__strongJaCjkBreaksRuleCount = rules.length
   return false
 }
 
-const findPrevNonSpace = (src, start) => {
-  for (let i = start; i >= 0; i--) {
-    const ch = src.charCodeAt(i)
-    if (ch === CHAR_NEWLINE) return 0
-    if (ch === CHAR_SPACE || ch === CHAR_TAB) continue
-    return ch
-  }
-  return 0
-}
-
-const findNextNonSpace = (src, start, max) => {
-  for (let i = start; i < max; i++) {
-    const ch = src.charCodeAt(i)
-    if (ch === CHAR_NEWLINE) return 0
-    if (ch === CHAR_SPACE || ch === CHAR_TAB) continue
-    return ch
-  }
-  return 0
+const isCjkBreaksRuleName = (name) => {
+  return typeof name === 'string' && REG_CJK_BREAKS_RULE_NAME.test(name)
 }
 
 const resolveMode = (opt) => {
   const raw = opt && typeof opt.mode === 'string' ? opt.mode : 'japanese'
-  const mode = raw.toLowerCase()
-  if (mode === 'japanese-only') return 'japanese'
-  return mode
+  const normalized = raw.toLowerCase()
+  // `japanese` resolves to the guard mode.
+  if (normalized === 'japanese') return 'japanese-boundary-guard'
+  if (VALID_CANONICAL_MODES.has(normalized)) return normalized
+  throw new Error(
+    `mditStrongJa: unknown mode "${raw}". Valid modes: japanese, japanese-boundary, japanese-boundary-guard, aggressive, compatible`
+  )
+}
+
+const getModeFlags = (mode) => {
+  switch (mode) {
+    case 'compatible':
+      return MODE_FLAG_COMPATIBLE
+    case 'aggressive':
+      return MODE_FLAG_AGGRESSIVE
+    case 'japanese-boundary':
+      return MODE_FLAG_JAPANESE_BASE
+    case 'japanese-boundary-guard':
+      return MODE_FLAG_JAPANESE_PLUS
+    default:
+      return 0
+  }
+}
+
+const deriveModeInfo = (opt) => {
+  if (!opt || typeof opt !== 'object') return opt
+  const rawMode = opt.mode
+  if (opt.__strongJaModeRaw === rawMode &&
+      typeof opt.__strongJaMode === 'string' &&
+      typeof opt.__strongJaModeFlags === 'number') {
+    return opt
+  }
+  const mode = resolveMode(opt)
+  opt.__strongJaModeRaw = rawMode
+  opt.__strongJaMode = mode
+  opt.__strongJaModeFlags = getModeFlags(mode)
+  return opt
 }
 
 const getRuntimeOpt = (state, baseOpt) => {
-  if (!state || !state.env || !state.env.__strongJaTokenOpt) return baseOpt
+  if (!state || !state.env || !state.env.__strongJaTokenOpt) return deriveModeInfo(baseOpt)
   const override = state.env.__strongJaTokenOpt
   if (state.__strongJaTokenRuntimeOpt &&
       state.__strongJaTokenRuntimeBase === baseOpt &&
@@ -65,10 +117,10 @@ const getRuntimeOpt = (state, baseOpt) => {
     return state.__strongJaTokenRuntimeOpt
   }
   const merged = { ...baseOpt, ...override }
-  state.__strongJaTokenRuntimeOpt = merged
+  state.__strongJaTokenRuntimeOpt = deriveModeInfo(merged)
   state.__strongJaTokenRuntimeBase = baseOpt
   state.__strongJaTokenRuntimeOverride = override
-  return merged
+  return state.__strongJaTokenRuntimeOpt
 }
 
 function normalizeCoreRulesBeforePostprocess(value) {
@@ -136,12 +188,20 @@ export {
   CHAR_SPACE,
   CHAR_TAB,
   CHAR_NEWLINE,
+  CHAR_IDEOGRAPHIC_SPACE,
   REG_ATTRS,
   isJapaneseChar,
+  getInlineWrapperBase,
   hasCjkBreaksRule,
-  findPrevNonSpace,
-  findNextNonSpace,
+  isCjkBreaksRuleName,
   resolveMode,
+  getModeFlags,
+  deriveModeInfo,
+  MODE_FLAG_COMPATIBLE,
+  MODE_FLAG_AGGRESSIVE,
+  MODE_FLAG_JAPANESE_BASE,
+  MODE_FLAG_JAPANESE_PLUS,
+  MODE_FLAG_JAPANESE_ANY,
   getRuntimeOpt,
   normalizeCoreRulesBeforePostprocess,
   ensureCoreRuleOrder,

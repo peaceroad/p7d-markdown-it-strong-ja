@@ -3,6 +3,9 @@ import {
   REG_ATTRS,
   isJapaneseChar,
   hasCjkBreaksRule,
+  isCjkBreaksRuleName,
+  deriveModeInfo,
+  MODE_FLAG_COMPATIBLE,
   getRuntimeOpt,
   moveRuleAfter
 } from './token-utils.js'
@@ -13,7 +16,29 @@ const isAsciiWordCode = (code) => {
     (code >= 0x61 && code <= 0x7A)
 }
 
+const trimTrailingSpaceTab = (text) => {
+  if (!text) return text
+  let end = text.length
+  while (end > 0) {
+    const code = text.charCodeAt(end - 1)
+    if (code !== 0x20 && code !== 0x09) break
+    end--
+  }
+  return end === text.length ? text : text.slice(0, end)
+}
+
 const registerTokenCompat = (md, baseOpt) => {
+  const baseModeFlags = typeof baseOpt.__strongJaModeFlags === 'number'
+    ? baseOpt.__strongJaModeFlags
+    : deriveModeInfo(baseOpt).__strongJaModeFlags
+  const baseCompatible = (baseModeFlags & MODE_FLAG_COMPATIBLE) !== 0
+  const isCompatibleMode = (state) => {
+    const override = state && state.env && state.env.__strongJaTokenOpt
+    if (!override) return baseCompatible
+    const opt = getRuntimeOpt(state, baseOpt)
+    return (opt.__strongJaModeFlags & MODE_FLAG_COMPATIBLE) !== 0
+  }
+
   let hasTextJoinRule = false
   const coreRules = md.core && md.core.ruler && Array.isArray(md.core.ruler.__rules__)
     ? md.core.ruler.__rules__
@@ -31,6 +56,7 @@ const registerTokenCompat = (md, baseOpt) => {
   if (!md.__strongJaTokenTrimTrailingRegistered) {
     md.__strongJaTokenTrimTrailingRegistered = true
     const trimInlineTrailingSpaces = (state) => {
+      if (isCompatibleMode(state)) return
       if (!state || !state.tokens) return
       for (let i = 0; i < state.tokens.length; i++) {
         const token = state.tokens[i]
@@ -44,7 +70,7 @@ const registerTokenCompat = (md, baseOpt) => {
         if (!tail || tail.type !== 'text' || !tail.content) continue
         const lastCode = tail.content.charCodeAt(tail.content.length - 1)
         if (lastCode !== 0x20 && lastCode !== 0x09) continue
-        const trimmed = tail.content.replace(/[ \t]+$/, '')
+        const trimmed = trimTrailingSpaceTab(tail.content)
         if (trimmed !== tail.content) {
           tail.content = trimmed
         }
@@ -60,6 +86,7 @@ const registerTokenCompat = (md, baseOpt) => {
   if (!md.__strongJaTokenSoftbreakSpacingRegistered) {
     md.__strongJaTokenSoftbreakSpacingRegistered = true
     const normalizeSoftbreakSpacing = (state) => {
+      if (isCompatibleMode(state)) return
       if (!state) return
       if (baseOpt.hasCjkBreaks !== true && state.md) {
         baseOpt.hasCjkBreaks = hasCjkBreaksRule(state.md)
@@ -69,22 +96,30 @@ const registerTokenCompat = (md, baseOpt) => {
       for (let i = 0; i < state.tokens.length; i++) {
         const token = state.tokens[i]
         if (!token || token.type !== 'inline' || !token.children || token.children.length === 0) continue
+        const children = token.children
         let hasEmphasis = false
-        for (let j = 0; j < token.children.length; j++) {
-          const child = token.children[j]
+        let hasBreakCandidate = false
+        for (let j = 0; j < children.length; j++) {
+          const child = children[j]
           if (!child) continue
           if (child.type === 'strong_open' || child.type === 'strong_close' || child.type === 'em_open' || child.type === 'em_close') {
             hasEmphasis = true
-            break
           }
+          if (!hasBreakCandidate &&
+              (child.type === 'softbreak' ||
+                (child.type === 'text' && child.content && child.content.indexOf('\n') !== -1))) {
+            hasBreakCandidate = true
+          }
+          if (hasEmphasis && hasBreakCandidate) break
         }
         if (!hasEmphasis) continue
-        for (let j = 0; j < token.children.length; j++) {
-          const child = token.children[j]
+        if (!hasBreakCandidate) continue
+        for (let j = 0; j < children.length; j++) {
+          const child = children[j]
           if (!child) continue
           if (child.type === 'softbreak') {
-            const prevToken = token.children[j - 1]
-            const nextToken = token.children[j + 1]
+            const prevToken = children[j - 1]
+            const nextToken = children[j + 1]
             if (!prevToken || !nextToken) continue
             if (prevToken.type !== 'text' || !prevToken.content) continue
             if (nextToken.type !== 'text' || !nextToken.content) continue
@@ -133,6 +168,7 @@ const registerTokenCompat = (md, baseOpt) => {
   }
 
   const restoreSoftbreaksAfterCjk = (state) => {
+    if (isCompatibleMode(state)) return
     if (!state) return
     const overrideOpt = state.env && state.env.__strongJaTokenOpt
     if (overrideOpt) {
@@ -186,8 +222,12 @@ const registerTokenCompat = (md, baseOpt) => {
         const originalPush = md.core.ruler.push.bind(md.core.ruler)
         md.core.ruler.push = (name, fn, options) => {
           const res = originalPush(name, fn, options)
-          if (typeof name === 'string' && name.indexOf('cjk_breaks') !== -1) {
+          if (isCjkBreaksRuleName(name)) {
             baseOpt.hasCjkBreaks = true
+            md.__strongJaHasCjkBreaks = true
+            if (Array.isArray(md.core.ruler.__rules__)) {
+              md.__strongJaCjkBreaksRuleCount = md.core.ruler.__rules__.length
+            }
             moveRuleAfter(md.core.ruler, 'strong_ja_restore_softbreaks', name)
           }
           return res
@@ -203,6 +243,7 @@ const registerTokenCompat = (md, baseOpt) => {
   if (baseOpt.mditAttrs !== false && !md.__strongJaTokenPreAttrsRegistered) {
     md.__strongJaTokenPreAttrsRegistered = true
     md.core.ruler.before('linkify', 'strong_ja_token_pre_attrs', (state) => {
+      if (isCompatibleMode(state)) return
       if (!state || !state.tokens) return
       const overrideOpt = state.env && state.env.__strongJaTokenOpt
       if (overrideOpt) {

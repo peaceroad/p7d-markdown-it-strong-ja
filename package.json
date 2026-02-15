@@ -14,9 +14,19 @@
     "test": "node test/test.js",
     "test:fixtures": "node test/test-fixtures.js",
     "test:edge": "node test/test-edge.js",
+    "test:postprocess": "node test/post-processing.test.js",
+    "test:postprocess-fastpath": "node test/post-processing-fastpath.test.js",
+    "test:postprocess-fastpath-roster": "node test/post-processing-fastpath-roster.test.js",
+    "test:postprocess-flow": "node test/post-processing-flow.test.js",
+    "test:postprocess-gate": "node test/postprocess-gate.js",
+    "test:tokenonly-progress": "node test/post-processing-progress.test.js",
     "test:readme": "node test/test-readme.js",
     "test:map": "node test/test-map.js",
-    "test:all": "npm test && npm run test:readme && npm run test:map"
+    "test:all": "node test/test-all.js",
+    "bench:scan": "node test/material/perf-scan-delims.mjs",
+    "bench:postprocess": "node test/material/perf-postprocess.mjs",
+    "analyze:postprocess-calls": "node test/material/analyze-postprocess-calls.mjs",
+    "analyze:fastpath": "node test/material/analyze-fastpath-hits.mjs"
   },
   "repository": "https://github.com/peaceroad/p7d-markdown-it-strong-ja.git",
   "author": "peaceroad <peaceroad@gmail.com>",
@@ -27,9 +37,11 @@
   "devDependencies": {
     "@peaceroad/markdown-it-cjk-breaks-mod": "^0.1.7",
     "@peaceroad/markdown-it-hr-sandwiched-semantic-container": "^0.8.5",
+    "@peaceroad/markdown-it-renderer-image": "^0.10.0",
     "@peaceroad/markdown-it-renderer-inline-text": "^0.6.0",
     "markdown-it-attrs": "^4.3.1",
     "markdown-it-sub": "^2.0.0",
-    "markdown-it-sup": "^2.0.0"
+    "markdown-it-sup": "^2.0.0",
+    "p7d-markdown-it-p-captions": "^0.21.0"
   }
 }

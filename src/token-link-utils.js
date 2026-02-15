@@ -7,11 +7,25 @@ const CHAR_CLOSE_BRACKET = 0x5D // ]
 const isWhitespaceToken = (token) => {
   if (!token || token.type !== 'text') return false
   const content = token.content
-  if (!content) return true
-  for (let i = 0; i < content.length; i++) {
-    if (!isWhiteSpace(content.charCodeAt(i))) return false
+  if (token.__strongJaWhitespaceSource === content &&
+      typeof token.__strongJaIsWhitespace === 'boolean') {
+    return token.__strongJaIsWhitespace
   }
-  return true
+  if (!content) {
+    token.__strongJaWhitespaceSource = content
+    token.__strongJaIsWhitespace = true
+    return true
+  }
+  let isWhitespace = true
+  for (let i = 0; i < content.length; i++) {
+    if (!isWhiteSpace(content.charCodeAt(i))) {
+      isWhitespace = false
+      break
+    }
+  }
+  token.__strongJaWhitespaceSource = content
+  token.__strongJaIsWhitespace = isWhitespace
+  return isWhitespace
 }
 
 const buildReferenceLabelRange = (tokens, startIdx, endIdx) => {
@@ -171,17 +185,23 @@ const isBracketToken = (token, bracket) => {
   return token && token.type === 'text' && token.content === bracket
 }
 
-const findLinkCloseIndex = (tokens, startIdx) => {
-  let depth = 0
-  for (let idx = startIdx; idx < tokens.length; idx++) {
-    const token = tokens[idx]
-    if (token.type === 'link_open') depth++
-    if (token.type === 'link_close') {
-      depth--
-      if (depth === 0) return idx
+const buildLinkCloseMap = (tokens, startIdx, endIdx) => {
+  const closeMap = new Map()
+  const stack = []
+  const max = tokens ? tokens.length - 1 : -1
+  const from = startIdx > 0 ? startIdx : 0
+  const to = endIdx < max ? endIdx : max
+  for (let i = from; i <= to; i++) {
+    const token = tokens[i]
+    if (!token) continue
+    if (token.type === 'link_open') {
+      stack.push(i)
+      continue
     }
+    if (token.type !== 'link_close' || stack.length === 0) continue
+    closeMap.set(stack.pop(), i)
   }
-  return -1
+  return closeMap
 }
 
 const wrapLabelTokensWithLink = (tokens, labelStartIdx, labelEndIdx, linkOpenToken, linkCloseToken) => {
@@ -255,16 +275,20 @@ const wrapLabelTokensWithLink = (tokens, labelStartIdx, labelEndIdx, linkOpenTok
 const convertCollapsedReferenceLinks = (tokens, state) => {
   const references = state.env && state.env.references
   if (!references) return
-  const referenceCount = state.__strongJaReferenceCount
-  if (referenceCount !== undefined) {
-    if (referenceCount === 0) return
-  } else if (Object.keys(references).length === 0) {
+  let referenceCount = state.__strongJaReferenceCount
+  if (referenceCount === undefined) {
+    referenceCount = Object.keys(references).length
+    state.__strongJaReferenceCount = referenceCount
+  }
+  if (referenceCount === 0) {
     return
   }
 
   let i = 0
+  let linkCloseMap = null
   while (i < tokens.length) {
     if (splitBracketToken(tokens, i)) {
+      linkCloseMap = null
       continue
     }
     if (!isBracketToken(tokens[i], '[')) {
@@ -273,10 +297,12 @@ const convertCollapsedReferenceLinks = (tokens, state) => {
     }
     let closeIdx = i + 1
     while (closeIdx < tokens.length && !isBracketToken(tokens[closeIdx], ']')) {
-      if (splitBracketToken(tokens, closeIdx)) {
+      const closeToken = tokens[closeIdx]
+      if (closeToken && closeToken.type === 'text' && splitBracketToken(tokens, closeIdx)) {
+        linkCloseMap = null
         continue
       }
-      if (tokens[closeIdx].type === 'link_open') {
+      if (closeToken && closeToken.type === 'link_open') {
         closeIdx = -1
         break
       }
@@ -296,12 +322,18 @@ const convertCollapsedReferenceLinks = (tokens, state) => {
     const labelEnd = closeIdx - 1
     const labelLength = closeIdx - i - 1
     const labelText = buildReferenceLabelRange(tokens, labelStart, labelEnd)
+    if (labelText.indexOf('*') === -1 && labelText.indexOf('_') === -1) {
+      i++
+      continue
+    }
     const whitespaceStart = closeIdx + 1
     let refRemoveStart = whitespaceStart
     while (refRemoveStart < tokens.length && isWhitespaceToken(tokens[refRemoveStart])) {
       refRemoveStart++
     }
-    if (splitBracketToken(tokens, refRemoveStart)) {
+    const refStartToken = tokens[refRemoveStart]
+    if (refStartToken && refStartToken.type === 'text' && splitBracketToken(tokens, refRemoveStart)) {
+      linkCloseMap = null
       continue
     }
     const whitespaceCount = refRemoveStart - whitespaceStart
@@ -332,7 +364,10 @@ const convertCollapsedReferenceLinks = (tokens, state) => {
       }
       refRemoveCount = refCloseIdx - refRemoveStart + 1
     } else if (nextToken && nextToken.type === 'link_open') {
-      const linkCloseIdx = findLinkCloseIndex(tokens, refRemoveStart)
+      if (linkCloseMap === null) {
+        linkCloseMap = buildLinkCloseMap(tokens, refRemoveStart, tokens.length - 1)
+      }
+      const linkCloseIdx = linkCloseMap.get(refRemoveStart) ?? -1
       if (linkCloseIdx === -1) {
         i++
         continue
@@ -347,6 +382,7 @@ const convertCollapsedReferenceLinks = (tokens, state) => {
     let linkOpenToken = null
     let linkCloseToken = null
     if (existingLinkOpen && existingLinkClose) {
+      linkCloseMap = null
       if (whitespaceCount > 0) {
         tokens.splice(whitespaceStart, whitespaceCount)
         refRemoveStart -= whitespaceCount
@@ -366,6 +402,7 @@ const convertCollapsedReferenceLinks = (tokens, state) => {
         i++
         continue
       }
+      linkCloseMap = null
       if (whitespaceCount > 0) {
         tokens.splice(whitespaceStart, whitespaceCount)
         refRemoveStart -= whitespaceCount
@@ -394,7 +431,8 @@ const mergeBrokenMarksAroundLinks = (tokens) => {
   let i = 0
   while (i < tokens.length) {
     const closeToken = tokens[i]
-    if (!closeToken || !closeToken.type || !closeToken.type.endsWith('_close')) {
+    if (!closeToken || !closeToken.type ||
+        (closeToken.type !== 'em_close' && closeToken.type !== 'strong_close')) {
       i++
       continue
     }
@@ -433,6 +471,7 @@ const mergeBrokenMarksAroundLinks = (tokens) => {
 
 export {
   normalizeReferenceCandidate,
+  buildLinkCloseMap,
   convertCollapsedReferenceLinks,
   mergeBrokenMarksAroundLinks,
   getMapFromTokenRange
