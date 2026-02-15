@@ -22,17 +22,73 @@ md.render('和食では**「だし」**が料理の土台です。')
 
 ## Scope and Modes
 
-This plugin targets emphasis markers (`*`, `**`). It does not replace all inline parsing behavior of `markdown-it`. The goal is to help only where emphasis tends to break in Japanese text. When input is heavily malformed, the plugin prefers safe output and leaves markers as literal text instead of forcing unstable HTML.
+This plugin targets asterisk emphasis markers (`*`, `**`). It does not replace all inline parsing behavior of `markdown-it`. The goal is to help only where emphasis tends to break in Japanese text. When input is heavily malformed, the plugin prefers safe output and leaves markers as literal text instead of forcing unstable HTML.
+
+Underscore emphasis (`_`, `__`) is intentionally left to plain `markdown-it`. strong-ja does not add custom delimiter-direction logic for `_` runs, and underscore-heavy malformed spans are handled fail-safe (kept conservative rather than force-rewritten).
 
 Mode selection controls how aggressively the plugin helps:
 
-- `japanese` (default): starts from `markdown-it` decisions, then applies Japanese-focused local help only where needed. For pure-English malformed tails, it stays close to `markdown-it`.
-- `aggressive`: more willing to treat early `**` as opening markers.
-- `compatible`: prioritizes `markdown-it` output and skips postprocess repairs.
+- `japanese` (default): alias of `japanese-boundary-guard`. This is the recommended mode for mixed Japanese/English prose.
+- `japanese-boundary`: keeps markdown-it as baseline and enables Japanese-context local relaxation around `*` runs. It does not apply the mixed JA/EN single-`*` guard. Link/ref postprocess repairs are enabled. Target behavior is JP-friendly conservative recovery.
+- `japanese-boundary-guard`: includes everything from `japanese-boundary`, plus an extra mixed JA/EN guard for space-adjacent ASCII segments (for patterns like `* English*`, `** "English"**`, `*** [English](u)***`). This guard is applied consistently for `*` run lengths (`*` and longer runs). Link/ref postprocess repairs are enabled. Target behavior is JP-friendly mixed-text safety.
+- `aggressive`: is more permissive than baseline-first and is the most eager mode for early opener recovery. Japanese local relaxation and link/ref postprocess repairs are enabled. Target behavior is maximum recovery.
+- `compatible`: keeps plain markdown-it delimiter decisions as-is. It does not run Japanese local relaxation and skips link/ref postprocess repairs. Output stays aligned with plain `markdown-it` under the same plugin stack.
 
-## How `japanese` Decides (Step by Step)
+### What `japanese-boundary` and `japanese-boundary-guard` Share
 
-This section follows the implementation flow for `mode: 'japanese'`.
+The following behavior is shared by both modes (`japanese` is an alias of `japanese-boundary-guard`):
+
+- baseline-first decisions on top of `markdown-it`
+- Japanese-context local relaxation (same-line neighborhood only)
+- single-`*` direction correction for malformed opener/closer flips
+- token-only postprocess repairs around links/references (except `compatible`)
+- fail-safe behavior: low-confidence spans are preserved
+
+Representative shared outputs:
+
+- Input: `*味噌汁。*umai*`
+- `japanese-boundary` / `japanese-boundary-guard`: `<p><em>味噌汁。</em>umai*</p>`
+
+- Input: `説明文ではこれは**[寿司](url)**です。`
+- `japanese-boundary` / `japanese-boundary-guard`: `<p>説明文ではこれは<strong><a href="url">寿司</a></strong>です。</p>`
+
+### What Only `japanese-boundary-guard` Adds
+
+`japanese-boundary-guard` adds an extra mixed JA/EN suppression guard:
+
+- target: space-adjacent + ASCII-start segments (plain / quoted / link / code wrappers)
+- goal: reduce unnatural conversions such as `* English*` or `* \`English\`*`
+- applied consistently across run lengths (`*`, `**`, `***`, ...)
+
+Representative differences:
+
+- Input: `日本語です。* English* です。`
+- `japanese-boundary`: `<p>日本語です。<em> English</em> です。</p>`
+- `japanese-boundary-guard`: `<p>日本語です。* English* です。</p>`
+
+- Input: `和食では* \`umami\`*を使う。`
+- `japanese-boundary`: `<p>和食では<em> <code>umami</code></em>を使う。</p>`
+- `japanese-boundary-guard`: `<p>和食では* <code>umami</code>*を使う。</p>`
+
+### Mode Selection Guide (Practical)
+
+- default for user-facing prose: `japanese` (`japanese-boundary-guard`)
+- strict markdown-it parity: `compatible`
+- maximum recovery over predictability: `aggressive`
+- niche use without guard suppression: `japanese-boundary`
+
+### Example Corpus Notes
+
+Detailed cases and visual outputs:
+
+- `example/README.md`
+- `example/mixed-ja-en-stars-mode.html`
+- `example/mixed-ja-en-stars-mode.txt`
+- `example/inline-wrapper-matrix.html`
+
+## How `japanese` (`japanese-boundary-guard`) Decides (Step by Step)
+
+This section follows the implementation flow for `mode: 'japanese'` (which resolves to `japanese-boundary-guard`).
 
 Terms used below:
 
@@ -41,9 +97,16 @@ Terms used below:
 - Run: a contiguous group of the same marker (`*`, `**`, `***`, ...).
 - Line: text split by `\n`.
 
+Note:
+
+- Steps 0-5 describe marker-direction and pairing flow for `*` / `**`.
+- Final behavior for `inline link`, `inline code`, and symbol wrappers (such as `{}()`) is handled in Step 6 (postprocess).
+- See the Step 6-1 notes and `example/inline-wrapper-matrix.html` for concrete mode-by-mode examples.
+- Step 2.5 is `japanese-boundary-guard`-only. `japanese-boundary` skips Step 2.5 and shares the rest.
+
 ### Step 0: Decide whether Japanese helper logic is used
 
-`japanese` does not rewrite every `*`. It first inspects characters adjacent to a candidate marker and enters the helper path only when local Japanese context exists. The context check is Japanese-focused and mainly looks at Hiragana, Katakana, Kanji (Han), and fullwidth punctuation/symbol ranges commonly used in Japanese text.
+`japanese` (`japanese-boundary-guard`) does not rewrite every `*`. It first inspects characters adjacent to a candidate marker and enters the helper path only when local Japanese context exists. The context check is Japanese-focused and mainly looks at Hiragana, Katakana, Kanji (Han), and fullwidth punctuation/symbol ranges commonly used in Japanese text.
 
 Example that stops here:
 
@@ -85,9 +148,23 @@ Example that proceeds:
 - Input: `*味噌汁。*umai* という表記です。`
 - Why: Japanese and English context are on the same line.
 
+### Step 2.5 (`japanese-boundary-guard` only): Suppress mixed JA/EN over-conversion
+
+This extra step exists only in `japanese-boundary-guard`. It suppresses conversions for space-adjacent + ASCII-start segments to reduce unnatural emphasis around English fragments.
+
+Representative differences:
+
+- Input: `日本語です。* English* です。`
+- `japanese-boundary`: `<p>日本語です。<em> English</em> です。</p>`
+- `japanese-boundary-guard`: `<p>日本語です。* English* です。</p>`
+
+- Input: `和食では* \`umami\`*を使う。`
+- `japanese-boundary`: `<p>和食では<em> <code>umami</code></em>を使う。</p>`
+- `japanese-boundary-guard`: `<p>和食では* <code>umami</code>*を使う。</p>`
+
 ### Step 3: Apply extra direction correction only to single `*`
 
-Extra direction correction is applied only to run length `1` (`*`). This is where malformed input most often flips opener/closer direction unintentionally. In `japanese` and `aggressive`, this can change which side pairs first. In `compatible`, base `markdown-it` behavior remains.
+Extra direction correction is applied only to run length `1` (`*`). This is where malformed input most often flips opener/closer direction unintentionally. In `japanese-boundary` / `japanese-boundary-guard` (`japanese`) and `aggressive`, this can change which side pairs first. In `compatible`, base `markdown-it` behavior remains.
 
 Example that stops here:
 
@@ -100,9 +177,14 @@ Example that proceeds:
 - Input: `比較用メモでは**味噌汁。**umami**という書き方を使います。`
 - Why: this is not a single-star run.
 
+Additional boundary rule in this step:
+
+- When scanning backward to detect a previous single-`*` opener, the scan stops at sentence punctuation (`。`, `！`, `？`, `.`, `!`, `?`, `‼`, `⁇`, `⁈`, `⁉`) unless that punctuation is immediately adjacent to the current marker.
+- This prevents a previous sentence from over-influencing the current single-`*` correction.
+
 ### Step 4: Do not apply Step 3 single-star correction to `**` and above
 
-`**`, `***`, `****` still use normal `markdown-it` logic and japanese relaxations. What is intentionally excluded is the single-star-only direction correction from Step 3. Extending the same correction to multi-star runs pushes `japanese` too far toward `compatible` behavior and breaks expected Japanese-side recovery.
+All runs of `**` and longer (`***`, `****`, and `*****+`) still use normal `markdown-it` logic and japanese relaxations. What is intentionally excluded is the single-star-only direction correction from Step 3. Extending the same correction to multi-star runs pushes `japanese` too far toward `compatible` behavior and breaks expected Japanese-side recovery.
 
 Example:
 
@@ -122,6 +204,7 @@ Example:
 ### Step 6: Postprocess link/reference-adjacent breakage
 
 Steps 0-5 are marker-direction and inline-pairing. Step 6 is a separate phase that repairs link/reference-adjacent breakage in the already-built inline token stream.
+In this README, there is one Step 6 phase; Step 6-1 to 6-4 are its sub-sections.
 
 #### Step 6-1: Collapsed reference matching follows `markdown-it` normalization
 
@@ -151,78 +234,96 @@ Match example:
 <p>献立は「<a href="https://example.com/"><strong>寿司</strong></a>」です。</p>
 ```
 
+Inline-link note:
+
+- `[text](url)` does not perform collapsed-reference label matching.
+- Postprocess only does token-only `*` / `**` wrapper repair around the link.
+- It never "passes" matching by deleting emphasis markers.
+
+Example:
+
+- Input: `メニューではmenu**[ramen](url)**と書きます。`
+- `japanese` / `japanese-boundary` / `japanese-boundary-guard`: `<p>メニューではmenu**<a href="url">ramen</a>**と書きます。</p>`
+- `aggressive`: `<p>メニューではmenu<strong><a href="url">ramen</a></strong>と書きます。</p>`
+- `compatible` / `markdown-it`: `<p>メニューではmenu**<a href="url">ramen</a>**と書きます。</p>`
+
+- Input: `説明文ではこれは**[寿司](url)**です。`
+- `japanese` / `japanese-boundary` / `japanese-boundary-guard` / `aggressive`: `<p>説明文ではこれは<strong><a href="url">寿司</a></strong>です。</p>`
+- `compatible` / `markdown-it`: `<p>説明文ではこれは**<a href="url">寿司</a>**です。</p>`
+
+Inline-code / plain-wrapper note:
+
+- Input: `昼食は**\`code\`**の話です。`
+- `japanese` / `japanese-boundary` / `japanese-boundary-guard` / `aggressive`: `<p>昼食は<strong><code>code</code></strong>の話です。</p>`
+- `compatible` / `markdown-it`: `<p>昼食は**<code>code</code>**の話です。</p>`
+
+- Input: `注記では**aa\`stock\`**aaという記法を試します。`
+- `japanese` / `japanese-boundary` / `japanese-boundary-guard` / `compatible` / `markdown-it`: `<p>注記では**aa<code>stock</code>**aaという記法を試します。</p>`
+- `aggressive`: `<p>注記では<strong>aa<code>stock</code></strong>aaという記法を試します。</p>`
+
+- Input: `お店の場所は**{}()**です。`
+- `japanese` / `japanese-boundary` / `japanese-boundary-guard` / `aggressive`: `<p>お店の場所は<strong>{}()</strong>です。</p>`
+- `compatible` / `markdown-it`: `<p>お店の場所は**{}()**です。</p>`
+
 #### Step 6-2: Postprocess by mode
 
-`japanese` and `aggressive` run postprocess repairs for broken emphasis around links and collapsed references. `compatible` intentionally skips these repairs to stay aligned with plain `markdown-it` output.
+`japanese-boundary`, `japanese-boundary-guard` (and therefore `japanese`) and `aggressive` run postprocess repairs for broken emphasis around links and collapsed references. `compatible` intentionally skips these repairs to stay aligned with plain `markdown-it` output.
+
+The repair target is mainly broken `*` / `**` around links and collapsed references. Low-confidence spans that cross non-target inline elements (for example `code_inline`, `html_inline`, images, or autolinks) are kept as-is to avoid risky rewrites.
 
 #### Step 6-3: Why postprocess can skip or normalize
 
-Postprocess is conservative by design. It prioritizes stable output over aggressive conversion. If a segment has no useful repair target, cannot be bounded safely, or fails reparse, the plugin keeps the existing token result rather than applying risky rewrites.
+Postprocess is conservative by design. It prioritizes stable output over aggressive conversion, so it skips rewrites when:
 
-During successful rewrites, markdown-equivalent normalization can occur. For example, link title escaping or line-break representation can be normalized. Tokens with `meta`, or links with attrs beyond `href` / `title`, are preserved via island placeholders and restored after reparse, instead of being destructively rebuilt. If placeholder collision is detected, strong-ja retries marker generation up to 16 times before abandoning that rewrite path.
+- emphasis/link repair signals are weak
+- the span is low-confidence (`***` noise, underscore emphasis, `code_inline` involvement, wrapper imbalance)
+- no known token-only fast-path signature matches
 
-In short, for ambiguous malformed input, strong-ja prioritizes safe and readable output over maximum conversion.
+When rewrites do apply, token-level normalization can still happen while preserving equivalent rendered HTML. For example, `[` / `]` / `[]` may end up split into separate text tokens. Postprocess is strict token-only now, so there is no runtime inline parser fallback and no placeholder-token roundtrip.
+
+Example (low-confidence span is preserved):
+
+- Input: `注記では**aa\`stock\`***tail*です。`
+- `japanese` / `compatible`: `<p>注記では**aa<code>stock</code>**<em>tail</em>です。</p>`
+- Reason: mixed `**` and `*` around code in a low-confidence malformed span is kept conservative, so `**` remains literal.
+
+In short, for ambiguous malformed input, strong-ja prioritizes safe/readable output over maximum conversion.
 
 ## Behavior Examples
 
-These examples are synchronized with `test/readme-mode.txt`.
+Representative cases only (full corpus: `test/readme-mode.txt`).
 
-### Punctuation with Japanese text
+Supporting visuals:
 
-This is the typical Japanese punctuation case where `japanese` / `aggressive` recover emphasis.
+- `example/inline-wrapper-matrix.html`
+- `example/mixed-ja-en-stars-mode.html`
+
+### 1) Baseline Japanese punctuation case
 
 - Input: `**「だし」**は和食の基本です。`
 - `japanese` / `aggressive`: `<p><strong>「だし」</strong>は和食の基本です。</p>`
 - `compatible` / `markdown-it`: `<p>**「だし」**は和食の基本です。</p>`
 
-### Mixed Japanese and English
-
-This case shows the mode difference when Japanese-side closing is preferred.
+### 2) Mixed JA/EN mode differences
 
 - Input: `**天ぷら。**crunch**という表現を使います。`
 - `japanese` / `aggressive`: `<p><strong>天ぷら。</strong>crunch**という表現を使います。</p>`
 - `compatible` / `markdown-it`: `<p>**天ぷら。<strong>crunch</strong>という表現を使います。</p>`
 
-### Single-star edge case in plain text
+- Input: `日本語です。* English* です。`
+- `japanese-boundary`: `<p>日本語です。<em> English</em> です。</p>`
+- `japanese-boundary-guard` / `compatible`: `<p>日本語です。* English* です。</p>`
 
-This is the main single-star direction-correction case.
+### 3) Safety-first malformed handling
 
-- Input: `*うどん。*chewy* という表記です。`
-- `japanese` / `aggressive`: `<p><em>うどん。</em>chewy* という表記です。</p>`
-- `compatible` / `markdown-it`: `<p>*うどん。<em>chewy</em> という表記です。</p>`
+- Input: `**[**[x](v)](u)**`
+- All modes: `<p><strong>[</strong><a href="v">x</a>](u)**</p>`
 
-- Input: `日本語 *broth。*taste* という比較です。`
-- `japanese` / `aggressive`: `<p>日本語 <em>broth。</em>taste* という比較です。</p>`
-- `compatible` / `markdown-it`: `<p>日本語 *broth。<em>taste</em> という比較です。</p>`
+- Input: `注記では**aa\`stock\`***tail*です。`
+- `japanese` / `compatible`: `<p>注記では**aa<code>stock</code>**<em>tail</em>です。</p>`
+- Low-confidence span: keep literal `**` instead of risky forced conversion.
 
-### Single-star edge case inside link label
-
-The same single-star local correction applies inside inline link labels.
-
-- Input: `記録では[*天丼。*crispy*]()という表記を確認します。`
-- `japanese` / `aggressive`: `<p>記録では<a href=""><em>天丼。</em>crispy*</a>という表記を確認します。</p>`
-- `compatible` / `markdown-it`: `<p>記録では<a href="">*天丼。<em>crispy</em></a>という表記を確認します。</p>`
-
-### Malformed link marker sequence
-
-For malformed marker/link mixtures, safe output is preferred over forced tag completion.
-
-- Input: `**[**[x](v)](u)** という壊れた入力です。`
-- All modes: `<p><strong>[</strong><a href="v">x</a>](u)** という壊れた入力です。</p>`
-
-### Pure-English malformed tail
-
-For pure-English malformed tails, `japanese` stays close to `markdown-it`.
-
-- Input: `For diagnostics, we keep broken **tail [aa**aa***Text***and*More*bb**bb](https://x.test) after this note.`
-- `japanese` / `compatible` / `markdown-it`:  
-  `<p>For diagnostics, we keep broken **tail <a href="https://x.test">aa<strong>aa</strong><em>Text</em><em><em>and</em>More</em>bb**bb</a> after this note.</p>`
-- `aggressive`:  
-  `<p>For diagnostics, we keep broken **tail <a href="https://x.test">aa<strong>aa</strong><em>Text</em><strong>and<em>More</em>bb</strong>bb</a> after this note.</p>`
-
-### Link and code near emphasis
-
-These cases show mode differences around links and inline code.
+### 4) Inline link/code adjacency
 
 - Input: `説明文ではこれは**[ラーメン](url)**です。`
 - `japanese` / `aggressive`: `<p>説明文ではこれは<strong><a href="url">ラーメン</a></strong>です。</p>`
@@ -232,11 +333,19 @@ These cases show mode differences around links and inline code.
 - `japanese` / `compatible` / `markdown-it`: `<p>注記では**aa<code>stock</code>**aaという記法を試します。</p>`
 - `aggressive`: `<p>注記では<strong>aa<code>stock</code></strong>aaという記法を試します。</p>`
 
+### 5) Pure-English malformed tail (`aggressive` delta)
+
+- Input: `broken **tail [aa**aa***Text***and*More*bb**bb](https://x.test) after`
+- `japanese` / `compatible` / `markdown-it`:  
+  `<p>broken **tail <a href="https://x.test">aa<strong>aa</strong><em>Text</em><em><em>and</em>More</em>bb**bb</a> after</p>`
+- `aggressive`:  
+  `<p>broken **tail <a href="https://x.test">aa<strong>aa</strong><em>Text</em><strong>and<em>More</em>bb</strong>bb</a> after</p>`
+
 ## Options
 
 ### `mode`
 
-- Type: `'japanese' | 'japanese-only' | 'aggressive' | 'compatible'`
+- Type: `'japanese' | 'japanese-boundary' | 'japanese-boundary-guard' | 'aggressive' | 'compatible'`
 - Default: `'japanese'`
 
 ### `mditAttrs`
