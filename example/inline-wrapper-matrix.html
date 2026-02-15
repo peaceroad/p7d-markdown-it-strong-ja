@@ -1,0 +1,932 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>strong-ja inline wrapper matrix</title>
+  <style>
+    :root {
+      --bg0: #f3f0ea;
+      --bg1: #fffdf8;
+      --ink: #1d1f22;
+      --muted: #5f6772;
+      --line: #d8d1c7;
+      --ok-bg: #dff6e8;
+      --ok-fg: #155b36;
+      --no-bg: #f7e9e6;
+      --no-fg: #7a2d22;
+      --accent: #005f86;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Yu Gothic UI", "Hiragino Kaku Gothic ProN", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(1200px 480px at 85% -10%, #d4ecf8 0%, transparent 65%),
+        radial-gradient(900px 400px at -10% 0%, #fde8da 0%, transparent 55%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+    }
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    .lead { margin: 0 0 18px; color: var(--muted); }
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.86);
+      backdrop-filter: blur(2px);
+      margin-bottom: 14px;
+    }
+    .summary {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .summary th, .summary td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+    }
+    .summary thead th {
+      background: #f1ece3;
+    }
+    .legend-list { margin: 8px 0 0; padding-left: 18px; color: var(--muted); }
+    .mode-block {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      margin-bottom: 12px;
+      background: rgba(255, 255, 255, 0.86);
+      overflow: hidden;
+    }
+    .mode-block > summary {
+      cursor: pointer;
+      list-style: none;
+      font-weight: 700;
+      color: var(--accent);
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #f5f9fb;
+    }
+    .mode-block > summary::-webkit-details-marker { display: none; }
+    .issue-line {
+      padding: 12px 14px 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .issue-src, .issue-html {
+      padding: 6px 8px;
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      background: #fff;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .pattern-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 10px;
+      padding: 12px 14px 14px;
+    }
+    .pattern-card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      background: #fff;
+    }
+    .pattern-card h4 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: baseline;
+    }
+    .pattern-desc {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .count { color: var(--muted); font-weight: 600; }
+    .matrix {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      table-layout: fixed;
+    }
+    .matrix th, .matrix td {
+      border: 1px solid var(--line);
+      text-align: center;
+      padding: 4px;
+      height: 24px;
+    }
+    .matrix th {
+      background: #f8f5ef;
+      font-weight: 700;
+    }
+    .cell-yes {
+      background: var(--ok-bg);
+      color: var(--ok-fg);
+      font-weight: 700;
+    }
+    .cell-no {
+      background: var(--no-bg);
+      color: var(--no-fg);
+      font-weight: 700;
+    }
+    .notes ul {
+      margin: 8px 0 0;
+      padding-left: 18px;
+    }
+    .notes li { margin: 6px 0; }
+    code {
+      font-family: "Cascadia Code", "Consolas", monospace;
+      font-size: 0.95em;
+    }
+    @media (max-width: 768px) {
+      main { padding: 14px; }
+      h1 { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Inline Wrapper Matrix for strong-ja</h1>
+    <p class="lead">Detailed visual comparison for <code>* / **</code> wrappers around <code>inline code</code> and <code>inline link</code>, with left/right context categories.</p>
+
+    <section class="panel">
+      <h3>How to read</h3>
+      <ul class="legend-list">
+        <li><code>Y</code>: wrapped as <code>&lt;em&gt;</code> or <code>&lt;strong&gt;</code> around code/link.</li>
+        <li><code>-</code>: marker remains literal for that context.</li>
+        <li>Rows are left context, columns are right context.</li>
+        <li>Boundary labels: Japanese / ASCII letter / digit / ASCII punctuation / Japanese punctuation / space.</li>
+        <li>Cell tooltip shows the source and rendered HTML for the exact case.</li>
+      </ul>
+    </section>
+
+    <section class="panel">
+      <h3>Summary (converted cells)</h3>
+      <table class="summary">
+        <thead><tr><th>Mode</th><th>Pattern</th><th>Converted</th></tr></thead>
+        <tbody><tr><td>japanese-boundary</td><td><code>*`code`*</code></td><td>16/36</td></tr><tr><td>japanese-boundary</td><td><code>**`code`**</code></td><td>16/36</td></tr><tr><td>japanese-boundary</td><td><code>*[link](u)*</code></td><td>16/36</td></tr><tr><td>japanese-boundary</td><td><code>**[link](u)**</code></td><td>16/36</td></tr><tr><td>japanese-boundary-guard (alias: japanese)</td><td><code>*`code`*</code></td><td>16/36</td></tr><tr><td>japanese-boundary-guard (alias: japanese)</td><td><code>**`code`**</code></td><td>16/36</td></tr><tr><td>japanese-boundary-guard (alias: japanese)</td><td><code>*[link](u)*</code></td><td>16/36</td></tr><tr><td>japanese-boundary-guard (alias: japanese)</td><td><code>**[link](u)**</code></td><td>16/36</td></tr><tr><td>aggressive</td><td><code>*`code`*</code></td><td>36/36</td></tr><tr><td>aggressive</td><td><code>**`code`**</code></td><td>36/36</td></tr><tr><td>aggressive</td><td><code>*[link](u)*</code></td><td>36/36</td></tr><tr><td>aggressive</td><td><code>**[link](u)**</code></td><td>36/36</td></tr><tr><td>compatible</td><td><code>*`code`*</code></td><td>9/36</td></tr><tr><td>compatible</td><td><code>**`code`**</code></td><td>9/36</td></tr><tr><td>compatible</td><td><code>*[link](u)*</code></td><td>9/36</td></tr><tr><td>compatible</td><td><code>**[link](u)**</code></td><td>9/36</td></tr></tbody>
+      </table>
+    </section>
+
+    
+  <section class="notes">
+    <h3>Naturalness Notes (boundary-focused)</h3>
+    <ul>
+      <li><code>japanese-boundary</code> and <code>japanese-boundary-guard</code>: conservative when English letters or digits touch the marker, while still recovering Japanese/punctuation-side wrappers.</li>
+      <li><code>aggressive</code>: converts almost everything (maximum recovery, higher over-conversion risk).</li>
+      <li><code>compatible</code>: stays closest to markdown-it output (maximum predictability, minimum recovery).</li>
+      <li><code>default (japanese)</code> is an alias of <code>japanese-boundary-guard</code>, so the duplicate row is intentionally omitted.</li>
+    </ul>
+  </section>
+
+    
+  <details class="mode-block" open>
+    <summary>japanese-boundary</summary>
+    <div class="issue-line">
+      <div class="issue-src"><code>メニューではmenu**[ramen](url)**と書きます。</code></div>
+      <div class="issue-html">&lt;p&gt;メニューではmenu**&lt;a href="url"&gt;ramen&lt;/a&gt;**と書きます。&lt;/p&gt;</div>
+    </div>
+    <div class="pattern-grid">
+  <section class="pattern-card">
+    <h4><code>*`code`*</code> <span class="count">16/36</span></h4>
+    <p class="pattern-desc">この表では、日本語・和文句読点・空白に寄った境界は変換されやすく、英字や数字が隣接する境界は保持されやすい傾向です。変換例: 左:日本語 / 右:日本語（和*`x`*和）、左:空白 / 右:日本語（ *`x`*和）、左:日本語 / 右:和文句読点（和*`x`*。） / 保持例: 左:日本語 / 右:英字（和*`x`*a）、左:英字 / 右:日本語（a*`x`*和）、左:日本語 / 右:数字（和*`x`*1）。</p>
+    <table class="matrix mode-japanese-boundary">
+      <thead><tr><th>左\\右</th><th>日本語</th><th>英字</th><th>数字</th><th>ASCII記号</th><th>和文句読点</th><th>空白</th></tr></thead>
+      <tbody><tr><th>日本語</th><td class="cell-yes" title="src: Z和*`x`*和Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z和*`x`*aZ
+html: &lt;p&gt;Z和*&lt;code&gt;x&lt;/code&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和*`x`*1Z
+html: &lt;p&gt;Z和*&lt;code&gt;x&lt;/code&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z和*`x`*.Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和*`x`*。Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和*`x`* Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>英字</th><td class="cell-no" title="src: Za*`x`*和Z
+html: &lt;p&gt;Za*&lt;code&gt;x&lt;/code&gt;*和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*`x`*aZ
+html: &lt;p&gt;Za*&lt;code&gt;x&lt;/code&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*`x`*1Z
+html: &lt;p&gt;Za*&lt;code&gt;x&lt;/code&gt;*1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*`x`*.Z
+html: &lt;p&gt;Za*&lt;code&gt;x&lt;/code&gt;*.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*`x`*。Z
+html: &lt;p&gt;Za*&lt;code&gt;x&lt;/code&gt;*。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*`x`* Z
+html: &lt;p&gt;Za*&lt;code&gt;x&lt;/code&gt;* Z&lt;/p&gt;">-</td></tr><tr><th>数字</th><td class="cell-no" title="src: Z1*`x`*和Z
+html: &lt;p&gt;Z1*&lt;code&gt;x&lt;/code&gt;*和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*`x`*aZ
+html: &lt;p&gt;Z1*&lt;code&gt;x&lt;/code&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*`x`*1Z
+html: &lt;p&gt;Z1*&lt;code&gt;x&lt;/code&gt;*1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*`x`*.Z
+html: &lt;p&gt;Z1*&lt;code&gt;x&lt;/code&gt;*.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*`x`*。Z
+html: &lt;p&gt;Z1*&lt;code&gt;x&lt;/code&gt;*。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*`x`* Z
+html: &lt;p&gt;Z1*&lt;code&gt;x&lt;/code&gt;* Z&lt;/p&gt;">-</td></tr><tr><th>ASCII記号</th><td class="cell-yes" title="src: Z.*`x`*和Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z.*`x`*aZ
+html: &lt;p&gt;Z.*&lt;code&gt;x&lt;/code&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z.*`x`*1Z
+html: &lt;p&gt;Z.*&lt;code&gt;x&lt;/code&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z.*`x`*.Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*`x`*。Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*`x`* Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>和文句読点</th><td class="cell-yes" title="src: Z。*`x`*和Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z。*`x`*aZ
+html: &lt;p&gt;Z。*&lt;code&gt;x&lt;/code&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z。*`x`*1Z
+html: &lt;p&gt;Z。*&lt;code&gt;x&lt;/code&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z。*`x`*.Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*`x`*。Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*`x`* Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>空白</th><td class="cell-yes" title="src: Z *`x`*和Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z *`x`*aZ
+html: &lt;p&gt;Z *&lt;code&gt;x&lt;/code&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z *`x`*1Z
+html: &lt;p&gt;Z *&lt;code&gt;x&lt;/code&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z *`x`*.Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *`x`*。Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *`x`* Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr></tbody>
+    </table>
+  </section>
+  <section class="pattern-card">
+    <h4><code>**`code`**</code> <span class="count">16/36</span></h4>
+    <p class="pattern-desc">この表では、日本語・和文句読点・空白に寄った境界は変換されやすく、英字や数字が隣接する境界は保持されやすい傾向です。変換例: 左:日本語 / 右:日本語（和**`x`**和）、左:空白 / 右:日本語（ **`x`**和）、左:日本語 / 右:和文句読点（和**`x`**。） / 保持例: 左:日本語 / 右:英字（和**`x`**a）、左:英字 / 右:日本語（a**`x`**和）、左:日本語 / 右:数字（和**`x`**1）。</p>
+    <table class="matrix mode-japanese-boundary">
+      <thead><tr><th>左\\右</th><th>日本語</th><th>英字</th><th>数字</th><th>ASCII記号</th><th>和文句読点</th><th>空白</th></tr></thead>
+      <tbody><tr><th>日本語</th><td class="cell-yes" title="src: Z和**`x`**和Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z和**`x`**aZ
+html: &lt;p&gt;Z和**&lt;code&gt;x&lt;/code&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和**`x`**1Z
+html: &lt;p&gt;Z和**&lt;code&gt;x&lt;/code&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z和**`x`**.Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和**`x`**。Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和**`x`** Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>英字</th><td class="cell-no" title="src: Za**`x`**和Z
+html: &lt;p&gt;Za**&lt;code&gt;x&lt;/code&gt;**和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**`x`**aZ
+html: &lt;p&gt;Za**&lt;code&gt;x&lt;/code&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**`x`**1Z
+html: &lt;p&gt;Za**&lt;code&gt;x&lt;/code&gt;**1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**`x`**.Z
+html: &lt;p&gt;Za**&lt;code&gt;x&lt;/code&gt;**.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**`x`**。Z
+html: &lt;p&gt;Za**&lt;code&gt;x&lt;/code&gt;**。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**`x`** Z
+html: &lt;p&gt;Za**&lt;code&gt;x&lt;/code&gt;** Z&lt;/p&gt;">-</td></tr><tr><th>数字</th><td class="cell-no" title="src: Z1**`x`**和Z
+html: &lt;p&gt;Z1**&lt;code&gt;x&lt;/code&gt;**和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**`x`**aZ
+html: &lt;p&gt;Z1**&lt;code&gt;x&lt;/code&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**`x`**1Z
+html: &lt;p&gt;Z1**&lt;code&gt;x&lt;/code&gt;**1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**`x`**.Z
+html: &lt;p&gt;Z1**&lt;code&gt;x&lt;/code&gt;**.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**`x`**。Z
+html: &lt;p&gt;Z1**&lt;code&gt;x&lt;/code&gt;**。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**`x`** Z
+html: &lt;p&gt;Z1**&lt;code&gt;x&lt;/code&gt;** Z&lt;/p&gt;">-</td></tr><tr><th>ASCII記号</th><td class="cell-yes" title="src: Z.**`x`**和Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z.**`x`**aZ
+html: &lt;p&gt;Z.**&lt;code&gt;x&lt;/code&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z.**`x`**1Z
+html: &lt;p&gt;Z.**&lt;code&gt;x&lt;/code&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z.**`x`**.Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**`x`**。Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**`x`** Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>和文句読点</th><td class="cell-yes" title="src: Z。**`x`**和Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z。**`x`**aZ
+html: &lt;p&gt;Z。**&lt;code&gt;x&lt;/code&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z。**`x`**1Z
+html: &lt;p&gt;Z。**&lt;code&gt;x&lt;/code&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z。**`x`**.Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**`x`**。Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**`x`** Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>空白</th><td class="cell-yes" title="src: Z **`x`**和Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z **`x`**aZ
+html: &lt;p&gt;Z **&lt;code&gt;x&lt;/code&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z **`x`**1Z
+html: &lt;p&gt;Z **&lt;code&gt;x&lt;/code&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z **`x`**.Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **`x`**。Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **`x`** Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr></tbody>
+    </table>
+  </section>
+  <section class="pattern-card">
+    <h4><code>*[link](u)*</code> <span class="count">16/36</span></h4>
+    <p class="pattern-desc">この表では、日本語・和文句読点・空白に寄った境界は変換されやすく、英字や数字が隣接する境界は保持されやすい傾向です。変換例: 左:日本語 / 右:日本語（和*[x](u)*和）、左:空白 / 右:日本語（ *[x](u)*和）、左:日本語 / 右:和文句読点（和*[x](u)*。） / 保持例: 左:日本語 / 右:英字（和*[x](u)*a）、左:英字 / 右:日本語（a*[x](u)*和）、左:日本語 / 右:数字（和*[x](u)*1）。</p>
+    <table class="matrix mode-japanese-boundary">
+      <thead><tr><th>左\\右</th><th>日本語</th><th>英字</th><th>数字</th><th>ASCII記号</th><th>和文句読点</th><th>空白</th></tr></thead>
+      <tbody><tr><th>日本語</th><td class="cell-yes" title="src: Z和*[x](u)*和Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z和*[x](u)*aZ
+html: &lt;p&gt;Z和*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和*[x](u)*1Z
+html: &lt;p&gt;Z和*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z和*[x](u)*.Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和*[x](u)*。Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和*[x](u)* Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>英字</th><td class="cell-no" title="src: Za*[x](u)*和Z
+html: &lt;p&gt;Za*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*[x](u)*aZ
+html: &lt;p&gt;Za*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*[x](u)*1Z
+html: &lt;p&gt;Za*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*[x](u)*.Z
+html: &lt;p&gt;Za*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*[x](u)*。Z
+html: &lt;p&gt;Za*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*[x](u)* Z
+html: &lt;p&gt;Za*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;* Z&lt;/p&gt;">-</td></tr><tr><th>数字</th><td class="cell-no" title="src: Z1*[x](u)*和Z
+html: &lt;p&gt;Z1*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*[x](u)*aZ
+html: &lt;p&gt;Z1*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*[x](u)*1Z
+html: &lt;p&gt;Z1*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*[x](u)*.Z
+html: &lt;p&gt;Z1*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*[x](u)*。Z
+html: &lt;p&gt;Z1*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*[x](u)* Z
+html: &lt;p&gt;Z1*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;* Z&lt;/p&gt;">-</td></tr><tr><th>ASCII記号</th><td class="cell-yes" title="src: Z.*[x](u)*和Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z.*[x](u)*aZ
+html: &lt;p&gt;Z.*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z.*[x](u)*1Z
+html: &lt;p&gt;Z.*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z.*[x](u)*.Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*[x](u)*。Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*[x](u)* Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>和文句読点</th><td class="cell-yes" title="src: Z。*[x](u)*和Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z。*[x](u)*aZ
+html: &lt;p&gt;Z。*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z。*[x](u)*1Z
+html: &lt;p&gt;Z。*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z。*[x](u)*.Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*[x](u)*。Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*[x](u)* Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>空白</th><td class="cell-yes" title="src: Z *[x](u)*和Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z *[x](u)*aZ
+html: &lt;p&gt;Z *&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z *[x](u)*1Z
+html: &lt;p&gt;Z *&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z *[x](u)*.Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *[x](u)*。Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *[x](u)* Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr></tbody>
+    </table>
+  </section>
+  <section class="pattern-card">
+    <h4><code>**[link](u)**</code> <span class="count">16/36</span></h4>
+    <p class="pattern-desc">この表では、日本語・和文句読点・空白に寄った境界は変換されやすく、英字や数字が隣接する境界は保持されやすい傾向です。変換例: 左:日本語 / 右:日本語（和**[x](u)**和）、左:空白 / 右:日本語（ **[x](u)**和）、左:日本語 / 右:和文句読点（和**[x](u)**。） / 保持例: 左:日本語 / 右:英字（和**[x](u)**a）、左:英字 / 右:日本語（a**[x](u)**和）、左:日本語 / 右:数字（和**[x](u)**1）。</p>
+    <table class="matrix mode-japanese-boundary">
+      <thead><tr><th>左\\右</th><th>日本語</th><th>英字</th><th>数字</th><th>ASCII記号</th><th>和文句読点</th><th>空白</th></tr></thead>
+      <tbody><tr><th>日本語</th><td class="cell-yes" title="src: Z和**[x](u)**和Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z和**[x](u)**aZ
+html: &lt;p&gt;Z和**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和**[x](u)**1Z
+html: &lt;p&gt;Z和**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z和**[x](u)**.Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和**[x](u)**。Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和**[x](u)** Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>英字</th><td class="cell-no" title="src: Za**[x](u)**和Z
+html: &lt;p&gt;Za**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**[x](u)**aZ
+html: &lt;p&gt;Za**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**[x](u)**1Z
+html: &lt;p&gt;Za**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**[x](u)**.Z
+html: &lt;p&gt;Za**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**[x](u)**。Z
+html: &lt;p&gt;Za**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**[x](u)** Z
+html: &lt;p&gt;Za**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;** Z&lt;/p&gt;">-</td></tr><tr><th>数字</th><td class="cell-no" title="src: Z1**[x](u)**和Z
+html: &lt;p&gt;Z1**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**[x](u)**aZ
+html: &lt;p&gt;Z1**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**[x](u)**1Z
+html: &lt;p&gt;Z1**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**[x](u)**.Z
+html: &lt;p&gt;Z1**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**[x](u)**。Z
+html: &lt;p&gt;Z1**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**[x](u)** Z
+html: &lt;p&gt;Z1**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;** Z&lt;/p&gt;">-</td></tr><tr><th>ASCII記号</th><td class="cell-yes" title="src: Z.**[x](u)**和Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z.**[x](u)**aZ
+html: &lt;p&gt;Z.**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z.**[x](u)**1Z
+html: &lt;p&gt;Z.**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z.**[x](u)**.Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**[x](u)**。Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**[x](u)** Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>和文句読点</th><td class="cell-yes" title="src: Z。**[x](u)**和Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z。**[x](u)**aZ
+html: &lt;p&gt;Z。**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z。**[x](u)**1Z
+html: &lt;p&gt;Z。**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z。**[x](u)**.Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**[x](u)**。Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**[x](u)** Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>空白</th><td class="cell-yes" title="src: Z **[x](u)**和Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z **[x](u)**aZ
+html: &lt;p&gt;Z **&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z **[x](u)**1Z
+html: &lt;p&gt;Z **&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z **[x](u)**.Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **[x](u)**。Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **[x](u)** Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr></tbody>
+    </table>
+  </section></div>
+  </details>
+  <details class="mode-block">
+    <summary>japanese-boundary-guard (alias: japanese)</summary>
+    <div class="issue-line">
+      <div class="issue-src"><code>メニューではmenu**[ramen](url)**と書きます。</code></div>
+      <div class="issue-html">&lt;p&gt;メニューではmenu**&lt;a href="url"&gt;ramen&lt;/a&gt;**と書きます。&lt;/p&gt;</div>
+    </div>
+    <div class="pattern-grid">
+  <section class="pattern-card">
+    <h4><code>*`code`*</code> <span class="count">16/36</span></h4>
+    <p class="pattern-desc">この表では、日本語・和文句読点・空白に寄った境界は変換されやすく、英字や数字が隣接する境界は保持されやすい傾向です。変換例: 左:日本語 / 右:日本語（和*`x`*和）、左:空白 / 右:日本語（ *`x`*和）、左:日本語 / 右:和文句読点（和*`x`*。） / 保持例: 左:日本語 / 右:英字（和*`x`*a）、左:英字 / 右:日本語（a*`x`*和）、左:日本語 / 右:数字（和*`x`*1）。</p>
+    <table class="matrix mode-japanese-boundary-guard">
+      <thead><tr><th>左\\右</th><th>日本語</th><th>英字</th><th>数字</th><th>ASCII記号</th><th>和文句読点</th><th>空白</th></tr></thead>
+      <tbody><tr><th>日本語</th><td class="cell-yes" title="src: Z和*`x`*和Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z和*`x`*aZ
+html: &lt;p&gt;Z和*&lt;code&gt;x&lt;/code&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和*`x`*1Z
+html: &lt;p&gt;Z和*&lt;code&gt;x&lt;/code&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z和*`x`*.Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和*`x`*。Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和*`x`* Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>英字</th><td class="cell-no" title="src: Za*`x`*和Z
+html: &lt;p&gt;Za*&lt;code&gt;x&lt;/code&gt;*和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*`x`*aZ
+html: &lt;p&gt;Za*&lt;code&gt;x&lt;/code&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*`x`*1Z
+html: &lt;p&gt;Za*&lt;code&gt;x&lt;/code&gt;*1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*`x`*.Z
+html: &lt;p&gt;Za*&lt;code&gt;x&lt;/code&gt;*.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*`x`*。Z
+html: &lt;p&gt;Za*&lt;code&gt;x&lt;/code&gt;*。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*`x`* Z
+html: &lt;p&gt;Za*&lt;code&gt;x&lt;/code&gt;* Z&lt;/p&gt;">-</td></tr><tr><th>数字</th><td class="cell-no" title="src: Z1*`x`*和Z
+html: &lt;p&gt;Z1*&lt;code&gt;x&lt;/code&gt;*和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*`x`*aZ
+html: &lt;p&gt;Z1*&lt;code&gt;x&lt;/code&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*`x`*1Z
+html: &lt;p&gt;Z1*&lt;code&gt;x&lt;/code&gt;*1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*`x`*.Z
+html: &lt;p&gt;Z1*&lt;code&gt;x&lt;/code&gt;*.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*`x`*。Z
+html: &lt;p&gt;Z1*&lt;code&gt;x&lt;/code&gt;*。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*`x`* Z
+html: &lt;p&gt;Z1*&lt;code&gt;x&lt;/code&gt;* Z&lt;/p&gt;">-</td></tr><tr><th>ASCII記号</th><td class="cell-yes" title="src: Z.*`x`*和Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z.*`x`*aZ
+html: &lt;p&gt;Z.*&lt;code&gt;x&lt;/code&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z.*`x`*1Z
+html: &lt;p&gt;Z.*&lt;code&gt;x&lt;/code&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z.*`x`*.Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*`x`*。Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*`x`* Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>和文句読点</th><td class="cell-yes" title="src: Z。*`x`*和Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z。*`x`*aZ
+html: &lt;p&gt;Z。*&lt;code&gt;x&lt;/code&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z。*`x`*1Z
+html: &lt;p&gt;Z。*&lt;code&gt;x&lt;/code&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z。*`x`*.Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*`x`*。Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*`x`* Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>空白</th><td class="cell-yes" title="src: Z *`x`*和Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z *`x`*aZ
+html: &lt;p&gt;Z *&lt;code&gt;x&lt;/code&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z *`x`*1Z
+html: &lt;p&gt;Z *&lt;code&gt;x&lt;/code&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z *`x`*.Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *`x`*。Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *`x`* Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr></tbody>
+    </table>
+  </section>
+  <section class="pattern-card">
+    <h4><code>**`code`**</code> <span class="count">16/36</span></h4>
+    <p class="pattern-desc">この表では、日本語・和文句読点・空白に寄った境界は変換されやすく、英字や数字が隣接する境界は保持されやすい傾向です。変換例: 左:日本語 / 右:日本語（和**`x`**和）、左:空白 / 右:日本語（ **`x`**和）、左:日本語 / 右:和文句読点（和**`x`**。） / 保持例: 左:日本語 / 右:英字（和**`x`**a）、左:英字 / 右:日本語（a**`x`**和）、左:日本語 / 右:数字（和**`x`**1）。</p>
+    <table class="matrix mode-japanese-boundary-guard">
+      <thead><tr><th>左\\右</th><th>日本語</th><th>英字</th><th>数字</th><th>ASCII記号</th><th>和文句読点</th><th>空白</th></tr></thead>
+      <tbody><tr><th>日本語</th><td class="cell-yes" title="src: Z和**`x`**和Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z和**`x`**aZ
+html: &lt;p&gt;Z和**&lt;code&gt;x&lt;/code&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和**`x`**1Z
+html: &lt;p&gt;Z和**&lt;code&gt;x&lt;/code&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z和**`x`**.Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和**`x`**。Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和**`x`** Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>英字</th><td class="cell-no" title="src: Za**`x`**和Z
+html: &lt;p&gt;Za**&lt;code&gt;x&lt;/code&gt;**和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**`x`**aZ
+html: &lt;p&gt;Za**&lt;code&gt;x&lt;/code&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**`x`**1Z
+html: &lt;p&gt;Za**&lt;code&gt;x&lt;/code&gt;**1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**`x`**.Z
+html: &lt;p&gt;Za**&lt;code&gt;x&lt;/code&gt;**.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**`x`**。Z
+html: &lt;p&gt;Za**&lt;code&gt;x&lt;/code&gt;**。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**`x`** Z
+html: &lt;p&gt;Za**&lt;code&gt;x&lt;/code&gt;** Z&lt;/p&gt;">-</td></tr><tr><th>数字</th><td class="cell-no" title="src: Z1**`x`**和Z
+html: &lt;p&gt;Z1**&lt;code&gt;x&lt;/code&gt;**和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**`x`**aZ
+html: &lt;p&gt;Z1**&lt;code&gt;x&lt;/code&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**`x`**1Z
+html: &lt;p&gt;Z1**&lt;code&gt;x&lt;/code&gt;**1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**`x`**.Z
+html: &lt;p&gt;Z1**&lt;code&gt;x&lt;/code&gt;**.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**`x`**。Z
+html: &lt;p&gt;Z1**&lt;code&gt;x&lt;/code&gt;**。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**`x`** Z
+html: &lt;p&gt;Z1**&lt;code&gt;x&lt;/code&gt;** Z&lt;/p&gt;">-</td></tr><tr><th>ASCII記号</th><td class="cell-yes" title="src: Z.**`x`**和Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z.**`x`**aZ
+html: &lt;p&gt;Z.**&lt;code&gt;x&lt;/code&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z.**`x`**1Z
+html: &lt;p&gt;Z.**&lt;code&gt;x&lt;/code&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z.**`x`**.Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**`x`**。Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**`x`** Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>和文句読点</th><td class="cell-yes" title="src: Z。**`x`**和Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z。**`x`**aZ
+html: &lt;p&gt;Z。**&lt;code&gt;x&lt;/code&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z。**`x`**1Z
+html: &lt;p&gt;Z。**&lt;code&gt;x&lt;/code&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z。**`x`**.Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**`x`**。Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**`x`** Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>空白</th><td class="cell-yes" title="src: Z **`x`**和Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z **`x`**aZ
+html: &lt;p&gt;Z **&lt;code&gt;x&lt;/code&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z **`x`**1Z
+html: &lt;p&gt;Z **&lt;code&gt;x&lt;/code&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z **`x`**.Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **`x`**。Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **`x`** Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr></tbody>
+    </table>
+  </section>
+  <section class="pattern-card">
+    <h4><code>*[link](u)*</code> <span class="count">16/36</span></h4>
+    <p class="pattern-desc">この表では、日本語・和文句読点・空白に寄った境界は変換されやすく、英字や数字が隣接する境界は保持されやすい傾向です。変換例: 左:日本語 / 右:日本語（和*[x](u)*和）、左:空白 / 右:日本語（ *[x](u)*和）、左:日本語 / 右:和文句読点（和*[x](u)*。） / 保持例: 左:日本語 / 右:英字（和*[x](u)*a）、左:英字 / 右:日本語（a*[x](u)*和）、左:日本語 / 右:数字（和*[x](u)*1）。</p>
+    <table class="matrix mode-japanese-boundary-guard">
+      <thead><tr><th>左\\右</th><th>日本語</th><th>英字</th><th>数字</th><th>ASCII記号</th><th>和文句読点</th><th>空白</th></tr></thead>
+      <tbody><tr><th>日本語</th><td class="cell-yes" title="src: Z和*[x](u)*和Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z和*[x](u)*aZ
+html: &lt;p&gt;Z和*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和*[x](u)*1Z
+html: &lt;p&gt;Z和*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z和*[x](u)*.Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和*[x](u)*。Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和*[x](u)* Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>英字</th><td class="cell-no" title="src: Za*[x](u)*和Z
+html: &lt;p&gt;Za*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*[x](u)*aZ
+html: &lt;p&gt;Za*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*[x](u)*1Z
+html: &lt;p&gt;Za*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*[x](u)*.Z
+html: &lt;p&gt;Za*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*[x](u)*。Z
+html: &lt;p&gt;Za*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*[x](u)* Z
+html: &lt;p&gt;Za*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;* Z&lt;/p&gt;">-</td></tr><tr><th>数字</th><td class="cell-no" title="src: Z1*[x](u)*和Z
+html: &lt;p&gt;Z1*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*[x](u)*aZ
+html: &lt;p&gt;Z1*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*[x](u)*1Z
+html: &lt;p&gt;Z1*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*[x](u)*.Z
+html: &lt;p&gt;Z1*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*[x](u)*。Z
+html: &lt;p&gt;Z1*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*[x](u)* Z
+html: &lt;p&gt;Z1*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;* Z&lt;/p&gt;">-</td></tr><tr><th>ASCII記号</th><td class="cell-yes" title="src: Z.*[x](u)*和Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z.*[x](u)*aZ
+html: &lt;p&gt;Z.*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z.*[x](u)*1Z
+html: &lt;p&gt;Z.*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z.*[x](u)*.Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*[x](u)*。Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*[x](u)* Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>和文句読点</th><td class="cell-yes" title="src: Z。*[x](u)*和Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z。*[x](u)*aZ
+html: &lt;p&gt;Z。*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z。*[x](u)*1Z
+html: &lt;p&gt;Z。*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z。*[x](u)*.Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*[x](u)*。Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*[x](u)* Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>空白</th><td class="cell-yes" title="src: Z *[x](u)*和Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z *[x](u)*aZ
+html: &lt;p&gt;Z *&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z *[x](u)*1Z
+html: &lt;p&gt;Z *&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z *[x](u)*.Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *[x](u)*。Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *[x](u)* Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr></tbody>
+    </table>
+  </section>
+  <section class="pattern-card">
+    <h4><code>**[link](u)**</code> <span class="count">16/36</span></h4>
+    <p class="pattern-desc">この表では、日本語・和文句読点・空白に寄った境界は変換されやすく、英字や数字が隣接する境界は保持されやすい傾向です。変換例: 左:日本語 / 右:日本語（和**[x](u)**和）、左:空白 / 右:日本語（ **[x](u)**和）、左:日本語 / 右:和文句読点（和**[x](u)**。） / 保持例: 左:日本語 / 右:英字（和**[x](u)**a）、左:英字 / 右:日本語（a**[x](u)**和）、左:日本語 / 右:数字（和**[x](u)**1）。</p>
+    <table class="matrix mode-japanese-boundary-guard">
+      <thead><tr><th>左\\右</th><th>日本語</th><th>英字</th><th>数字</th><th>ASCII記号</th><th>和文句読点</th><th>空白</th></tr></thead>
+      <tbody><tr><th>日本語</th><td class="cell-yes" title="src: Z和**[x](u)**和Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z和**[x](u)**aZ
+html: &lt;p&gt;Z和**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和**[x](u)**1Z
+html: &lt;p&gt;Z和**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z和**[x](u)**.Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和**[x](u)**。Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和**[x](u)** Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>英字</th><td class="cell-no" title="src: Za**[x](u)**和Z
+html: &lt;p&gt;Za**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**[x](u)**aZ
+html: &lt;p&gt;Za**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**[x](u)**1Z
+html: &lt;p&gt;Za**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**[x](u)**.Z
+html: &lt;p&gt;Za**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**[x](u)**。Z
+html: &lt;p&gt;Za**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**[x](u)** Z
+html: &lt;p&gt;Za**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;** Z&lt;/p&gt;">-</td></tr><tr><th>数字</th><td class="cell-no" title="src: Z1**[x](u)**和Z
+html: &lt;p&gt;Z1**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**[x](u)**aZ
+html: &lt;p&gt;Z1**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**[x](u)**1Z
+html: &lt;p&gt;Z1**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**[x](u)**.Z
+html: &lt;p&gt;Z1**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**[x](u)**。Z
+html: &lt;p&gt;Z1**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**[x](u)** Z
+html: &lt;p&gt;Z1**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;** Z&lt;/p&gt;">-</td></tr><tr><th>ASCII記号</th><td class="cell-yes" title="src: Z.**[x](u)**和Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z.**[x](u)**aZ
+html: &lt;p&gt;Z.**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z.**[x](u)**1Z
+html: &lt;p&gt;Z.**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z.**[x](u)**.Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**[x](u)**。Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**[x](u)** Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>和文句読点</th><td class="cell-yes" title="src: Z。**[x](u)**和Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z。**[x](u)**aZ
+html: &lt;p&gt;Z。**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z。**[x](u)**1Z
+html: &lt;p&gt;Z。**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z。**[x](u)**.Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**[x](u)**。Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**[x](u)** Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>空白</th><td class="cell-yes" title="src: Z **[x](u)**和Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-no" title="src: Z **[x](u)**aZ
+html: &lt;p&gt;Z **&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z **[x](u)**1Z
+html: &lt;p&gt;Z **&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z **[x](u)**.Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **[x](u)**。Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **[x](u)** Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr></tbody>
+    </table>
+  </section></div>
+  </details>
+  <details class="mode-block">
+    <summary>aggressive</summary>
+    <div class="issue-line">
+      <div class="issue-src"><code>メニューではmenu**[ramen](url)**と書きます。</code></div>
+      <div class="issue-html">&lt;p&gt;メニューではmenu&lt;strong&gt;&lt;a href="url"&gt;ramen&lt;/a&gt;&lt;/strong&gt;と書きます。&lt;/p&gt;</div>
+    </div>
+    <div class="pattern-grid">
+  <section class="pattern-card">
+    <h4><code>*`code`*</code> <span class="count">36/36</span></h4>
+    <p class="pattern-desc">この表では境界条件による抑制がほぼ入らず、英字や数字が隣接しても変換されます。代表例: 左:日本語 / 右:日本語（和*`x`*和）、左:空白 / 右:日本語（ *`x`*和）、左:日本語 / 右:和文句読点（和*`x`*。）。</p>
+    <table class="matrix mode-aggressive">
+      <thead><tr><th>左\\右</th><th>日本語</th><th>英字</th><th>数字</th><th>ASCII記号</th><th>和文句読点</th><th>空白</th></tr></thead>
+      <tbody><tr><th>日本語</th><td class="cell-yes" title="src: Z和*`x`*和Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和*`x`*aZ
+html: &lt;p&gt;Z和&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和*`x`*1Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和*`x`*.Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和*`x`*。Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和*`x`* Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>英字</th><td class="cell-yes" title="src: Za*`x`*和Z
+html: &lt;p&gt;Za&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Za*`x`*aZ
+html: &lt;p&gt;Za&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Za*`x`*1Z
+html: &lt;p&gt;Za&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Za*`x`*.Z
+html: &lt;p&gt;Za&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Za*`x`*。Z
+html: &lt;p&gt;Za&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Za*`x`* Z
+html: &lt;p&gt;Za&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>数字</th><td class="cell-yes" title="src: Z1*`x`*和Z
+html: &lt;p&gt;Z1&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z1*`x`*aZ
+html: &lt;p&gt;Z1&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z1*`x`*1Z
+html: &lt;p&gt;Z1&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z1*`x`*.Z
+html: &lt;p&gt;Z1&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z1*`x`*。Z
+html: &lt;p&gt;Z1&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z1*`x`* Z
+html: &lt;p&gt;Z1&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>ASCII記号</th><td class="cell-yes" title="src: Z.*`x`*和Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*`x`*aZ
+html: &lt;p&gt;Z.&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*`x`*1Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*`x`*.Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*`x`*。Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*`x`* Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>和文句読点</th><td class="cell-yes" title="src: Z。*`x`*和Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*`x`*aZ
+html: &lt;p&gt;Z。&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*`x`*1Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*`x`*.Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*`x`*。Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*`x`* Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>空白</th><td class="cell-yes" title="src: Z *`x`*和Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *`x`*aZ
+html: &lt;p&gt;Z &lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *`x`*1Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *`x`*.Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *`x`*。Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *`x`* Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr></tbody>
+    </table>
+  </section>
+  <section class="pattern-card">
+    <h4><code>**`code`**</code> <span class="count">36/36</span></h4>
+    <p class="pattern-desc">この表では境界条件による抑制がほぼ入らず、英字や数字が隣接しても変換されます。代表例: 左:日本語 / 右:日本語（和**`x`**和）、左:空白 / 右:日本語（ **`x`**和）、左:日本語 / 右:和文句読点（和**`x`**。）。</p>
+    <table class="matrix mode-aggressive">
+      <thead><tr><th>左\\右</th><th>日本語</th><th>英字</th><th>数字</th><th>ASCII記号</th><th>和文句読点</th><th>空白</th></tr></thead>
+      <tbody><tr><th>日本語</th><td class="cell-yes" title="src: Z和**`x`**和Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和**`x`**aZ
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和**`x`**1Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和**`x`**.Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和**`x`**。Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和**`x`** Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>英字</th><td class="cell-yes" title="src: Za**`x`**和Z
+html: &lt;p&gt;Za&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Za**`x`**aZ
+html: &lt;p&gt;Za&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Za**`x`**1Z
+html: &lt;p&gt;Za&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Za**`x`**.Z
+html: &lt;p&gt;Za&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Za**`x`**。Z
+html: &lt;p&gt;Za&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Za**`x`** Z
+html: &lt;p&gt;Za&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>数字</th><td class="cell-yes" title="src: Z1**`x`**和Z
+html: &lt;p&gt;Z1&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z1**`x`**aZ
+html: &lt;p&gt;Z1&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z1**`x`**1Z
+html: &lt;p&gt;Z1&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z1**`x`**.Z
+html: &lt;p&gt;Z1&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z1**`x`**。Z
+html: &lt;p&gt;Z1&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z1**`x`** Z
+html: &lt;p&gt;Z1&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>ASCII記号</th><td class="cell-yes" title="src: Z.**`x`**和Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**`x`**aZ
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**`x`**1Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**`x`**.Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**`x`**。Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**`x`** Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>和文句読点</th><td class="cell-yes" title="src: Z。**`x`**和Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**`x`**aZ
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**`x`**1Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**`x`**.Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**`x`**。Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**`x`** Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>空白</th><td class="cell-yes" title="src: Z **`x`**和Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **`x`**aZ
+html: &lt;p&gt;Z &lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **`x`**1Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **`x`**.Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **`x`**。Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **`x`** Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr></tbody>
+    </table>
+  </section>
+  <section class="pattern-card">
+    <h4><code>*[link](u)*</code> <span class="count">36/36</span></h4>
+    <p class="pattern-desc">この表では境界条件による抑制がほぼ入らず、英字や数字が隣接しても変換されます。代表例: 左:日本語 / 右:日本語（和*[x](u)*和）、左:空白 / 右:日本語（ *[x](u)*和）、左:日本語 / 右:和文句読点（和*[x](u)*。）。</p>
+    <table class="matrix mode-aggressive">
+      <thead><tr><th>左\\右</th><th>日本語</th><th>英字</th><th>数字</th><th>ASCII記号</th><th>和文句読点</th><th>空白</th></tr></thead>
+      <tbody><tr><th>日本語</th><td class="cell-yes" title="src: Z和*[x](u)*和Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和*[x](u)*aZ
+html: &lt;p&gt;Z和&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和*[x](u)*1Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和*[x](u)*.Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和*[x](u)*。Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和*[x](u)* Z
+html: &lt;p&gt;Z和&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>英字</th><td class="cell-yes" title="src: Za*[x](u)*和Z
+html: &lt;p&gt;Za&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Za*[x](u)*aZ
+html: &lt;p&gt;Za&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Za*[x](u)*1Z
+html: &lt;p&gt;Za&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Za*[x](u)*.Z
+html: &lt;p&gt;Za&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Za*[x](u)*。Z
+html: &lt;p&gt;Za&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Za*[x](u)* Z
+html: &lt;p&gt;Za&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>数字</th><td class="cell-yes" title="src: Z1*[x](u)*和Z
+html: &lt;p&gt;Z1&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z1*[x](u)*aZ
+html: &lt;p&gt;Z1&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z1*[x](u)*1Z
+html: &lt;p&gt;Z1&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z1*[x](u)*.Z
+html: &lt;p&gt;Z1&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z1*[x](u)*。Z
+html: &lt;p&gt;Z1&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z1*[x](u)* Z
+html: &lt;p&gt;Z1&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>ASCII記号</th><td class="cell-yes" title="src: Z.*[x](u)*和Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*[x](u)*aZ
+html: &lt;p&gt;Z.&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*[x](u)*1Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*[x](u)*.Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*[x](u)*。Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*[x](u)* Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>和文句読点</th><td class="cell-yes" title="src: Z。*[x](u)*和Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*[x](u)*aZ
+html: &lt;p&gt;Z。&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*[x](u)*1Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*[x](u)*.Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*[x](u)*。Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*[x](u)* Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>空白</th><td class="cell-yes" title="src: Z *[x](u)*和Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *[x](u)*aZ
+html: &lt;p&gt;Z &lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *[x](u)*1Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *[x](u)*.Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *[x](u)*。Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *[x](u)* Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr></tbody>
+    </table>
+  </section>
+  <section class="pattern-card">
+    <h4><code>**[link](u)**</code> <span class="count">36/36</span></h4>
+    <p class="pattern-desc">この表では境界条件による抑制がほぼ入らず、英字や数字が隣接しても変換されます。代表例: 左:日本語 / 右:日本語（和**[x](u)**和）、左:空白 / 右:日本語（ **[x](u)**和）、左:日本語 / 右:和文句読点（和**[x](u)**。）。</p>
+    <table class="matrix mode-aggressive">
+      <thead><tr><th>左\\右</th><th>日本語</th><th>英字</th><th>数字</th><th>ASCII記号</th><th>和文句読点</th><th>空白</th></tr></thead>
+      <tbody><tr><th>日本語</th><td class="cell-yes" title="src: Z和**[x](u)**和Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和**[x](u)**aZ
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和**[x](u)**1Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和**[x](u)**.Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和**[x](u)**。Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z和**[x](u)** Z
+html: &lt;p&gt;Z和&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>英字</th><td class="cell-yes" title="src: Za**[x](u)**和Z
+html: &lt;p&gt;Za&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Za**[x](u)**aZ
+html: &lt;p&gt;Za&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Za**[x](u)**1Z
+html: &lt;p&gt;Za&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Za**[x](u)**.Z
+html: &lt;p&gt;Za&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Za**[x](u)**。Z
+html: &lt;p&gt;Za&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Za**[x](u)** Z
+html: &lt;p&gt;Za&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>数字</th><td class="cell-yes" title="src: Z1**[x](u)**和Z
+html: &lt;p&gt;Z1&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z1**[x](u)**aZ
+html: &lt;p&gt;Z1&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z1**[x](u)**1Z
+html: &lt;p&gt;Z1&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z1**[x](u)**.Z
+html: &lt;p&gt;Z1&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z1**[x](u)**。Z
+html: &lt;p&gt;Z1&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z1**[x](u)** Z
+html: &lt;p&gt;Z1&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>ASCII記号</th><td class="cell-yes" title="src: Z.**[x](u)**和Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**[x](u)**aZ
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**[x](u)**1Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**[x](u)**.Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**[x](u)**。Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**[x](u)** Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>和文句読点</th><td class="cell-yes" title="src: Z。**[x](u)**和Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**[x](u)**aZ
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**[x](u)**1Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**[x](u)**.Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**[x](u)**。Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**[x](u)** Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>空白</th><td class="cell-yes" title="src: Z **[x](u)**和Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;和Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **[x](u)**aZ
+html: &lt;p&gt;Z &lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;aZ&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **[x](u)**1Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;1Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **[x](u)**.Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **[x](u)**。Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **[x](u)** Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr></tbody>
+    </table>
+  </section></div>
+  </details>
+  <details class="mode-block">
+    <summary>compatible</summary>
+    <div class="issue-line">
+      <div class="issue-src"><code>メニューではmenu**[ramen](url)**と書きます。</code></div>
+      <div class="issue-html">&lt;p&gt;メニューではmenu**&lt;a href="url"&gt;ramen&lt;/a&gt;**と書きます。&lt;/p&gt;</div>
+    </div>
+    <div class="pattern-grid">
+  <section class="pattern-card">
+    <h4><code>*`code`*</code> <span class="count">9/36</span></h4>
+    <p class="pattern-desc">この表では markdown-it 互換を優先するため、境界の種類よりリテラル保持が優先されます。保持例: 左:日本語 / 右:日本語（和*`x`*和）、左:空白 / 右:日本語（ *`x`*和）、左:日本語 / 右:和文句読点（和*`x`*。）。</p>
+    <table class="matrix mode-compatible">
+      <thead><tr><th>左\\右</th><th>日本語</th><th>英字</th><th>数字</th><th>ASCII記号</th><th>和文句読点</th><th>空白</th></tr></thead>
+      <tbody><tr><th>日本語</th><td class="cell-no" title="src: Z和*`x`*和Z
+html: &lt;p&gt;Z和*&lt;code&gt;x&lt;/code&gt;*和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和*`x`*aZ
+html: &lt;p&gt;Z和*&lt;code&gt;x&lt;/code&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和*`x`*1Z
+html: &lt;p&gt;Z和*&lt;code&gt;x&lt;/code&gt;*1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和*`x`*.Z
+html: &lt;p&gt;Z和*&lt;code&gt;x&lt;/code&gt;*.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和*`x`*。Z
+html: &lt;p&gt;Z和*&lt;code&gt;x&lt;/code&gt;*。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和*`x`* Z
+html: &lt;p&gt;Z和*&lt;code&gt;x&lt;/code&gt;* Z&lt;/p&gt;">-</td></tr><tr><th>英字</th><td class="cell-no" title="src: Za*`x`*和Z
+html: &lt;p&gt;Za*&lt;code&gt;x&lt;/code&gt;*和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*`x`*aZ
+html: &lt;p&gt;Za*&lt;code&gt;x&lt;/code&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*`x`*1Z
+html: &lt;p&gt;Za*&lt;code&gt;x&lt;/code&gt;*1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*`x`*.Z
+html: &lt;p&gt;Za*&lt;code&gt;x&lt;/code&gt;*.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*`x`*。Z
+html: &lt;p&gt;Za*&lt;code&gt;x&lt;/code&gt;*。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*`x`* Z
+html: &lt;p&gt;Za*&lt;code&gt;x&lt;/code&gt;* Z&lt;/p&gt;">-</td></tr><tr><th>数字</th><td class="cell-no" title="src: Z1*`x`*和Z
+html: &lt;p&gt;Z1*&lt;code&gt;x&lt;/code&gt;*和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*`x`*aZ
+html: &lt;p&gt;Z1*&lt;code&gt;x&lt;/code&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*`x`*1Z
+html: &lt;p&gt;Z1*&lt;code&gt;x&lt;/code&gt;*1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*`x`*.Z
+html: &lt;p&gt;Z1*&lt;code&gt;x&lt;/code&gt;*.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*`x`*。Z
+html: &lt;p&gt;Z1*&lt;code&gt;x&lt;/code&gt;*。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*`x`* Z
+html: &lt;p&gt;Z1*&lt;code&gt;x&lt;/code&gt;* Z&lt;/p&gt;">-</td></tr><tr><th>ASCII記号</th><td class="cell-no" title="src: Z.*`x`*和Z
+html: &lt;p&gt;Z.*&lt;code&gt;x&lt;/code&gt;*和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z.*`x`*aZ
+html: &lt;p&gt;Z.*&lt;code&gt;x&lt;/code&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z.*`x`*1Z
+html: &lt;p&gt;Z.*&lt;code&gt;x&lt;/code&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z.*`x`*.Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*`x`*。Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*`x`* Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>和文句読点</th><td class="cell-no" title="src: Z。*`x`*和Z
+html: &lt;p&gt;Z。*&lt;code&gt;x&lt;/code&gt;*和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z。*`x`*aZ
+html: &lt;p&gt;Z。*&lt;code&gt;x&lt;/code&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z。*`x`*1Z
+html: &lt;p&gt;Z。*&lt;code&gt;x&lt;/code&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z。*`x`*.Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*`x`*。Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*`x`* Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>空白</th><td class="cell-no" title="src: Z *`x`*和Z
+html: &lt;p&gt;Z *&lt;code&gt;x&lt;/code&gt;*和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z *`x`*aZ
+html: &lt;p&gt;Z *&lt;code&gt;x&lt;/code&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z *`x`*1Z
+html: &lt;p&gt;Z *&lt;code&gt;x&lt;/code&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z *`x`*.Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *`x`*。Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *`x`* Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;code&gt;x&lt;/code&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr></tbody>
+    </table>
+  </section>
+  <section class="pattern-card">
+    <h4><code>**`code`**</code> <span class="count">9/36</span></h4>
+    <p class="pattern-desc">この表では markdown-it 互換を優先するため、境界の種類よりリテラル保持が優先されます。保持例: 左:日本語 / 右:日本語（和**`x`**和）、左:空白 / 右:日本語（ **`x`**和）、左:日本語 / 右:和文句読点（和**`x`**。）。</p>
+    <table class="matrix mode-compatible">
+      <thead><tr><th>左\\右</th><th>日本語</th><th>英字</th><th>数字</th><th>ASCII記号</th><th>和文句読点</th><th>空白</th></tr></thead>
+      <tbody><tr><th>日本語</th><td class="cell-no" title="src: Z和**`x`**和Z
+html: &lt;p&gt;Z和**&lt;code&gt;x&lt;/code&gt;**和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和**`x`**aZ
+html: &lt;p&gt;Z和**&lt;code&gt;x&lt;/code&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和**`x`**1Z
+html: &lt;p&gt;Z和**&lt;code&gt;x&lt;/code&gt;**1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和**`x`**.Z
+html: &lt;p&gt;Z和**&lt;code&gt;x&lt;/code&gt;**.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和**`x`**。Z
+html: &lt;p&gt;Z和**&lt;code&gt;x&lt;/code&gt;**。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和**`x`** Z
+html: &lt;p&gt;Z和**&lt;code&gt;x&lt;/code&gt;** Z&lt;/p&gt;">-</td></tr><tr><th>英字</th><td class="cell-no" title="src: Za**`x`**和Z
+html: &lt;p&gt;Za**&lt;code&gt;x&lt;/code&gt;**和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**`x`**aZ
+html: &lt;p&gt;Za**&lt;code&gt;x&lt;/code&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**`x`**1Z
+html: &lt;p&gt;Za**&lt;code&gt;x&lt;/code&gt;**1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**`x`**.Z
+html: &lt;p&gt;Za**&lt;code&gt;x&lt;/code&gt;**.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**`x`**。Z
+html: &lt;p&gt;Za**&lt;code&gt;x&lt;/code&gt;**。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**`x`** Z
+html: &lt;p&gt;Za**&lt;code&gt;x&lt;/code&gt;** Z&lt;/p&gt;">-</td></tr><tr><th>数字</th><td class="cell-no" title="src: Z1**`x`**和Z
+html: &lt;p&gt;Z1**&lt;code&gt;x&lt;/code&gt;**和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**`x`**aZ
+html: &lt;p&gt;Z1**&lt;code&gt;x&lt;/code&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**`x`**1Z
+html: &lt;p&gt;Z1**&lt;code&gt;x&lt;/code&gt;**1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**`x`**.Z
+html: &lt;p&gt;Z1**&lt;code&gt;x&lt;/code&gt;**.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**`x`**。Z
+html: &lt;p&gt;Z1**&lt;code&gt;x&lt;/code&gt;**。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**`x`** Z
+html: &lt;p&gt;Z1**&lt;code&gt;x&lt;/code&gt;** Z&lt;/p&gt;">-</td></tr><tr><th>ASCII記号</th><td class="cell-no" title="src: Z.**`x`**和Z
+html: &lt;p&gt;Z.**&lt;code&gt;x&lt;/code&gt;**和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z.**`x`**aZ
+html: &lt;p&gt;Z.**&lt;code&gt;x&lt;/code&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z.**`x`**1Z
+html: &lt;p&gt;Z.**&lt;code&gt;x&lt;/code&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z.**`x`**.Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**`x`**。Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**`x`** Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>和文句読点</th><td class="cell-no" title="src: Z。**`x`**和Z
+html: &lt;p&gt;Z。**&lt;code&gt;x&lt;/code&gt;**和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z。**`x`**aZ
+html: &lt;p&gt;Z。**&lt;code&gt;x&lt;/code&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z。**`x`**1Z
+html: &lt;p&gt;Z。**&lt;code&gt;x&lt;/code&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z。**`x`**.Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**`x`**。Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**`x`** Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>空白</th><td class="cell-no" title="src: Z **`x`**和Z
+html: &lt;p&gt;Z **&lt;code&gt;x&lt;/code&gt;**和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z **`x`**aZ
+html: &lt;p&gt;Z **&lt;code&gt;x&lt;/code&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z **`x`**1Z
+html: &lt;p&gt;Z **&lt;code&gt;x&lt;/code&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z **`x`**.Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **`x`**。Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **`x`** Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;code&gt;x&lt;/code&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr></tbody>
+    </table>
+  </section>
+  <section class="pattern-card">
+    <h4><code>*[link](u)*</code> <span class="count">9/36</span></h4>
+    <p class="pattern-desc">この表では markdown-it 互換を優先するため、境界の種類よりリテラル保持が優先されます。保持例: 左:日本語 / 右:日本語（和*[x](u)*和）、左:空白 / 右:日本語（ *[x](u)*和）、左:日本語 / 右:和文句読点（和*[x](u)*。）。</p>
+    <table class="matrix mode-compatible">
+      <thead><tr><th>左\\右</th><th>日本語</th><th>英字</th><th>数字</th><th>ASCII記号</th><th>和文句読点</th><th>空白</th></tr></thead>
+      <tbody><tr><th>日本語</th><td class="cell-no" title="src: Z和*[x](u)*和Z
+html: &lt;p&gt;Z和*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和*[x](u)*aZ
+html: &lt;p&gt;Z和*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和*[x](u)*1Z
+html: &lt;p&gt;Z和*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和*[x](u)*.Z
+html: &lt;p&gt;Z和*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和*[x](u)*。Z
+html: &lt;p&gt;Z和*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和*[x](u)* Z
+html: &lt;p&gt;Z和*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;* Z&lt;/p&gt;">-</td></tr><tr><th>英字</th><td class="cell-no" title="src: Za*[x](u)*和Z
+html: &lt;p&gt;Za*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*[x](u)*aZ
+html: &lt;p&gt;Za*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*[x](u)*1Z
+html: &lt;p&gt;Za*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*[x](u)*.Z
+html: &lt;p&gt;Za*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*[x](u)*。Z
+html: &lt;p&gt;Za*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za*[x](u)* Z
+html: &lt;p&gt;Za*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;* Z&lt;/p&gt;">-</td></tr><tr><th>数字</th><td class="cell-no" title="src: Z1*[x](u)*和Z
+html: &lt;p&gt;Z1*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*[x](u)*aZ
+html: &lt;p&gt;Z1*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*[x](u)*1Z
+html: &lt;p&gt;Z1*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*[x](u)*.Z
+html: &lt;p&gt;Z1*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*[x](u)*。Z
+html: &lt;p&gt;Z1*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1*[x](u)* Z
+html: &lt;p&gt;Z1*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;* Z&lt;/p&gt;">-</td></tr><tr><th>ASCII記号</th><td class="cell-no" title="src: Z.*[x](u)*和Z
+html: &lt;p&gt;Z.*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z.*[x](u)*aZ
+html: &lt;p&gt;Z.*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z.*[x](u)*1Z
+html: &lt;p&gt;Z.*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z.*[x](u)*.Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*[x](u)*。Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.*[x](u)* Z
+html: &lt;p&gt;Z.&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>和文句読点</th><td class="cell-no" title="src: Z。*[x](u)*和Z
+html: &lt;p&gt;Z。*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z。*[x](u)*aZ
+html: &lt;p&gt;Z。*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z。*[x](u)*1Z
+html: &lt;p&gt;Z。*&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z。*[x](u)*.Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*[x](u)*。Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。*[x](u)* Z
+html: &lt;p&gt;Z。&lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>空白</th><td class="cell-no" title="src: Z *[x](u)*和Z
+html: &lt;p&gt;Z *&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z *[x](u)*aZ
+html: &lt;p&gt;Z *&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z *[x](u)*1Z
+html: &lt;p&gt;Z *&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;*1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z *[x](u)*.Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *[x](u)*。Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z *[x](u)* Z
+html: &lt;p&gt;Z &lt;em&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/em&gt; Z&lt;/p&gt;">Y</td></tr></tbody>
+    </table>
+  </section>
+  <section class="pattern-card">
+    <h4><code>**[link](u)**</code> <span class="count">9/36</span></h4>
+    <p class="pattern-desc">この表では markdown-it 互換を優先するため、境界の種類よりリテラル保持が優先されます。保持例: 左:日本語 / 右:日本語（和**[x](u)**和）、左:空白 / 右:日本語（ **[x](u)**和）、左:日本語 / 右:和文句読点（和**[x](u)**。）。</p>
+    <table class="matrix mode-compatible">
+      <thead><tr><th>左\\右</th><th>日本語</th><th>英字</th><th>数字</th><th>ASCII記号</th><th>和文句読点</th><th>空白</th></tr></thead>
+      <tbody><tr><th>日本語</th><td class="cell-no" title="src: Z和**[x](u)**和Z
+html: &lt;p&gt;Z和**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和**[x](u)**aZ
+html: &lt;p&gt;Z和**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和**[x](u)**1Z
+html: &lt;p&gt;Z和**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和**[x](u)**.Z
+html: &lt;p&gt;Z和**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和**[x](u)**。Z
+html: &lt;p&gt;Z和**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z和**[x](u)** Z
+html: &lt;p&gt;Z和**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;** Z&lt;/p&gt;">-</td></tr><tr><th>英字</th><td class="cell-no" title="src: Za**[x](u)**和Z
+html: &lt;p&gt;Za**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**[x](u)**aZ
+html: &lt;p&gt;Za**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**[x](u)**1Z
+html: &lt;p&gt;Za**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**[x](u)**.Z
+html: &lt;p&gt;Za**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**[x](u)**。Z
+html: &lt;p&gt;Za**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Za**[x](u)** Z
+html: &lt;p&gt;Za**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;** Z&lt;/p&gt;">-</td></tr><tr><th>数字</th><td class="cell-no" title="src: Z1**[x](u)**和Z
+html: &lt;p&gt;Z1**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**[x](u)**aZ
+html: &lt;p&gt;Z1**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**[x](u)**1Z
+html: &lt;p&gt;Z1**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**1Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**[x](u)**.Z
+html: &lt;p&gt;Z1**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**.Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**[x](u)**。Z
+html: &lt;p&gt;Z1**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**。Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z1**[x](u)** Z
+html: &lt;p&gt;Z1**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;** Z&lt;/p&gt;">-</td></tr><tr><th>ASCII記号</th><td class="cell-no" title="src: Z.**[x](u)**和Z
+html: &lt;p&gt;Z.**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z.**[x](u)**aZ
+html: &lt;p&gt;Z.**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z.**[x](u)**1Z
+html: &lt;p&gt;Z.**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z.**[x](u)**.Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**[x](u)**。Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z.**[x](u)** Z
+html: &lt;p&gt;Z.&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>和文句読点</th><td class="cell-no" title="src: Z。**[x](u)**和Z
+html: &lt;p&gt;Z。**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z。**[x](u)**aZ
+html: &lt;p&gt;Z。**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z。**[x](u)**1Z
+html: &lt;p&gt;Z。**&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z。**[x](u)**.Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**[x](u)**。Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z。**[x](u)** Z
+html: &lt;p&gt;Z。&lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr><tr><th>空白</th><td class="cell-no" title="src: Z **[x](u)**和Z
+html: &lt;p&gt;Z **&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**和Z&lt;/p&gt;">-</td><td class="cell-no" title="src: Z **[x](u)**aZ
+html: &lt;p&gt;Z **&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**aZ&lt;/p&gt;">-</td><td class="cell-no" title="src: Z **[x](u)**1Z
+html: &lt;p&gt;Z **&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;**1Z&lt;/p&gt;">-</td><td class="cell-yes" title="src: Z **[x](u)**.Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;.Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **[x](u)**。Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt;。Z&lt;/p&gt;">Y</td><td class="cell-yes" title="src: Z **[x](u)** Z
+html: &lt;p&gt;Z &lt;strong&gt;&lt;a href=&quot;u&quot;&gt;x&lt;/a&gt;&lt;/strong&gt; Z&lt;/p&gt;">Y</td></tr></tbody>
+    </table>
+  </section></div>
+  </details>
+  </main>
+</body>
+</html>

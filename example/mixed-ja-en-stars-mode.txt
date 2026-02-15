@@ -1,0 +1,37 @@
+# Mixed JA/EN spillover stress cases (compact set)
+
+[case base-japanese-bracket-and-punctuation]
+[markdown]
+日本の食文化は、伝統的な*「寿司」*から独自の進化を遂げた*『ラーメン』*まで**非常に多彩です。 Japanese food culture is **incredibly diverse**, ranging from traditional *“sushi”* to uniquely evolved *〝ramen〟* and also *«ramen»*. 比較として *("sushi")*、*['ramen']*、*{tempura}*、*<soba>*、*"/dashi/"*、*#umami#*、*;craftsmanship;*、*@seasonal@*、*+artisan+*、*=texture=*、*~broth~*、*|noodle|*、*:flavor:*、*!contrast!*、*?balance?*、さらに *寿司‼*・*寿司⁇*・*寿司⁈*・*寿司⁉* のように記号終端の書き方も同じ段落で確認します。素材の味を活かす*（天ぷら）*や*〈そば〉*は、**職人の技**と季節感を感じさせてくれます。Dishes like *【"tempura"】* and **"soba"** highlight the natural flavors of ingredients, reflecting seasonal changes and **expert craftsmanship**. **こうした多様な料理は、見た目の美しさ**とともに日本の豊かな伝統を今に伝えています。These various dishes convey Japan's rich traditions through their visual beauty and *exquisite taste*.
+
+[case base-link-and-code-outer-markers]
+[markdown]
+日本の食文化は、伝統的な**[「寿司」](https://example.com/sushi)**から独自の進化を遂げた*[『ラーメン』](https://example.com/ramen)*まで非常に多彩です。Japanese food culture is *[incredibly diverse](https://example.com/diverse)*, ranging from traditional **[sushi][sushi-ref]** to uniquely evolved *[ramen][ramen-ref]*. 素材の味を活かす**`「天ぷら」`**や*`「そば」`*は、**[職人の技](https://example.com/craft)**と季節感を感じさせてくれます。Dishes like *`tempura`* and **`soba`** highlight the natural flavors of ingredients, reflecting seasonal changes and **`expert craftsmanship`**. **こうした多様な料理は、[見た目の美しさ][beauty-ref]**とともに日本の豊かな伝統を今に伝えています。These various dishes convey Japan's rich traditions through their visual beauty and *`exquisite taste`*.
+
+[sushi-ref]: https://example.com/sushi-ref
+[ramen-ref]: https://example.com/ramen-ref
+[beauty-ref]: https://example.com/beauty-ref
+
+[case base-fullwidth-space-boundary]
+[markdown]
+日本の食文化は、伝統的な「寿司」から独自の進化を遂げた「ラーメン」まで**非常に多彩です！　*Japanese food culture* is **incredibly diverse**, ranging from traditional "sushi" to uniquely evolved "ramen". 比較として **EnglishStartsImmediately** と ** EnglishStartsWithSpace** を同じ文に置き、さらに *EnglishStartsImmediately* と * EnglishStartsWithSpace* も併記します。素材の味を活かす「天ぷら」や「そば」は、**職人の技**と季節感を感じさせてくれます。Dishes like *"tempura"* and **"soba"** highlight the natural flavors of ingredients, reflecting seasonal changes and **expert craftsmanship**. **こうした多様な料理は、見た目の美しさ**とともに日本の豊かな伝統を今に伝えています。These various dishes convey Japan's rich traditions through their visual beauty and *exquisite taste*.
+
+[case base-plus-space-contrast-ladder]
+[markdown]
+日本の食文化は、伝統的な「寿司」から独自の進化を遂げた「ラーメン」まで* Japanese food culture*と*Japanese food culture*を同じ段落で比較します。素材の味を活かす「天ぷら」や「そば」は、** English craft**と**English craft**の差も確認できます。Dishes like "tempura" and "soba" highlight both *** English rhythm*** と ***English rhythm***、さらに **** English balance**** と ****English balance**** のような多重 `*` 境界の違いも確認できます。こうした多様な料理は、見た目の美しさとともに日本の豊かな伝統を今に伝えています。
+
+[case grouped-single-spillover]
+[markdown]
+日本の食文化は、伝統的な「寿司」から独自の進化を遂げた「ラーメン」まで*非常に多彩です。 Japanese food culture is *incredibly diverse**, ranging from traditional "sushi" to uniquely evolved "ramen". 素材の味を活かす「天ぷら」や「そば」は、*職人の技*と季節感を感じさせてくれます。Dishes like *"tempura"* and **"soba"** highlight the natural flavors of ingredients, reflecting seasonal changes and **expert craftsmanship**. *こうした多様な料理は、見た目の美しさ*とともに日本の豊かな伝統を今に伝えています。These various dishes convey Japan's rich traditions through their visual beauty and *exquisite taste*.
+
+[case grouped-double-spillover]
+[markdown]
+日本の食文化は、伝統的な「寿司」から独自の進化を遂げた「ラーメン」まで**非常に多彩です。 Japanese food culture is **incredibly diverse**, ranging from traditional "sushi" to uniquely evolved "ramen". 素材の味を活かす「天ぷら」や「そば」は、**職人の技**と季節感を感じさせてくれます。Dishes like *"tempura"* and **"soba"** highlight the natural flavors of ingredients, reflecting seasonal changes and **expert craftsmanship**. **こうした多様な料理は、見た目の美しさ**とともに日本の豊かな伝統を今に伝えています。These various dishes convey Japan's rich traditions through their visual beauty and *exquisite taste*.
+
+[case grouped-dense-mixed-cross-sentence]
+[markdown]
+日本の食文化は、伝統的な**「寿司」**から独自の進化を遂げた**「ラーメン」*まで**非常に多彩です。 Japanese food culture is *incredibly diverse, ranging from traditional "sushi"* to uniquely evolved *"ramen"**. 素材の味を活かす*「天ぷら」や「そば」は、**職人の技**と季節感を感じさせてくれます。Dishes like ***"tempura"*** and **"soba"** highlight the natural flavors of ingredients, reflecting seasonal changes and **expert craftsmanship**. **こうした多様な料理は、見た目の美しさ**とともに日本の豊かな伝統を今に伝えています。*These various dishes convey Japan's rich traditions through their visual beauty and *exquisite taste*.
+
+[case grouped-multi-space-vs-nospace]
+[markdown]
+日本の食文化は、伝統的な「寿司」から独自の進化を遂げた「ラーメン」まで*** 非常に多彩です。 Japanese food culture is ***incredibly diverse***, ranging from traditional "sushi" to uniquely evolved "ramen". 素材の味を活かす「天ぷら」や「そば」は、**** 職人の技****と季節感を感じさせてくれます。Dishes like ***"tempura"*** and ****"soba"**** highlight the natural flavors of ingredients, reflecting seasonal changes and **expert craftsmanship**. **こうした多様な料理は、見た目の美しさ**とともに日本の豊かな伝統を今に伝えています。These various dishes convey Japan's rich traditions through their visual beauty and ****exquisite taste****.
