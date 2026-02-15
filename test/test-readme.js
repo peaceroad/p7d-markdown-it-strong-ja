@@ -34,7 +34,7 @@ const readCases = (content) => {
         currentField = 'markdown'
         continue
       }
-      if (['default', 'aggressive', 'compatible', 'markdown-it'].includes(lower)) {
+      if (['default', 'plus', 'aggressive', 'compatible', 'markdown-it'].includes(lower)) {
         currentField = lower
         current.expected[currentField] = ''
         continue
@@ -75,11 +75,13 @@ const compare = (label, actual, expected) => {
   return true
 }
 
-const content = fs.readFileSync(new URL('./readme-mode.txt', import.meta.url), 'utf8')
+const inputFile = process.argv[2] || './readme-mode.txt'
+const content = fs.readFileSync(new URL(inputFile, import.meta.url), 'utf8')
 const cases = readCases(content)
 
 const mdIt = new MarkdownIt()
 const mdDefault = new MarkdownIt().use(mditStrongJa)
+const mdPlus = new MarkdownIt().use(mditStrongJa, { mode: 'japanese-boundary-guard' })
 const mdAggressive = new MarkdownIt().use(mditStrongJa, { mode: 'aggressive' })
 const mdCompat = new MarkdownIt().use(mditStrongJa, { mode: 'compatible' })
 
@@ -88,6 +90,7 @@ for (const entry of cases) {
   const input = entry.markdown
   const outputs = {
     default: mdDefault.render(input),
+    plus: mdPlus.render(input),
     aggressive: mdAggressive.render(input),
     compatible: mdCompat.render(input),
     'markdown-it': mdIt.render(input)
@@ -95,11 +98,15 @@ for (const entry of cases) {
   console.log(`\n[case ${entry.name}]`)
   console.log(`markdown: ${pretty(input)}`)
   console.log(`default: ${pretty(outputs.default)}`)
+  console.log(`plus: ${pretty(outputs.plus)}`)
   console.log(`aggressive: ${pretty(outputs.aggressive)}`)
   console.log(`compatible: ${pretty(outputs.compatible)}`)
   console.log(`markdown-it: ${pretty(outputs['markdown-it'])}`)
   if (entry.expected.default !== undefined) {
     ok = compare(`${entry.name} default`, outputs.default, entry.expected.default) && ok
+  }
+  if (entry.expected.plus !== undefined) {
+    ok = compare(`${entry.name} plus`, outputs.plus, entry.expected.plus) && ok
   }
   if (entry.expected.aggressive !== undefined) {
     ok = compare(`${entry.name} aggressive`, outputs.aggressive, entry.expected.aggressive) && ok

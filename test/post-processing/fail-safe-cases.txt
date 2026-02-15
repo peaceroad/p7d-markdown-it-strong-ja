@@ -1,0 +1,97 @@
+[case compatible-broken-tail-skip]
+[type]
+compatible_equals_baseline
+[markdown]
+aa**aa***Text***and*More*bb**bb test [aa**aa***Text***and*More*bb**bb][] end aa**aa***Text***and*More*bb**bb
+
+[aa**aa***Text***and*More*bb**bb]: https://example.net/
+
+[case compatible-malformed-nested-link-skip]
+[type]
+compatible_equals_baseline
+[markdown]
+**[**[x](v)](u)**
+
+[case compatible-broken-ref-complex-skip]
+[type]
+compatible_equals_baseline
+[markdown]
+**崩れた[参照*リンクラベル][ref-star と [inline*link*broken](https://example.com/in*complete) と [urlwithstar](https://example.com/path*with) の組み合わせ**
+
+[ref-star]: https://example.com/ref*star
+
+[case japanese-no-context-tail-skip]
+[type]
+japanese_no_context_equals_baseline
+[markdown]
+aa**aa***Text***and*More*bb**bb test [aa**aa***Text***and*More*bb**bb][] end aa**aa***Text***and*More*bb**bb
+
+[aa**aa***Text***and*More*bb**bb]: https://example.net/
+
+[case japanese-no-context-broken-ref-skip]
+[type]
+japanese_no_context_equals_baseline
+[markdown]
+**broken[ref*label][ref-star and [inline*link*broken](https://example.com/in*complete) and [urlwithstar](https://example.com/path*with) tail**
+
+[ref-star]: https://example.com/ref*star
+
+[case no-reference-definitions-skip]
+[type]
+no_reference_definitions_equals_baseline
+[markdown]
+[*a[x](v)a**][]
+
+[nohit]: https://example.com/
+
+[case no-emphasis-signal-in-segment]
+[type]
+no_emphasis_signal_no_extra_parse_calls
+[markdown]
+**前文** 壊れた[参照ラベル と [plain](https://example.com/p) の続き
+
+[case bracket-text-without-link-pair-no-extra-parse-calls]
+[type]
+no_link_pair_no_extra_parse_calls
+[markdown]
+前文 **寿司** [a*literal*] 後文
+
+[case postprocess-disabled-no-extra-parse-calls]
+[type]
+postprocess_disabled_no_extra_parse_calls
+[markdown]
+**崩れた[参照*リンクラベル][ref-star と [inline*link*broken](https://example.com/in*complete) と [urlwithstar](https://example.com/path*with) の組み合わせ**
+
+[ref-star]: https://example.com/ref*star
+
+[case marker-like-literal-survives]
+[type]
+marker_literal_preserved
+[markdown]
+aa**aa***Text***と*More*bb**bbテストは[aa**aa***Text***と*More*bb**bb][]です。SJI0:0aa**aa***Text***と*More*bb**bb
+
+[aa**aa***Text***と*More*bb**bb]: https://example.net/
+
+[case marker-like-multiple-literals-survive]
+[type]
+marker_literal_preserved
+[markdown]
+aa**aa***Text***と*More*bb**bbテストは[aa**aa***Text***と*More*bb**bb][]です。先頭SJI0:0中間SJI0:1末尾
+
+[aa**aa***Text***と*More*bb**bb]: https://example.net/
+
+[case unresolved-collapsed-ref-keeps-balanced-tags]
+[type]
+balanced_tags_failsafe
+[markdown]
+[*a[x](v)a**][]
+
+[nohit]: https://example.com/
+
+[case malformed-multi-link-keeps-balanced-tags]
+[type]
+balanced_tags_failsafe
+[markdown]
+**壊れ[参照*ラベル][ref と [a**a**[x](v)](u) の組み合わせ**
+
+[ref]: https://example.com/

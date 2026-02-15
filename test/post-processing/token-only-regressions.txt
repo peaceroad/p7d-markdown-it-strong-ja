@@ -1,0 +1,169 @@
+[case broken-ref-complex-boundary]
+[phase]
+broken-ref
+[mode]
+japanese-boundary
+[expect_calls]
+none
+[contains]
+<a href="https://example.com/in*complete">inline<em>link</em>broken</a>
+[markdown]
+**崩れた[参照*リンクラベル][ref-star と [inline*link*broken](https://example.com/in*complete) と [urlwithstar](https://example.com/path*with) の組み合わせ**
+
+[ref-star]: https://example.com/ref*star
+
+[case broken-tail-complex-boundary]
+[phase]
+tail
+[mode]
+japanese-boundary
+[expect_calls]
+none
+[contains]
+<strong>aa</strong><em>Text</em><strong>と<em>More</em>bb</strong>bb
+[markdown]
+aa**aa***Text***と*More*bb**bbテストは[aa**aa***Text***と*More*bb**bb][]です。aa**aa***Text***と*More*bb**bb
+
+[aa**aa***Text***と*More*bb**bb]: https://example.net/
+
+[case broken-ref-hardbreak-link-label-boundary]
+[phase]
+broken-ref
+[mode]
+japanese-boundary
+[expect_calls]
+none
+[contains]
+line<br>
+[markdown]
+**崩れた[参照*リンクラベル][ref-star と [line  
+break*label*](https://example.com/in*complete) と [urlwithstar](https://example.com/path*with) の組み合わせ**
+
+[ref-star]: https://example.com/ref*star
+
+[case no-emphasis-signal-segment-boundary]
+[phase]
+guards
+[mode]
+japanese-boundary
+[expect_calls]
+none
+[contains]
+<a href="https://example.com/p">plain</a>
+[markdown]
+**前文** 壊れた[参照ラベル と [plain](https://example.com/p) の続き
+
+[case english-only-tail-boundary]
+[phase]
+guards
+[mode]
+japanese-boundary
+[expect_calls]
+none
+[contains]
+bb**bb
+[markdown]
+aa**aa***Text***and*More*bb**bb test [aa**aa***Text***and*More*bb**bb][] end aa**aa***Text***and*More*bb**bb
+
+[aa**aa***Text***and*More*bb**bb]: https://example.net/
+
+[case compatible-broken-ref-complex]
+[phase]
+compatible
+[mode]
+compatible
+[expect_calls]
+none
+[contains]
+<a href="https://example.com/in*complete">inline<em>link</em>broken</a>
+[markdown]
+**崩れた[参照*リンクラベル][ref-star と [inline*link*broken](https://example.com/in*complete) と [urlwithstar](https://example.com/path*with) の組み合わせ**
+
+[ref-star]: https://example.com/ref*star
+
+[case tail-dangling-strong-close-aggressive]
+[phase]
+tail
+[mode]
+aggressive
+[expect_calls]
+none
+[contains]
+<strong>と<em>More</em>bb</strong>bb
+[markdown]
+[aa**aa***Text***と*More*bb**bb][]参照[line  
+break](u)aa**aa***Text***と*More*bb**bb。a_[line  
+break](u)x***
+
+[case broken-ref-complex-continuation-boundary]
+[phase]
+broken-ref
+[mode]
+japanese-boundary
+[expect_calls]
+none
+[contains]
+text<a href="u">line<br>
+[markdown]
+**崩れ[参照*ラベル][ref と [a**a**[x](v)](u) の組み合わせ**[line  
+break*label*](u)text[line  
+break](u)__)**崩れ[参照*ラベル][ref と [a**a**[x](v)](u) の組み合わせ**  ラベル
+
+[ref]: https://example.com/ref*star
+
+[case broken-ref-leading-close-inner-strong-before-link-boundary]
+[phase]
+broken-ref
+[mode]
+japanese-boundary
+[expect_calls]
+none
+[contains]
+<strong>崩れ[参照*ラベル][ref と [a</strong>a**<a href="v">x</a>
+[markdown]
+[line  
+break](u)[]__`c*d`**z[x](u)_z(y_と[line  
+break](u)[ **崩れ[参照*ラベル][ref と [a**a**[x](v)](u) の組み合わせ**
+
+[ref]: u
+
+[case broken-ref-underscore-tail-fuzz-boundary]
+[phase]
+broken-ref
+[mode]
+japanese-boundary
+[expect_calls]
+none
+[contains]
+<a href="u">x</a><em>とa
+[markdown]
+[a**a**](u)[x](u)_とa [a**a**](u)a[a](v)yyb[ya__[a](v)[line  
+break](u)[a**a**](u)[]
+
+[ref]: https://example.com/ref*star
+
+[case tail-code-inline-guard-aggressive]
+[phase]
+tail
+[mode]
+aggressive
+[expect_calls]
+none
+[contains]
+<code>c*d</code>
+[markdown]
+aa**aa***Text***と*More*bb**bbテストは[aa**aa***Text***と*More*bb**bb][]です。aa**aa***Text***と*More*bb**bbと`c*d`
+
+[aa**aa***Text***と*More*bb**bb]: https://example.net/
+
+[case tail-ref-like-range-guard-aggressive]
+[phase]
+tail
+[mode]
+aggressive
+[expect_calls]
+none
+[markdown]
+[ref-star]label[a](v) [ref-star]za崩れ [a**a**[x](v)](u) **崩れ[参照*ラベル][ref と [x](v) の組み合わせ**
+
+[ref]: u

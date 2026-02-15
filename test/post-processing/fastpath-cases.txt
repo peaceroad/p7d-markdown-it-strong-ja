@@ -1,0 +1,51 @@
+[case broken-ref strong-around-link fast path is exercised]
+[mode]
+aggressive
+[bucket]
+brokenRefFastPaths
+[key]
+strong-around-link
+[markdown]
+**[a**a**[x*](u)*a**
+
+[ref]: u
+
+[case broken-ref leading-close-then-inner-strong fast path is exercised]
+[mode]
+aggressive
+[bucket]
+brokenRefFastPaths
+[key]
+leading-close-then-inner-strong-before-link
+[markdown]
+[line  
+break](u)[]__`c*d`**z[x](u)_z(y_と[line  
+break](u)[ **崩れ[参照*ラベル][ref と [a**a**[x](v)](u) の組み合わせ**
+
+[ref]: u
+
+[case tail pattern fast path is exercised]
+[mode]
+aggressive
+[bucket]
+tailFastPaths
+[key]
+tail-pattern
+[markdown]
+aa**aa***Text***と*More*bb**bbテストは[aa**aa***Text***と*More*bb**bb][]です。aa**aa***Text***と*More*bb**bb
+
+[aa**aa***Text***と*More*bb**bb]: https://example.net/
+
+[case tail dangling strong-close fast path is exercised]
+[mode]
+aggressive
+[bucket]
+tailFastPaths
+[key]
+tail-dangling-strong-close
+[markdown]
+[aa**aa***Text***と*More*bb**bb][]参照[line  
+break](u)aa**aa***Text***と*More*bb**bb。a_[line  
+break](u)x***
+
+[ref]: u

@@ -14,6 +14,8 @@ const fixture = (name) => `${__dirname}/${name}`
 
 const md = new MarkdownIt().use(mditStrongJa).use(mditAttrs).use(mditSemanticContainer)
 const mdWithHtml = new MarkdownIt({ html: true }).use(mditStrongJa).use(mditAttrs).use(mditSemanticContainer)
+const mdPlus = new MarkdownIt().use(mditStrongJa, { mode: 'japanese-boundary-guard' }).use(mditAttrs).use(mditSemanticContainer)
+const mdPlusWithHtml = new MarkdownIt({ html: true }).use(mditStrongJa, { mode: 'japanese-boundary-guard' }).use(mditAttrs).use(mditSemanticContainer)
 
 const mdWithCJKBreaks = new MarkdownIt().use(mditStrongJa).use(mditAttrs).use(mditCJKBreaks, { either: true })
 const mdWithCJKBreaksWithHtml = new MarkdownIt({ html: true }).use(mditStrongJa).use(mditAttrs).use(mditCJKBreaks, { either: true })
@@ -49,6 +51,8 @@ const mdNoAttrsPluginWithHtml = new MarkdownIt({ html: true }).use(mditStrongJa)
 
 const mdNoAttrs = new MarkdownIt().use(mditStrongJa, { mditAttrs: false }).use(mditSemanticContainer)
 const mdNoAttrsWithHtml = new MarkdownIt({ html: true }).use(mditStrongJa, { mditAttrs: false }).use(mditSemanticContainer)
+const mdNoAttrsPlus = new MarkdownIt().use(mditStrongJa, { mode: 'japanese-boundary-guard', mditAttrs: false }).use(mditSemanticContainer)
+const mdNoAttrsPlusWithHtml = new MarkdownIt({ html: true }).use(mditStrongJa, { mode: 'japanese-boundary-guard', mditAttrs: false }).use(mditSemanticContainer)
 const mdNoAttrsCJKBreaks = new MarkdownIt().use(mditStrongJa, { mditAttrs: false }).use(mditCJKBreaks, { either: true })
 const mdNoAttrsCJKBreaksWithHtml = new MarkdownIt({ html: true }).use(mditStrongJa, { mditAttrs: false }).use(mditCJKBreaks, { either: true })
 
@@ -70,6 +74,8 @@ const mdSupSubWithHtml = new MarkdownIt({ html: true }).use(mditStrongJa).use(md
 const suites = [
   { label: 'attrs mode=japanese default / strong', filePath: fixture('p-attrs--o-japaneseonly-strong.txt'), mdPlain: md, mdHtml: mdWithHtml },
   { label: 'attrs mode=japanese default / em', filePath: fixture('p-attrs--o-japaneseonly-em.txt'), mdPlain: md, mdHtml: mdWithHtml },
+  { label: 'attrs mode=japanese-boundary-guard explicit / strong', filePath: fixture('p-attrs--o-japaneseonly-strong.txt'), mdPlain: mdPlus, mdHtml: mdPlusWithHtml },
+  { label: 'attrs mode=japanese-boundary-guard explicit / em', filePath: fixture('p-attrs--o-japaneseonly-em.txt'), mdPlain: mdPlus, mdHtml: mdPlusWithHtml },
   { label: 'attrs mode=japanese default / complex', filePath: fixture('p-attrs--o-japaneseonly-complex.txt'), mdPlain: md, mdHtml: mdWithHtml },
   { label: 'attrs mode=japanese default / withLineBreak', filePath: fixture('p-breaks-attrs--o-japaneseonly-cjkeithertrue-with-linebreak.txt'), mdPlain: mdWithCJKBreaks, mdHtml: mdWithCJKBreaksWithHtml },
   { label: 'attrs mode=aggressive / leadingAggressive', filePath: fixture('p-attrs--o-aggressive-leading.txt'), mdPlain: mdLeadingAggressive, mdHtml: mdLeadingAggressiveWithHtml },
@@ -84,6 +90,8 @@ const suites = [
   { label: 'attrs mode=japanese attrs-plugin-disabled / noAttrsPlugin', filePath: fixture('p-attrs-disabled--o-japaneseonly-default.txt'), mdPlain: mdNoAttrsPlugin, mdHtml: mdNoAttrsPluginWithHtml },
   { label: 'noattrs mode=japanese default / strong', filePath: fixture('mditNoAttrs/p-noattrs--o-japaneseonly-strong.txt'), mdPlain: mdNoAttrs, mdHtml: mdNoAttrsWithHtml },
   { label: 'noattrs mode=japanese default / em', filePath: fixture('mditNoAttrs/p-noattrs--o-japaneseonly-em.txt'), mdPlain: mdNoAttrs, mdHtml: mdNoAttrsWithHtml },
+  { label: 'noattrs mode=japanese-boundary-guard explicit / strong', filePath: fixture('mditNoAttrs/p-noattrs--o-japaneseonly-strong.txt'), mdPlain: mdNoAttrsPlus, mdHtml: mdNoAttrsPlusWithHtml },
+  { label: 'noattrs mode=japanese-boundary-guard explicit / em', filePath: fixture('mditNoAttrs/p-noattrs--o-japaneseonly-em.txt'), mdPlain: mdNoAttrsPlus, mdHtml: mdNoAttrsPlusWithHtml },
   { label: 'noattrs mode=japanese default / complex', filePath: fixture('mditNoAttrs/p-noattrs--o-japaneseonly-complex.txt'), mdPlain: mdNoAttrs, mdHtml: mdNoAttrsWithHtml },
   { label: 'noattrs mode=japanese default / withLineBreak', filePath: fixture('mditNoAttrs/p-breaks-noattrs--o-japaneseonly-cjkeithertrue-with-linebreak.txt'), mdPlain: mdNoAttrsCJKBreaks, mdHtml: mdNoAttrsCJKBreaksWithHtml },
   { label: 'noattrs mode=japanese breaks=true / linebreak', filePath: fixture('mditNoAttrs/p-noattrs--o-japaneseonly-breaks-true-linebreaks.txt'), mdPlain: mdNoAttrsLineBreak, mdHtml: mdNoAttrsLineBreakWithHtml },

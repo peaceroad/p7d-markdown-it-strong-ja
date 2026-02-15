@@ -1,0 +1,79 @@
+[case skip-no-text-marker keeps postprocess-off html]
+[mode]
+aggressive
+[flow]
+skip-no-text-marker
+[fastpath]
+none
+[html_parity]
+same
+[post_plugin]
+none
+[markdown]
+**崩れた[参照*リンクラベル][ref-star と [inline*link*broken](https://example.com/in*complete) と [urlwithstar](https://example.com/path*with) の組み合わせ**
+
+[ref-star]: https://example.com/ref*star
+
+[case skip-guard keeps postprocess-off html]
+[mode]
+aggressive
+[flow]
+skip-guard
+[fastpath]
+none
+[html_parity]
+same
+[post_plugin]
+none
+[markdown]
+*(崩れと__[*__zbx **崩れ[参照*ラベル][ref と [x](v) の組み合わせ**
+
+[ref]: u
+
+[case skip-no-active-signature keeps postprocess-off html]
+[mode]
+aggressive
+[flow]
+skip-no-active-signature
+[fastpath]
+none
+[html_parity]
+same
+[post_plugin]
+none
+[markdown]
+*[ref-star][。 z(_bz[y*。z label[a [[*z崩れlabel 参照b参照 **崩れ[参照*ラベル][ref と [x](v) の組み合わせ**
+
+[ref]: u
+
+[case skip-no-fastpath-match keeps postprocess-off html under non-canonical strong markup]
+[mode]
+aggressive
+[flow]
+skip-no-fastpath-match
+[fastpath]
+none
+[html_parity]
+same
+[post_plugin]
+break-strong-markup
+[markdown]
+**[a**a**[x*](u)*a**
+
+[ref]: u
+
+[case repaired case diverges from postprocess-off html]
+[mode]
+aggressive
+[flow]
+repaired
+[fastpath]
+strong-around-link
+[html_parity]
+different
+[post_plugin]
+none
+[markdown]
+**[a**a**[x*](u)*a**
+
+[ref]: u

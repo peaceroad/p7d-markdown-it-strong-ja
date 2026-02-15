@@ -17,7 +17,6 @@ const sample = `
 
 const md = new MarkdownIt()
 md.use(markdownItStrongJa, {
-  dollarMath: true,
   mditAttrs: true
 })
 

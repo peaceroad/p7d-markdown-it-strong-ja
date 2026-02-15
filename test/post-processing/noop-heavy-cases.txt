@@ -1,0 +1,150 @@
+[case no-op-heavy-1]
+[max_extra]
+0
+[markdown]
+参照b __z[a[x****崩れ[参照*ラベル][ref と [x](v) の組み合わせ**
+
+[ref]: u
+
+[case no-op-heavy-2]
+[max_extra]
+0
+[markdown]
+[*b*参照。ab)*x  z x**崩れ[参照*ラベル][ref と [x](v) の組み合わせ**
+
+[ref]: u
+
+[case no-op-heavy-3]
+[max_extra]
+0
+[markdown]
+b[z__参照alabel。 **崩れ[参照*ラベル][ref と [x](v) の組み合わせ**
+
+[ref]: u
+
+[case no-op-heavy-4]
+[max_extra]
+0
+[markdown]
+`c*d`ylabel_z)labelb`c*d`aby参照label__labela_y[)_z__label参照z_)`c*d`**z**崩れ[参照*ラベル][ref と [x](v) の組み合わせ**
+
+[ref]: u
+
+[case no-op-heavy-5]
+[max_extra]
+0
+[markdown]
+参照z参照))](。zz__x[。)`c*d`*y__参照zlabel [a**a**[x](v)](u) **崩れ[参照*ラベル][ref と [x](v) の組み合わせ**
+
+[ref]: u
+
+[case no-op-heavy-6]
+[max_extra]
+0
+[markdown]
+xaとa[****[x](u) [line  
+break](u)[]]a[line  
+break](u)x
+
+[ref]: https://example.com/ref*star
+
+[case no-op-heavy-7]
+[max_extra]
+0
+[markdown]
+[x**)[x](u)z(b[line  
+break](u)`c*d` x参照(崩れy`c*d`と崩れxb[)]*a) **崩れ[参照*ラベル][ref と [x](v) の組み合わせ**
+
+[ref]: u
+
+[case no-op-heavy-8]
+[max_extra]
+0
+[markdown]
+z***[line  
+break](u)__bb******[崩れ**b))[x](u) ]z。崩れ]__****y崩れ **崩れ[参照*ラベル][ref と [x](v) の組み合わせ**
+
+[ref]: u
+
+[case no-op-heavy-9]
+[max_extra]
+0
+[markdown]
+a[a](v)[line  
+break](u))y崩れ[*****[a](v)****b zz)*az。)_[ **崩れ[参照*ラベル][ref と [x](v) の組み合わせ**
+
+[ref]: u
+
+[case no-op-heavy-10]
+[max_extra]
+0
+[markdown]
+a()  `c*d`参照***x***[line  
+break](u)**参照***z[と _( **崩れ[参照*ラベル][ref と [x](v) の組み合わせ**
+
+[ref]: u
+
+[case no-op-heavy-11]
+[max_extra]
+0
+[markdown]
+__[line  
+break](u)*xzz[(崩れと`c*d`(参照zyx*[ **崩れ[参照*ラベル][ref と [x](v) の組み合わせ**
+
+[ref]: u
+
+[case no-op-heavy-12]
+[max_extra]
+0
+[markdown]
+___崩れ[x](u)[a](v)[a](v)a**z[a](v)__a[ **崩れ[参照*ラベル][ref と [x](v) の組み合わせ**
+
+[ref]: u
+
+[case no-op-heavy-13]
+[max_extra]
+0
+[markdown]
+*(崩れと__[*__zbx **崩れ[参照*ラベル][ref と [x](v) の組み合わせ**
+
+[ref]: u
+
+[case no-op-heavy-14]
+[max_extra]
+0
+[markdown]
+**aa [ *x* [ **崩れ[参照*ラベル][ref と [x](v) の組み合わせ**
+
+[ref]: u
+
+[case no-op-heavy-15]
+[max_extra]
+0
+[markdown]
+)_a**y)b[y**x崩れ。__参照_* **崩れ[参照*ラベル][ref と [x](v) の組み合わせ**
+
+[ref]: u
+
+[case no-op-heavy-16-tail-ref-like]
+[max_extra]
+0
+[markdown]
+[ref-star]label[a](v) [ref-star]za崩れ [a**a**[x](v)](u) **崩れ[参照*ラベル][ref と [x](v) の組み合わせ**
+
+[ref]: u
+
+[case no-op-heavy-17-tail-ref-like]
+[max_extra]
+0
+[markdown]
+** **崩れ[参照*ラベル][ref と [x](v) の組み合わせ**
+
+[ref]: u
+
+[case no-op-heavy-18-broken-ref-non-active-signature]
+[max_extra]
+0
+[markdown]
+*[ref-star][。 z(_bz[y*。z label[a [[*z崩れlabel 参照b参照 **崩れ[参照*ラベル][ref と [x](v) の組み合わせ**
+
+[ref]: u

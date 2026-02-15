@@ -13,8 +13,6 @@ const testContent = `
 
 const md = new MarkdownIt()
 md.use(markdownItStrongJa, {
-  disallowMixed: false,
-  dollarMath: true,
   mditAttrs: true
 })
 
