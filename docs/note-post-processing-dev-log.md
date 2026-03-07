@@ -429,6 +429,106 @@ Detailed migration sequence (kept for future maintenance and regression triage):
      - `npm run test:all`
    - Result:
      - behavior and analyzer snapshots remained stable.
+32. Shared per-inline facts + staged runner cleanup:
+   - Added one per-inline facts object for postprocess with lazy fields for:
+     - `code_inline` detection
+     - reference count
+     - postprocess metrics
+     - `link_open -> link_close` reuse
+     - broken-ref wrapper-prefix stats
+     - earliest-changed index for suffix-only level rebuilds
+   - Localized level rebuild work with `rebuildInlineLevelsFrom(...)` and propagated earliest-changed markers through active repair/fixer paths.
+   - Split inline orchestration into explicit stages:
+     - activation
+     - broken-ref repair
+     - emphasis repair/sanitize
+     - collapsed-ref finalize
+   - Narrowed helper boundaries for finalize paths:
+     - collapsed-ref scan/candidate/target/link-pair/apply helpers
+     - broken-mark merge scan/apply helpers
+   - Validation:
+     - `npm test`
+     - `npm run test:all`
+     - `npm run test:postprocess-gate`
+     - `node test/post-processing-flow.test.js`
+     - `node test/options-edge.test.js`
+     - `node test/compatible-parity.test.js`
+     - `npm run bench:postprocess`
+   - Result:
+     - analyzer invariants remained zero (`extra_renders=0`, `extra_calls=0`, `html_changed_renders=0`) while the inline runner/finalize paths became easier to review.
+
+33. Broken-ref module extraction + local wrapper-balance tracking:
+   - Moved broken-ref pass orchestration into:
+     - `src/token-postprocess/broken-ref.js`
+   - Kept orchestrator responsibilities narrow:
+     - stage dispatch
+     - per-inline facts / lazy caches
+     - finalize / rebuild handling
+   - Replaced generic wrapper-base + `Map` tracking inside broken-ref segment expansion with fixed asterisk `strong/em` depth counters.
+   - Result:
+     - fewer cross-module responsibilities in `orchestrator.js`
+     - cheaper wrapper-balanced segment expansion on broken-ref candidate paths
+   - Validation:
+     - `node test/post-processing-flow.test.js`
+     - `node test/post-processing-broken-ref-helper.test.js`
+     - `npm run test:postprocess-gate`
+     - `npm test`
+     - `npm run test:all`
+     - `npm run bench:postprocess`
+
+34. Broken-ref runner contract hardening:
+   - Removed one redundant link-close-map lookup on active broken-ref candidates by threading the resolved map into the candidate rewrite helper.
+   - Added final token-level signal re-summarization after repair-bounded exits so broken-ref stage outputs no longer depend on the pass loop's early-return scan frontier.
+   - Extended direct helper parity coverage:
+     - `test/post-processing-broken-ref-helper.test.js` now also checks returned flags against final token state.
+   - Validation:
+     - `node test/post-processing-broken-ref-helper.test.js`
+     - `node test/post-processing-flow.test.js`
+     - `npm run test:postprocess-gate`
+     - `npm test`
+
+35. Broken-ref pass loop thinning:
+   - Seeded broken-ref pass signal flags from already-known inline facts when the orchestrator path calls the helper.
+   - Split the active `link_open` candidate branch into a dedicated helper so the pass loop now reads as:
+     - scan text
+     - observe flags
+     - try candidate repair
+   - Validation:
+     - `node test/post-processing-broken-ref-helper.test.js`
+     - `node test/post-processing-flow.test.js`
+     - `npm run test:postprocess-gate`
+     - `npm test`
+     - `npm run bench:postprocess`
+
+36. Orchestrator broken-ref gate extraction:
+   - Moved broken-ref stage eligibility into named orchestrator helpers:
+     - `shouldRunInlineBrokenRefRepair(...)`
+     - `applyBrokenRefRepairFacts(...)`
+     - `createBrokenRefScanState()`
+   - Result:
+     - narrower stage boundary in `orchestrator.js`
+     - clearer ownership split between stage gating and broken-ref pass execution
+   - Validation:
+     - `node test/post-processing-broken-ref-helper.test.js`
+     - `node test/post-processing-flow.test.js`
+     - `npm run test:postprocess-gate`
+     - `npm test`
+     - `npm run bench:postprocess` (smoke only; snapshot not refreshed due runtime noise)
+
+37. Orchestrator collapsed-ref/finalize gate extraction:
+   - Moved collapsed-ref stage eligibility and post-rewrite facts updates into named orchestrator helpers:
+     - `shouldRunInlineCollapsedRefRepair(...)`
+     - `rewriteInlineCollapsedReferences(...)`
+     - `applyCollapsedRefRepairFacts(...)`
+   - Result:
+     - collapsed-ref/finalize now mirrors the broken-ref stage boundary
+     - `processInlinePostprocessToken(...)` now reads as stage dispatch across all four runtime stages
+   - Validation:
+     - `npm run test:postprocess-gate`
+     - `npm run test:all`
+     - `node test/options-edge.test.js`
+     - `node test/compatible-parity.test.js`
+     - `npm run bench:postprocess`
 
 ## Document Role
 

@@ -9,6 +9,7 @@
   - keep unknown/low-confidence shapes unchanged (fail-closed)
 - Current regression gates are green:
   - `npm run test:all`
+  - `npm run test:postprocess-gate`
   - `node test/post-processing-progress.test.js`
   - `node test/post-processing-noop.test.js`
   - `npm run analyze:postprocess-calls -- --count 2500 --seed <fixed-seed>`
@@ -23,26 +24,43 @@
   - `mode: compatible`
   - `postprocess: false`
 
-### 2.2 Inline Pre-Scan
+### 2.2 Inline Pre-Scan And Facts
 
-For each `inline` token, postprocess first checks:
+For each candidate `inline` token, postprocess now builds one lightweight facts object and fills the rest lazily.
 
-- marker presence (`*`) in inline content
-- bracket context (`[` or `]`)
+Initial pre-scan captures:
+
+- marker presence (`*`) in inline content before touching children
+- bracket context (`[` or `]`) from inline content, then confirmed on children when needed
 - link pair presence (`link_open` + `link_close`)
-- pre-scan target presence (`em/strong`, bracket text, link pair) before expensive context scans
+- existing emphasis presence (`em/strong`) before any repair stage
 - Japanese context only when mode is `japanese-boundary` / `japanese-boundary-guard`
 
-This avoids touching non-target paragraphs.
+Lazy fields on the same facts object are populated only on the repair paths that need them:
+
+- `code_inline` presence for strong-around-code activation
+- reference count for broken-ref / collapsed-ref stages
+- postprocess metrics sink
+- `link_open -> link_close` map reuse
+- broken-ref wrapper-prefix stats
+- broken-ref helper fallback caches when stage hooks are not present
+- earliest changed index for suffix-only `level` rebuild
+
+This keeps non-target paragraphs on the cheap path.
 
 ### 2.3 Broken-Ref Repair Pass (Token-Only)
 
+Module:
+
+- `src/token-postprocess/broken-ref.js`
+
 Main helpers:
 
-- `scanBrokenRefState`
-- `updateBracketDepth`
+- `computeMaxBrokenRefRepairPass`
+- `runBrokenRefRepairs`
+- `runBrokenRefRepairPass`
+- `runBrokenRefCandidateRewrite`
 - `expandSegmentEndForWrapperBalance`
-- `buildAsteriskWrapperPrefixStats`
 - `shouldAttemptBrokenRefRewrite`
 - `applyBrokenRefTokenOnlyFastPath`
 
@@ -53,6 +71,8 @@ Flow:
 3. reject low-confidence ranges with guard checks
 4. apply ordered token-only fast paths (single-pass signature + dispatch)
 5. if no fast path matches, keep range unchanged (fail-closed)
+
+`expandSegmentEndForWrapperBalance(...)` now tracks only asterisk `strong/em` depth with fixed counters, which is both cheaper and closer to the actual broken-ref responsibility than a generic wrapper map. Direct helper fallback paths also memoize link-close maps and wrapper-prefix stats per pass, so exported repair helpers do not regress when called outside the orchestrator facts flow. Broken-ref passes now seed their signal flags from already-known inline facts and keep the `link_open` candidate branch in a dedicated helper, which reduces no-op checks in the common orchestrator path while keeping the runner shape narrow. When repeated repair passes finish on an early repair exit, the runner re-summarizes current token-level bracket/emphasis/link-close facts before returning so later stages do not depend on partial scan state.
 
 Current broken-ref fast paths:
 
@@ -73,20 +93,28 @@ Flow:
 2. apply token-only tail fix
 3. if pattern does not match, keep unchanged
 
-### 2.5 Final Normalize / Safety
+### 2.5 Stage Runner And Final Normalize / Safety
 
-When emphasis exists, run:
+`processInlinePostprocessToken(...)` is now a thin runner over four stages, with broken-ref delegated to `src/token-postprocess/broken-ref.js`:
 
-- `fixEmOuterStrongSequence`
-- `fixLeadingAsteriskEm`
-- `fixTrailingStrong`
-- `sanitizeEmStrongBalance`
-- `rebuildInlineLevels`
+- activation (`tryActivateInlineEmphasis`)
+- broken-ref repair (`runInlineBrokenRefRepairStage`)
+- emphasis repair/sanitize (`runInlineEmphasisRepairStage`)
+- collapsed-ref finalize (`runInlineCollapsedRefStage`)
 
-Then run link/ref helpers:
+Emphasis-bearing edits mark the earliest changed index and use suffix-only `rebuildInlineLevelsFrom(...)` when possible; full rebuild stays as a generic safety fallback.
+
+Collapsed-ref finalize then runs:
 
 - `convertCollapsedReferenceLinks`
 - `mergeBrokenMarksAroundLinks`
+
+Broken-ref and collapsed-ref now both use named orchestrator gate/apply helpers before the token-mutation helpers run. That keeps `processInlinePostprocessToken(...)` at the stage-dispatch level while `broken-ref.js` and `token-link-utils.js` own the candidate and rewrite details.
+
+These helpers now have narrower boundaries as well:
+
+- collapsed-ref scan / candidate / target / link-pair / apply helpers
+- broken-mark merge scan/apply helpers
 
 ## 3. What Changed (Before -> Now)
 
@@ -138,6 +166,8 @@ Effect:
     - `repaired`
   - verifies HTML parity/divergence against `postprocess:false` per branch expectation
   - fixture source: `test/post-processing/flow-cases.txt`
+- `test/post-processing-broken-ref-helper.test.js`
+  - locks direct helper parity between orchestrator-style hooks and fallback cache paths
 - `test/post-processing-progress.test.js`
   - verifies `postprocess:true` adds no extra `md.inline.parse` calls vs `postprocess:false`
   - fixtures: `test/post-processing/token-only-regressions.txt`
@@ -147,14 +177,14 @@ Effect:
   - fixtures: `test/post-processing/noop-heavy-cases.txt`
 - `test/postprocess-gate.js` / `npm run test:postprocess-gate`
   - one-command release gate for postprocess suites + deterministic analyzers
-  - includes fail-safe/noop/progress/fastpath/fastpath-roster/flow + postprocess-call/fastpath analyzer runs
+  - includes fail-safe/noop/progress/fastpath/fastpath-roster/flow/broken-ref-helper + postprocess-call/fastpath analyzer runs
 
 ### 4.2 Full Regression
 
 - `npm run test:all`
   - core fixtures
   - readme fixtures
-  - map diagnostics
+  - map diagnostics (`npm run test:map`, which now separates structural diffs from map-quality regressions/improvements and can show structural-only rewrites with `-- --show-structural`)
 
 ### 4.3 Postprocess Call Drift Probe
 
@@ -208,16 +238,17 @@ When adding/changing token-only fast paths:
   - `tailFastPaths`: `tail-dangling-strong-close=975`, `tail-pattern=4`
   - `brokenRefFlow`: `candidate=468`, `skip-no-text-marker=426`, `skip-guard=35`, `skip-no-active-signature=7`
 - Postprocess malformed-corpus snapshot (`npm run bench:postprocess`, median, reference run):
-  - `markdown-it`: `0.0699ms/doc`
-  - `japanese-boundary + postprocess:on`: `0.1396ms/doc`
-  - `japanese-boundary + postprocess:off`: `0.0519ms/doc`
-  - `aggressive + postprocess:on`: `0.0822ms/doc`
-  - `aggressive + postprocess:off`: `0.0487ms/doc`
+  - `markdown-it`: `0.0721ms/doc`
+  - `japanese-boundary + postprocess:on`: `0.1069ms/doc`
+  - `japanese-boundary + postprocess:off`: `0.0588ms/doc`
+  - `aggressive + postprocess:on`: `0.0806ms/doc`
+  - `aggressive + postprocess:off`: `0.0610ms/doc`
 
 ### 7.3 Maintainability
 
+- Runner/helper boundaries are clearer than before: per-inline facts, staged orchestrator helpers, the dedicated broken-ref runner, and collapsed-ref / link-mark finalize helpers are now split into narrower units, with broken-ref and collapsed-ref both using named gate/apply helpers at the orchestrator boundary.
 - Postprocess is still pattern-heavy and order-dependent in broken-ref fast paths.
-- Guard predicates are numerous; correctness is currently test-backed, but readability cost is high.
+- Guard predicates are still numerous; correctness is test-backed, but the remaining readability cost is concentrated in broken-ref signature/guard logic rather than the outer runner flow.
 - Optional observability exists via `state.env.__strongJaPostprocessMetrics`:
   - `brokenRefFastPaths`
   - `tailFastPaths`

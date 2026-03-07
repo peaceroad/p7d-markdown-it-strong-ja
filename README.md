@@ -98,6 +98,14 @@ Terms used below:
 - Run: a contiguous group of the same marker (`*`, `**`, `***`, ...).
 - Line: text split by `\n`.
 
+### TL;DR
+
+- Baseline: start from plain `markdown-it` delimiter pairing.
+- Local helper path: only `*` runs with local Japanese context enter strong-ja boundary logic.
+- Mixed-text guard: `japanese-boundary-guard` additionally suppresses mixed JA/EN over-conversion.
+- Postprocess: token-only repairs run only for malformed link/reference-adjacent spans.
+
+
 ### Step 1: Build the baseline with plain `markdown-it`
 
 `markdown-it` runs first. If it can already parse a pattern (including cross-line `**...**`), that baseline structure is kept.
@@ -368,6 +376,7 @@ Supporting visuals:
 - Default: `true`
 - Set `false` to disable link/reference postprocess repairs.
 - In `mode: 'compatible'`, repairs are skipped even when this is `true`.
+- Repairs stay local to malformed link/reference-adjacent spans; valid inputs such as `[w](u) *string*  [w](u)` are left unchanged.
 
 ### `coreRulesBeforePostprocess`
 
@@ -388,6 +397,9 @@ Supporting visuals:
 ## Notes
 
 - Use `state.env.__strongJaTokenOpt` to override options per render.
-- Overrides are merged with plugin options, but setup-time behavior (such as rule registration/order) cannot be switched at render time.
-- This is an ESM plugin (`type: module`) and works in Node.js, browser bundlers, and VS Code extension pipelines that use `markdown-it` ESM.
+- Overrides are merged with plugin options, but setup-time behavior (such as rule registration/order) cannot be switched at render time and cannot be retrofitted after the first `.use(...)` on the same `MarkdownIt` instance.
+- `mode` and `postprocess` are runtime-effective. `mditAttrs`, `patchCorePush`, and `coreRulesBeforePostprocess` are setup-time effective after the first `.use(...)` on a `MarkdownIt` instance.
+- This is an ESM plugin (`type: module`) and is tested against `markdown-it` 14.x in Node.js, browser bundlers, and VS Code extension pipelines that use `markdown-it` ESM.
+- The implementation relies on `markdown-it` internal ESM modules / core rule internals (`lib/token.mjs`, `lib/common/utils.mjs`, `ruler.__rules__`) plus a `scanDelims` prototype patch, so internal `markdown-it` changes may require plugin updates.
 - `scanDelims` patch is applied once per `MarkdownIt` prototype in the same process.
+
