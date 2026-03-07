@@ -1,7 +1,7 @@
 {
   "name": "@peaceroad/markdown-it-strong-ja",
-  "description": "This is a plugin for markdown-it. It is an alternative to the standard `**` (strong)  and `*` (em) processing. It also processes strings that cannot be converted by the standard.",
-  "version": "0.8.0",
+  "description": "Extends asterisk emphasis handling for Japanese text while keeping markdown-it behavior as close as practical.",
+  "version": "0.8.1",
   "main": "index.js",
   "type": "module",
   "files": [
@@ -18,6 +18,7 @@
     "test:postprocess-fastpath": "node test/post-processing-fastpath.test.js",
     "test:postprocess-fastpath-roster": "node test/post-processing-fastpath-roster.test.js",
     "test:postprocess-flow": "node test/post-processing-flow.test.js",
+    "test:postprocess-link-helper": "node test/post-processing-link-helper.test.js",
     "test:postprocess-gate": "node test/postprocess-gate.js",
     "test:tokenonly-progress": "node test/post-processing-progress.test.js",
     "test:readme": "node test/test-readme.js",
@@ -45,3 +46,4 @@
     "p7d-markdown-it-p-captions": "^0.21.0"
   }
 }
+

@@ -7,6 +7,8 @@ const STEPS = [
   { label: 'postprocess fastpath', command: 'node test/post-processing-fastpath.test.js' },
   { label: 'postprocess fastpath roster', command: 'node test/post-processing-fastpath-roster.test.js' },
   { label: 'postprocess flow', command: 'node test/post-processing-flow.test.js' },
+  { label: 'broken-ref helper', command: 'node test/post-processing-broken-ref-helper.test.js' },
+  { label: 'link helper', command: 'node test/post-processing-link-helper.test.js' },
   {
     label: 'postprocess-call analyzer',
     command: 'npm run analyze:postprocess-calls -- --count 2500 --seed 20260214'
@@ -42,5 +44,7 @@ console.log('- node test/post-processing-progress.test.js')
 console.log('- node test/post-processing-fastpath.test.js')
 console.log('- node test/post-processing-fastpath-roster.test.js')
 console.log('- node test/post-processing-flow.test.js')
+console.log('- node test/post-processing-broken-ref-helper.test.js')
+console.log('- node test/post-processing-link-helper.test.js')
 console.log('- npm run analyze:postprocess-calls -- --count 2500 --seed 20260214')
 console.log('- npm run analyze:fastpath -- --count 8000 --seed 20260214 --mode aggressive')

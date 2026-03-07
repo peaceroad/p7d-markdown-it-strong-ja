@@ -34,14 +34,6 @@ const isJapaneseChar = (ch) => {
   return REG_JAPANESE.test(String.fromCharCode(code))
 }
 
-const getInlineWrapperBase = (type) => {
-  if (!type || typeof type !== 'string') return ''
-  if (type === 'link_open' || type === 'link_close') return ''
-  if (type.endsWith('_open')) return type.slice(0, -5)
-  if (type.endsWith('_close')) return type.slice(0, -6)
-  return ''
-}
-
 const hasCjkBreaksRule = (md) => {
   if (!md || !md.core || !md.core.ruler || !Array.isArray(md.core.ruler.__rules__)) return false
   if (md.__strongJaHasCjkBreaks === true) return true
@@ -108,8 +100,34 @@ const deriveModeInfo = (opt) => {
   return opt
 }
 
+const deriveOptionInfo = (opt) => {
+  if (!opt || typeof opt !== 'object') return opt
+  deriveModeInfo(opt)
+  const rawPostprocess = opt.postprocess
+  const rawCoreRules = opt.coreRulesBeforePostprocess
+  if (opt.__strongJaPlanPostprocessRaw === rawPostprocess &&
+      opt.__strongJaPlanCoreRulesRaw === rawCoreRules &&
+      typeof opt.__strongJaPostprocessActive === 'boolean' &&
+      typeof opt.__strongJaIsCompatibleMode === 'boolean' &&
+      typeof opt.__strongJaIsJapaneseMode === 'boolean' &&
+      typeof opt.__strongJaStrictAsciiCodeGuard === 'boolean' &&
+      typeof opt.__strongJaStrictAsciiStrongGuard === 'boolean' &&
+      Array.isArray(opt.__strongJaNormalizedCoreRulesBeforePostprocess)) {
+    return opt
+  }
+  opt.__strongJaPlanPostprocessRaw = rawPostprocess
+  opt.__strongJaPlanCoreRulesRaw = rawCoreRules
+  opt.__strongJaIsCompatibleMode = (opt.__strongJaModeFlags & MODE_FLAG_COMPATIBLE) !== 0
+  opt.__strongJaPostprocessActive = rawPostprocess !== false && !opt.__strongJaIsCompatibleMode
+  opt.__strongJaIsJapaneseMode = (opt.__strongJaModeFlags & MODE_FLAG_JAPANESE_ANY) !== 0
+  opt.__strongJaStrictAsciiCodeGuard = (opt.__strongJaModeFlags & MODE_FLAG_JAPANESE_PLUS) !== 0
+  opt.__strongJaStrictAsciiStrongGuard = (opt.__strongJaModeFlags & MODE_FLAG_AGGRESSIVE) === 0
+  opt.__strongJaNormalizedCoreRulesBeforePostprocess = normalizeCoreRulesBeforePostprocess(rawCoreRules)
+  return opt
+}
+
 const getRuntimeOpt = (state, baseOpt) => {
-  if (!state || !state.env || !state.env.__strongJaTokenOpt) return deriveModeInfo(baseOpt)
+  if (!state || !state.env || !state.env.__strongJaTokenOpt) return deriveOptionInfo(baseOpt)
   const override = state.env.__strongJaTokenOpt
   if (state.__strongJaTokenRuntimeOpt &&
       state.__strongJaTokenRuntimeBase === baseOpt &&
@@ -117,10 +135,20 @@ const getRuntimeOpt = (state, baseOpt) => {
     return state.__strongJaTokenRuntimeOpt
   }
   const merged = { ...baseOpt, ...override }
-  state.__strongJaTokenRuntimeOpt = deriveModeInfo(merged)
+  state.__strongJaTokenRuntimeOpt = deriveOptionInfo(merged)
   state.__strongJaTokenRuntimeBase = baseOpt
   state.__strongJaTokenRuntimeOverride = override
   return state.__strongJaTokenRuntimeOpt
+}
+
+const getReferenceCount = (state) => {
+  if (!state) return 0
+  let referenceCount = state.__strongJaReferenceCount
+  if (referenceCount !== undefined) return referenceCount
+  const references = state.env && state.env.references
+  referenceCount = references ? Object.keys(references).length : 0
+  state.__strongJaReferenceCount = referenceCount
+  return referenceCount
 }
 
 function normalizeCoreRulesBeforePostprocess(value) {
@@ -191,18 +219,19 @@ export {
   CHAR_IDEOGRAPHIC_SPACE,
   REG_ATTRS,
   isJapaneseChar,
-  getInlineWrapperBase,
   hasCjkBreaksRule,
   isCjkBreaksRuleName,
   resolveMode,
   getModeFlags,
   deriveModeInfo,
+  deriveOptionInfo,
   MODE_FLAG_COMPATIBLE,
   MODE_FLAG_AGGRESSIVE,
   MODE_FLAG_JAPANESE_BASE,
   MODE_FLAG_JAPANESE_PLUS,
   MODE_FLAG_JAPANESE_ANY,
   getRuntimeOpt,
+  getReferenceCount,
   normalizeCoreRulesBeforePostprocess,
   ensureCoreRuleOrder,
   moveRuleBefore,

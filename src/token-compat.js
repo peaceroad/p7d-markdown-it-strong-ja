@@ -4,8 +4,6 @@ import {
   isJapaneseChar,
   hasCjkBreaksRule,
   isCjkBreaksRuleName,
-  deriveModeInfo,
-  MODE_FLAG_COMPATIBLE,
   getRuntimeOpt,
   moveRuleAfter
 } from './token-utils.js'
@@ -28,15 +26,11 @@ const trimTrailingSpaceTab = (text) => {
 }
 
 const registerTokenCompat = (md, baseOpt) => {
-  const baseModeFlags = typeof baseOpt.__strongJaModeFlags === 'number'
-    ? baseOpt.__strongJaModeFlags
-    : deriveModeInfo(baseOpt).__strongJaModeFlags
-  const baseCompatible = (baseModeFlags & MODE_FLAG_COMPATIBLE) !== 0
   const isCompatibleMode = (state) => {
     const override = state && state.env && state.env.__strongJaTokenOpt
-    if (!override) return baseCompatible
+    if (!override) return baseOpt.__strongJaIsCompatibleMode === true
     const opt = getRuntimeOpt(state, baseOpt)
-    return (opt.__strongJaModeFlags & MODE_FLAG_COMPATIBLE) !== 0
+    return opt.__strongJaIsCompatibleMode === true
   }
 
   let hasTextJoinRule = false

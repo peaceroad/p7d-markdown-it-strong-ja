@@ -1,5 +1,6 @@
 import Token from 'markdown-it/lib/token.mjs'
 import { isWhiteSpace } from 'markdown-it/lib/common/utils.mjs'
+import { getReferenceCount } from './token-utils.js'
 
 const CHAR_OPEN_BRACKET = 0x5B // [
 const CHAR_CLOSE_BRACKET = 0x5D // ]
@@ -26,6 +27,26 @@ const isWhitespaceToken = (token) => {
   token.__strongJaWhitespaceSource = content
   token.__strongJaIsWhitespace = isWhitespace
   return isWhitespace
+}
+
+const hasReferenceLabelMarkerRange = (tokens, startIdx, endIdx) => {
+  if (startIdx > endIdx) return false
+  for (let idx = startIdx; idx <= endIdx; idx++) {
+    const token = tokens[idx]
+    if (!token || !token.type) continue
+    if (token.type === 'text' || token.type === 'code_inline') {
+      const content = token.content
+      if (content && (content.indexOf('*') !== -1 || content.indexOf('_') !== -1)) return true
+      continue
+    }
+    if (token.type === 'softbreak' || token.type === 'hardbreak') continue
+    if (token.markup &&
+        (token.type.endsWith('_open') || token.type.endsWith('_close')) &&
+        (token.markup.indexOf('*') !== -1 || token.markup.indexOf('_') !== -1)) {
+      return true
+    }
+  }
+  return false
 }
 
 const buildReferenceLabelRange = (tokens, startIdx, endIdx) => {
@@ -58,11 +79,6 @@ const getNormalizeRef = (state) => {
   return normalize
 }
 
-const adjustTokenLevels = (tokens, startIdx, endIdx, delta) => {
-  for (let i = startIdx; i < endIdx; i++) {
-    if (tokens[i]) tokens[i].level += delta
-  }
-}
 
 const cloneMap = (map) => {
   if (!map || !Array.isArray(map)) return null
@@ -109,7 +125,7 @@ const applyBracketSegmentFlags = (token, seg) => {
     token.__strongJaBracketAtomic = true
   } else if (seg === '[]') {
     token.__strongJaHasBracket = true
-    token.__strongJaBracketAtomic = false
+    token.__strongJaBracketAtomic = true
   } else {
     token.__strongJaHasBracket = false
     token.__strongJaBracketAtomic = false
@@ -204,13 +220,15 @@ const buildLinkCloseMap = (tokens, startIdx, endIdx) => {
   return closeMap
 }
 
-const wrapLabelTokensWithLink = (tokens, labelStartIdx, labelEndIdx, linkOpenToken, linkCloseToken) => {
+const collectWrappedLabelPairs = (tokens, collapsedStartIdx, collapsedEndIdx) => {
   const wrapperPairs = []
-  let startIdx = labelStartIdx
-  let endIdx = labelEndIdx
-  while (startIdx > 0) {
-    const prevToken = tokens[startIdx - 1]
-    const nextToken = tokens[endIdx + 1]
+  while (true) {
+    const wrapperOffset = wrapperPairs.length
+    const closeIdx = collapsedStartIdx - 1 - wrapperOffset
+    const openIdx = collapsedEndIdx + 1 + wrapperOffset
+    if (closeIdx < 0 || openIdx >= tokens.length) break
+    const prevToken = tokens[closeIdx]
+    const nextToken = tokens[openIdx]
     if (!prevToken || !nextToken) break
     if (!prevToken.type || !prevToken.type.endsWith('_close')) break
     const expectedOpen = prevToken.type.replace('_close', '_open')
@@ -220,214 +238,363 @@ const wrapLabelTokensWithLink = (tokens, labelStartIdx, labelEndIdx, linkOpenTok
       tag: prevToken.tag,
       markup: prevToken.markup,
       openMap: cloneMap(nextToken.map),
-      closeMap: cloneMap(prevToken.map)
+      closeMap: cloneMap(prevToken.map),
+      closeIdx,
+      openIdx
     })
-    tokens.splice(endIdx + 1, 1)
-    tokens.splice(startIdx - 1, 1)
-    startIdx -= 1
-    endIdx -= 1
   }
+  return wrapperPairs
+}
 
-  if (startIdx > endIdx) return startIdx
+const resolveWrappedLabelReplaceRange = (wrapperPairs, collapsedStartIdx, collapsedEndIdx) => {
+  if (wrapperPairs.length === 0) {
+    return {
+      replaceStart: collapsedStartIdx,
+      replaceEnd: collapsedEndIdx
+    }
+  }
+  const outerPair = wrapperPairs[wrapperPairs.length - 1]
+  return {
+    replaceStart: outerPair.closeIdx,
+    replaceEnd: outerPair.openIdx
+  }
+}
 
-  let labelLength = endIdx - startIdx + 1
-  const firstLabelToken = tokens[startIdx]
+const resolveInsertedWrapperMap = (pairMap, labelMap) => {
+  return pairMap || labelMap
+}
+
+const buildWrappedLabelReplacement = (labelTokens, linkOpenToken, linkCloseToken, wrapperPairs, labelMap) => {
+  const firstLabelToken = labelTokens[0]
   const linkLevel = firstLabelToken ? Math.max(firstLabelToken.level - 1, 0) : 0
   linkOpenToken.level = linkLevel
   linkCloseToken.level = linkLevel
-  const labelMap = getMapFromTokenRange(tokens, startIdx, endIdx) || getNearbyMap(tokens, startIdx, endIdx)
   if (labelMap) {
     if (!linkOpenToken.map) linkOpenToken.map = cloneMap(labelMap)
     if (!linkCloseToken.map) linkCloseToken.map = cloneMap(labelMap)
   }
-  tokens.splice(startIdx, 0, linkOpenToken)
-  tokens.splice(startIdx + labelLength + 1, 0, linkCloseToken)
-
-  adjustTokenLevels(tokens, startIdx + 1, startIdx + labelLength + 1, 1)
-
-  if (wrapperPairs.length > 0) {
-    let insertIdx = startIdx + 1
-    for (let wp = 0; wp < wrapperPairs.length; wp++) {
-      const pair = wrapperPairs[wp]
-      const innerOpen = new Token(pair.base + '_open', pair.tag, 1)
-      innerOpen.markup = pair.markup
-      innerOpen.level = linkLevel + 1 + wp
-      if (pair.openMap && !innerOpen.map) innerOpen.map = cloneMap(pair.openMap)
-      tokens.splice(insertIdx, 0, innerOpen)
-      insertIdx++
-      labelLength++
-    }
-    let linkClosePos = startIdx + labelLength + 1
-    for (let wp = wrapperPairs.length - 1; wp >= 0; wp--) {
-      const pair = wrapperPairs[wp]
-      const innerClose = new Token(pair.base + '_close', pair.tag, -1)
-      innerClose.markup = pair.markup
-      innerClose.level = linkLevel + 1 + wp
-      if (pair.closeMap && !innerClose.map) innerClose.map = cloneMap(pair.closeMap)
-      tokens.splice(linkClosePos, 0, innerClose)
-      labelLength++
-    }
+  for (let idx = 0; idx < labelTokens.length; idx++) {
+    if (labelTokens[idx]) labelTokens[idx].level += 1
   }
 
-  return startIdx + labelLength + 2
+  const replacement = [linkOpenToken]
+  for (let wp = 0; wp < wrapperPairs.length; wp++) {
+    const pair = wrapperPairs[wp]
+    const innerOpen = new Token(pair.base + '_open', pair.tag, 1)
+    innerOpen.markup = pair.markup
+    innerOpen.level = linkLevel + 1 + wp
+    const openMap = resolveInsertedWrapperMap(pair.openMap, labelMap)
+    if (openMap && !innerOpen.map) innerOpen.map = cloneMap(openMap)
+    replacement.push(innerOpen)
+  }
+  replacement.push(...labelTokens)
+  for (let wp = 0; wp < wrapperPairs.length; wp++) {
+    const pair = wrapperPairs[wp]
+    const innerClose = new Token(pair.base + '_close', pair.tag, -1)
+    innerClose.markup = pair.markup
+    innerClose.level = linkLevel + 1 + wp
+    const closeMap = resolveInsertedWrapperMap(pair.closeMap, labelMap)
+    if (closeMap && !innerClose.map) innerClose.map = cloneMap(closeMap)
+    replacement.push(innerClose)
+  }
+  replacement.push(linkCloseToken)
+  return replacement
 }
 
-const convertCollapsedReferenceLinks = (tokens, state) => {
-  const references = state.env && state.env.references
-  if (!references) return
-  let referenceCount = state.__strongJaReferenceCount
-  if (referenceCount === undefined) {
-    referenceCount = Object.keys(references).length
-    state.__strongJaReferenceCount = referenceCount
-  }
-  if (referenceCount === 0) {
-    return
-  }
+const wrapLabelTokensWithLink = (
+  tokens,
+  collapsedStartIdx,
+  collapsedEndIdx,
+  labelStartIdx,
+  labelEndIdx,
+  linkOpenToken,
+  linkCloseToken
+) => {
+  if (labelStartIdx > labelEndIdx) return collapsedStartIdx
+  const labelTokens = tokens.slice(labelStartIdx, labelEndIdx + 1)
+  const wrapperPairs = collectWrappedLabelPairs(tokens, collapsedStartIdx, collapsedEndIdx)
+  const { replaceStart, replaceEnd } = resolveWrappedLabelReplaceRange(
+    wrapperPairs,
+    collapsedStartIdx,
+    collapsedEndIdx
+  )
+  const labelMap = getMapFromTokenRange(tokens, labelStartIdx, labelEndIdx) || getNearbyMap(tokens, replaceStart, replaceEnd)
+  const replacement = buildWrappedLabelReplacement(
+    labelTokens,
+    linkOpenToken,
+    linkCloseToken,
+    wrapperPairs,
+    labelMap
+  )
+  tokens.splice(replaceStart, replaceEnd - replaceStart + 1, ...replacement)
+  return replaceStart + replacement.length
+}
 
-  let i = 0
+const resolveCollapsedReferenceTarget = (
+  tokens,
+  state,
+  refRemoveStart,
+  getLabelText,
+  getLinkCloseMap
+) => {
+  let refKey = null
+  let refRemoveCount = 0
+  let existingLinkOpen = null
+  let existingLinkClose = null
+  const nextToken = tokens[refRemoveStart]
+  if (isBracketToken(nextToken, '[]')) {
+    refKey = normalizeReferenceCandidate(state, getLabelText())
+    refRemoveCount = 1
+  } else if (isBracketToken(nextToken, '[')) {
+    let refCloseIdx = refRemoveStart + 1
+    while (refCloseIdx < tokens.length && !isBracketToken(tokens[refCloseIdx], ']')) {
+      refCloseIdx++
+    }
+    if (refCloseIdx >= tokens.length) return null
+    const refStart = refRemoveStart + 1
+    const refEnd = refCloseIdx - 1
+    if (refStart > refEnd) {
+      refKey = normalizeReferenceCandidate(state, getLabelText())
+    } else {
+      const refLabelText = buildReferenceLabelRange(tokens, refStart, refEnd)
+      refKey = normalizeReferenceCandidate(state, refLabelText)
+    }
+    refRemoveCount = refCloseIdx - refRemoveStart + 1
+  } else if (nextToken && nextToken.type === 'link_open') {
+    const linkCloseMap = getLinkCloseMap(refRemoveStart)
+    const linkCloseIdx = linkCloseMap.get(refRemoveStart) ?? -1
+    if (linkCloseIdx === -1) return null
+    existingLinkOpen = tokens[refRemoveStart]
+    existingLinkClose = tokens[linkCloseIdx]
+    refRemoveCount = linkCloseIdx - refRemoveStart + 1
+  } else {
+    return null
+  }
+  return {
+    refKey,
+    refRemoveCount,
+    existingLinkOpen,
+    existingLinkClose
+  }
+}
+
+const buildAutoCollapsedReferenceLinkPair = (ref) => {
+  if (!ref) return null
+  const linkOpenToken = new Token('link_open', 'a', 1)
+  linkOpenToken.attrs = [['href', ref.href]]
+  if (ref.title) linkOpenToken.attrPush(['title', ref.title])
+  linkOpenToken.markup = '[]'
+  linkOpenToken.info = 'auto'
+
+  const linkCloseToken = new Token('link_close', 'a', -1)
+  linkCloseToken.markup = '[]'
+  linkCloseToken.info = 'auto'
+  return { linkOpenToken, linkCloseToken }
+}
+
+const resolveCollapsedReferenceLinkPair = (references, target) => {
+  if (!target) return null
+  if (target.existingLinkOpen && target.existingLinkClose) {
+    return {
+      linkOpenToken: target.existingLinkOpen,
+      linkCloseToken: target.existingLinkClose
+    }
+  }
+  if (!target.refKey) return null
+  return buildAutoCollapsedReferenceLinkPair(references[target.refKey])
+}
+
+const applyCollapsedReferenceRewrite = (
+  tokens,
+  startIdx,
+  labelStart,
+  labelEnd,
+  suffixRemoveCount,
+  linkOpenToken,
+  linkCloseToken
+) => {
+  const labelLength = labelEnd - labelStart + 1
+  const collapsedReplaceCount = labelLength + 2 + suffixRemoveCount
+  const collapsedEnd = startIdx + collapsedReplaceCount - 1
+  linkOpenToken.__strongJaMergeMarksAroundLink = true
+  linkCloseToken.__strongJaMergeMarksAroundLink = true
+  return wrapLabelTokensWithLink(
+    tokens,
+    startIdx,
+    collapsedEnd,
+    labelStart,
+    labelEnd,
+    linkOpenToken,
+    linkCloseToken
+  )
+}
+
+const COLLAPSED_REFERENCE_SCAN_RETRY = Symbol('collapsed-reference-scan-retry')
+const COLLAPSED_REFERENCE_SCAN_SKIP = Symbol('collapsed-reference-scan-skip')
+
+const createCollapsedReferenceLinkCloseMapAccessors = (tokens, cache = null) => {
   let linkCloseMap = null
+  const getLinkCloseMap = (startIdx = 0) => {
+    if (cache) {
+      if (cache.linkCloseMap === undefined) {
+        cache.linkCloseMap = buildLinkCloseMap(tokens, 0, tokens.length - 1)
+      }
+      return cache.linkCloseMap
+    }
+    if (linkCloseMap === null) {
+      linkCloseMap = buildLinkCloseMap(tokens, startIdx, tokens.length - 1)
+    }
+    return linkCloseMap
+  }
+  const invalidateLinkCloseMap = () => {
+    linkCloseMap = null
+    if (cache) cache.linkCloseMap = undefined
+  }
+  return { getLinkCloseMap, invalidateLinkCloseMap }
+}
+
+const findCollapsedReferenceLabelClose = (tokens, startIdx, invalidateLinkCloseMap) => {
+  let closeIdx = startIdx + 1
+  while (closeIdx < tokens.length) {
+    if (isBracketToken(tokens[closeIdx], ']')) return closeIdx
+    const closeToken = tokens[closeIdx]
+    if (closeToken && closeToken.type === 'text' && splitBracketToken(tokens, closeIdx)) {
+      invalidateLinkCloseMap()
+      return COLLAPSED_REFERENCE_SCAN_RETRY
+    }
+    if (closeToken && closeToken.type === 'link_open') return -1
+    closeIdx++
+  }
+  return -1
+}
+
+const buildCollapsedReferenceCandidate = (
+  tokens,
+  state,
+  startIdx,
+  closeIdx,
+  getLinkCloseMap,
+  invalidateLinkCloseMap
+) => {
+  if (closeIdx === startIdx + 1) return null
+
+  const labelStart = startIdx + 1
+  const labelEnd = closeIdx - 1
+  if (!hasReferenceLabelMarkerRange(tokens, labelStart, labelEnd)) return null
+
+  let labelText = null
+  const getLabelText = () => {
+    if (labelText === null) labelText = buildReferenceLabelRange(tokens, labelStart, labelEnd)
+    return labelText
+  }
+
+  const whitespaceStart = closeIdx + 1
+  let refRemoveStart = whitespaceStart
+  while (refRemoveStart < tokens.length && isWhitespaceToken(tokens[refRemoveStart])) {
+    refRemoveStart++
+  }
+  const refStartToken = tokens[refRemoveStart]
+  if (refStartToken && refStartToken.type === 'text' && splitBracketToken(tokens, refRemoveStart)) {
+    invalidateLinkCloseMap()
+    return COLLAPSED_REFERENCE_SCAN_RETRY
+  }
+
+  const target = resolveCollapsedReferenceTarget(
+    tokens,
+    state,
+    refRemoveStart,
+    getLabelText,
+    getLinkCloseMap
+  )
+  if (!target) return null
+
+  return {
+    labelStart,
+    labelEnd,
+    suffixRemoveCount: (refRemoveStart - whitespaceStart) + target.refRemoveCount,
+    target
+  }
+}
+
+const tryConvertCollapsedReferenceAt = (
+  tokens,
+  state,
+  references,
+  startIdx,
+  getLinkCloseMap,
+  invalidateLinkCloseMap,
+  onChangeStart = null
+) => {
+  if (splitBracketToken(tokens, startIdx)) {
+    invalidateLinkCloseMap()
+    return COLLAPSED_REFERENCE_SCAN_RETRY
+  }
+  if (!isBracketToken(tokens[startIdx], '[')) return COLLAPSED_REFERENCE_SCAN_SKIP
+
+  const closeIdx = findCollapsedReferenceLabelClose(tokens, startIdx, invalidateLinkCloseMap)
+  if (closeIdx === COLLAPSED_REFERENCE_SCAN_RETRY) return COLLAPSED_REFERENCE_SCAN_RETRY
+  if (closeIdx === -1) return COLLAPSED_REFERENCE_SCAN_SKIP
+
+  const candidate = buildCollapsedReferenceCandidate(
+    tokens,
+    state,
+    startIdx,
+    closeIdx,
+    getLinkCloseMap,
+    invalidateLinkCloseMap
+  )
+  if (candidate === COLLAPSED_REFERENCE_SCAN_RETRY) return COLLAPSED_REFERENCE_SCAN_RETRY
+  if (!candidate) return COLLAPSED_REFERENCE_SCAN_SKIP
+
+  const linkPair = resolveCollapsedReferenceLinkPair(references, candidate.target)
+  if (!linkPair) return COLLAPSED_REFERENCE_SCAN_SKIP
+
+  if (onChangeStart) onChangeStart(startIdx)
+  invalidateLinkCloseMap()
+  return applyCollapsedReferenceRewrite(
+    tokens,
+    startIdx,
+    candidate.labelStart,
+    candidate.labelEnd,
+    candidate.suffixRemoveCount,
+    linkPair.linkOpenToken,
+    linkPair.linkCloseToken
+  )
+}
+
+const convertCollapsedReferenceLinks = (tokens, state, cache = null, onChangeStart = null) => {
+  const references = state.env && state.env.references
+  if (!references) return false
+  if (getReferenceCount(state) === 0) {
+    return false
+  }
+
+  let changed = false
+  let i = 0
+  const { getLinkCloseMap, invalidateLinkCloseMap } = createCollapsedReferenceLinkCloseMapAccessors(tokens, cache)
   while (i < tokens.length) {
-    if (splitBracketToken(tokens, i)) {
-      linkCloseMap = null
-      continue
-    }
-    if (!isBracketToken(tokens[i], '[')) {
+    const nextIndex = tryConvertCollapsedReferenceAt(
+      tokens,
+      state,
+      references,
+      i,
+      getLinkCloseMap,
+      invalidateLinkCloseMap,
+      onChangeStart
+    )
+    if (nextIndex === COLLAPSED_REFERENCE_SCAN_RETRY) continue
+    if (nextIndex === COLLAPSED_REFERENCE_SCAN_SKIP) {
       i++
       continue
     }
-    let closeIdx = i + 1
-    while (closeIdx < tokens.length && !isBracketToken(tokens[closeIdx], ']')) {
-      const closeToken = tokens[closeIdx]
-      if (closeToken && closeToken.type === 'text' && splitBracketToken(tokens, closeIdx)) {
-        linkCloseMap = null
-        continue
-      }
-      if (closeToken && closeToken.type === 'link_open') {
-        closeIdx = -1
-        break
-      }
-      closeIdx++
-    }
-    if (closeIdx === -1 || closeIdx >= tokens.length) {
-      i++
-      continue
-    }
-
-    if (closeIdx === i + 1) {
-      i++
-      continue
-    }
-
-    const labelStart = i + 1
-    const labelEnd = closeIdx - 1
-    const labelLength = closeIdx - i - 1
-    const labelText = buildReferenceLabelRange(tokens, labelStart, labelEnd)
-    if (labelText.indexOf('*') === -1 && labelText.indexOf('_') === -1) {
-      i++
-      continue
-    }
-    const whitespaceStart = closeIdx + 1
-    let refRemoveStart = whitespaceStart
-    while (refRemoveStart < tokens.length && isWhitespaceToken(tokens[refRemoveStart])) {
-      refRemoveStart++
-    }
-    const refStartToken = tokens[refRemoveStart]
-    if (refStartToken && refStartToken.type === 'text' && splitBracketToken(tokens, refRemoveStart)) {
-      linkCloseMap = null
-      continue
-    }
-    const whitespaceCount = refRemoveStart - whitespaceStart
-    let refKey = null
-    let refRemoveCount = 0
-    let existingLinkOpen = null
-    let existingLinkClose = null
-    const nextToken = tokens[refRemoveStart]
-    if (isBracketToken(nextToken, '[]')) {
-      refKey = normalizeReferenceCandidate(state, labelText)
-      refRemoveCount = 1
-    } else if (isBracketToken(nextToken, '[')) {
-      let refCloseIdx = refRemoveStart + 1
-      while (refCloseIdx < tokens.length && !isBracketToken(tokens[refCloseIdx], ']')) {
-        refCloseIdx++
-      }
-      if (refCloseIdx >= tokens.length) {
-        i++
-        continue
-      }
-      const refStart = refRemoveStart + 1
-      const refEnd = refCloseIdx - 1
-      if (refStart > refEnd) {
-        refKey = normalizeReferenceCandidate(state, labelText)
-      } else {
-        const refLabelText = buildReferenceLabelRange(tokens, refStart, refEnd)
-        refKey = normalizeReferenceCandidate(state, refLabelText)
-      }
-      refRemoveCount = refCloseIdx - refRemoveStart + 1
-    } else if (nextToken && nextToken.type === 'link_open') {
-      if (linkCloseMap === null) {
-        linkCloseMap = buildLinkCloseMap(tokens, refRemoveStart, tokens.length - 1)
-      }
-      const linkCloseIdx = linkCloseMap.get(refRemoveStart) ?? -1
-      if (linkCloseIdx === -1) {
-        i++
-        continue
-      }
-      existingLinkOpen = tokens[refRemoveStart]
-      existingLinkClose = tokens[linkCloseIdx]
-      refRemoveCount = linkCloseIdx - refRemoveStart + 1
-    } else {
-      i++
-      continue
-    }
-    let linkOpenToken = null
-    let linkCloseToken = null
-    if (existingLinkOpen && existingLinkClose) {
-      linkCloseMap = null
-      if (whitespaceCount > 0) {
-        tokens.splice(whitespaceStart, whitespaceCount)
-        refRemoveStart -= whitespaceCount
-      }
-      if (refRemoveCount > 0) {
-        tokens.splice(refRemoveStart, refRemoveCount)
-      }
-      linkOpenToken = existingLinkOpen
-      linkCloseToken = existingLinkClose
-    } else {
-      if (!refKey) {
-        i++
-        continue
-      }
-      const ref = references[refKey]
-      if (!ref) {
-        i++
-        continue
-      }
-      linkCloseMap = null
-      if (whitespaceCount > 0) {
-        tokens.splice(whitespaceStart, whitespaceCount)
-        refRemoveStart -= whitespaceCount
-      }
-      if (refRemoveCount > 0) {
-        tokens.splice(refRemoveStart, refRemoveCount)
-      }
-      linkOpenToken = new Token('link_open', 'a', 1)
-      linkOpenToken.attrs = [['href', ref.href]]
-      if (ref.title) linkOpenToken.attrPush(['title', ref.title])
-      linkOpenToken.markup = '[]'
-      linkOpenToken.info = 'auto'
-      linkCloseToken = new Token('link_close', 'a', -1)
-      linkCloseToken.markup = '[]'
-      linkCloseToken.info = 'auto'
-    }
-    tokens.splice(closeIdx, 1)
-    tokens.splice(i, 1)
-
-    const nextIndex = wrapLabelTokensWithLink(tokens, i, i + labelLength - 1, linkOpenToken, linkCloseToken)
+    changed = true
     i = nextIndex
   }
+  return changed
 }
 
-const mergeBrokenMarksAroundLinks = (tokens) => {
+const collectBrokenMarkLinkMergeRemovals = (tokens) => {
+  const removals = []
   let i = 0
   while (i < tokens.length) {
     const closeToken = tokens[i]
@@ -439,7 +606,9 @@ const mergeBrokenMarksAroundLinks = (tokens) => {
     const openType = closeToken.type.replace('_close', '_open')
     let j = i + 1
     while (j < tokens.length && isWhitespaceToken(tokens[j])) j++
-    if (j >= tokens.length || tokens[j].type !== 'link_open') {
+    if (j >= tokens.length ||
+        tokens[j].type !== 'link_open' ||
+        tokens[j].__strongJaMergeMarksAroundLink !== true) {
       i++
       continue
     }
@@ -464,9 +633,31 @@ const mergeBrokenMarksAroundLinks = (tokens) => {
       i++
       continue
     }
-    tokens.splice(j, 1)
-    tokens.splice(i, 1)
+    removals.push({ closeIdx: i, reopenIdx: j })
+    i = j + 1
   }
+  return removals
+}
+
+const applyBrokenMarkLinkMergeRemovals = (tokens, removals, onChangeStart = null) => {
+  if (!removals || removals.length === 0) return false
+  const removeFlags = new Array(tokens.length).fill(false)
+  for (let idx = removals.length - 1; idx >= 0; idx--) {
+    const removal = removals[idx]
+    if (onChangeStart) onChangeStart(removal.closeIdx)
+    removeFlags[removal.closeIdx] = true
+    removeFlags[removal.reopenIdx] = true
+  }
+  const kept = []
+  for (let idx = 0; idx < tokens.length; idx++) {
+    if (!removeFlags[idx]) kept.push(tokens[idx])
+  }
+  tokens.splice(0, tokens.length, ...kept)
+  return true
+}
+
+const mergeBrokenMarksAroundLinks = (tokens, onChangeStart = null) => {
+  return applyBrokenMarkLinkMergeRemovals(tokens, collectBrokenMarkLinkMergeRemovals(tokens), onChangeStart)
 }
 
 export {

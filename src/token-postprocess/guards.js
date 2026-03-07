@@ -1,4 +1,4 @@
-import { isJapaneseChar, getInlineWrapperBase } from '../token-utils.js'
+import { isJapaneseChar } from '../token-utils.js'
 
 const hasMarkerChars = (text) => {
   return !!text && text.indexOf('*') !== -1
@@ -220,8 +220,8 @@ const buildAsteriskWrapperPrefixStats = (tokens) => {
   }
 }
 
-const buildBrokenRefWrapperRangeSignals = (tokens, startIdx, endIdx, firstTextOffset = 0) => {
-  const out = {
+const createBrokenRefWrapperRangeSignals = () => {
+  return {
     hasLeadingUnmatchedClose: false,
     hasImbalance: false,
     hasAsteriskEmphasisToken: false,
@@ -234,83 +234,109 @@ const buildBrokenRefWrapperRangeSignals = (tokens, startIdx, endIdx, firstTextOf
     emOpenInRange: 0,
     emCloseInRange: 0
   }
-  if (!tokens || startIdx < 0 || endIdx < startIdx) return out
-  const depthMap = new Map()
-  let sawWrapper = false
-  let sawOpen = false
+}
+
+const updateBrokenRefTextRangeSignals = (signals, token, tokenIdx, startIdx, firstTextOffset) => {
+  if (!token || token.type !== 'text' || !token.content) return
+  const content = token.content
+  // Keep this at 0 (instead of firstTextOffset) so historical fail-safe
+  // behavior around noisy leading chains in the first text token stays unchanged.
+  if (!signals.hasLongStarNoise && content.indexOf('***') !== -1) {
+    signals.hasLongStarNoise = true
+  }
+  if (!signals.hasUnderscoreText) {
+    const scanFrom = tokenIdx === startIdx && firstTextOffset > 0 ? firstTextOffset : 0
+    if (scanFrom < content.length && content.indexOf('_', scanFrom) !== -1) {
+      signals.hasUnderscoreText = true
+    }
+  }
+}
+
+const updateBrokenRefWrapperTokenSignals = (signals, token, isAsteriskEmphasis) => {
+  if (!signals.hasCodeInline && token.type === 'code_inline') {
+    signals.hasCodeInline = true
+  }
+  if (isAsteriskEmphasis) {
+    signals.hasAsteriskEmphasisToken = true
+  }
+  if (!signals.hasUnderscoreEmphasisToken &&
+      (token.type === 'strong_open' ||
+       token.type === 'strong_close' ||
+       token.type === 'em_open' ||
+       token.type === 'em_close') &&
+      (token.markup === '_' || token.markup === '__')) {
+    signals.hasUnderscoreEmphasisToken = true
+  }
+}
+
+const updateBrokenRefWrapperRangeDepthSignals = (signals, token, wrapperState, isAsteriskEmphasis) => {
+  if (!isAsteriskEmphasis) return
+  let depthKey = ''
+  if (token.type === 'strong_open' || token.type === 'strong_close') {
+    depthKey = 'strongDepth'
+  } else if (token.type === 'em_open' || token.type === 'em_close') {
+    depthKey = 'emDepth'
+  } else {
+    return
+  }
+  const isOpen = token.type.endsWith('_open')
+  if (!wrapperState.sawWrapper) {
+    wrapperState.sawWrapper = true
+    if (!isOpen) signals.hasLeadingUnmatchedClose = true
+  }
+  if (isOpen) {
+    wrapperState.sawOpen = true
+    signals.hasLeadingUnmatchedClose = false
+    wrapperState[depthKey]++
+  } else if (wrapperState[depthKey] <= 0) {
+    signals.hasImbalance = true
+  } else {
+    wrapperState[depthKey]--
+  }
+  if (token.type === 'strong_open') signals.strongOpenInRange++
+  else if (token.type === 'strong_close') signals.strongCloseInRange++
+  else if (token.type === 'em_open') signals.emOpenInRange++
+  else if (token.type === 'em_close') signals.emCloseInRange++
+}
+
+const finalizeBrokenRefWrapperRangeSignals = (signals, wrapperState) => {
+  if (!wrapperState.sawWrapper || wrapperState.sawOpen) {
+    signals.hasLeadingUnmatchedClose = false
+  }
+  if (!signals.hasImbalance &&
+      (wrapperState.strongDepth !== 0 || wrapperState.emDepth !== 0)) {
+    signals.hasImbalance = true
+  }
+  return signals
+}
+
+const buildBrokenRefWrapperRangeSignals = (tokens, startIdx, endIdx, firstTextOffset = 0) => {
+  const signals = createBrokenRefWrapperRangeSignals()
+  if (!tokens || startIdx < 0 || endIdx < startIdx) return signals
+  const wrapperState = { sawWrapper: false, sawOpen: false, strongDepth: 0, emDepth: 0 }
   for (let i = startIdx; i <= endIdx && i < tokens.length; i++) {
     const token = tokens[i]
     if (!token || !token.type) continue
-    if (!out.hasCodeInline && token.type === 'code_inline') {
-      out.hasCodeInline = true
-    }
     const isAsteriskEmphasis = isAsteriskEmphasisToken(token)
-    if (isAsteriskEmphasis) out.hasAsteriskEmphasisToken = true
-    if (!out.hasUnderscoreEmphasisToken &&
-        (token.type === 'strong_open' ||
-         token.type === 'strong_close' ||
-         token.type === 'em_open' ||
-         token.type === 'em_close') &&
-        (token.markup === '_' || token.markup === '__')) {
-      out.hasUnderscoreEmphasisToken = true
-    }
-    if (token.type === 'text' && token.content) {
-      const content = token.content
-      // Keep this at 0 (instead of firstTextOffset) so historical fail-safe
-      // behavior around noisy leading chains in the first text token stays unchanged.
-      if (!out.hasLongStarNoise && content.indexOf('***') !== -1) {
-        out.hasLongStarNoise = true
-      }
-      if (!out.hasUnderscoreText) {
-        const scanFrom = i === startIdx && firstTextOffset > 0 ? firstTextOffset : 0
-        if (scanFrom < content.length && content.indexOf('_', scanFrom) !== -1) {
-          out.hasUnderscoreText = true
-        }
-      }
-    }
-    if ((token.type === 'strong_open' || token.type === 'strong_close' || token.type === 'em_open' || token.type === 'em_close') &&
-        !isAsteriskEmphasis) {
-      continue
-    }
-    const base = getInlineWrapperBase(token.type)
-    if (!base) continue
-    const isOpen = token.type.endsWith('_open')
-    if (!sawWrapper) {
-      sawWrapper = true
-      if (!isOpen) out.hasLeadingUnmatchedClose = true
-    }
-    if (isOpen) {
-      sawOpen = true
-      out.hasLeadingUnmatchedClose = false
-      depthMap.set(base, (depthMap.get(base) || 0) + 1)
-    } else {
-      const prev = depthMap.get(base) || 0
-      if (prev <= 0) {
-        out.hasImbalance = true
-      } else {
-        depthMap.set(base, prev - 1)
-      }
-    }
-    if (token.type === 'strong_open') out.strongOpenInRange++
-    else if (token.type === 'strong_close') out.strongCloseInRange++
-    else if (token.type === 'em_open') out.emOpenInRange++
-    else if (token.type === 'em_close') out.emCloseInRange++
+    updateBrokenRefWrapperTokenSignals(signals, token, isAsteriskEmphasis)
+    updateBrokenRefTextRangeSignals(signals, token, i, startIdx, firstTextOffset)
+    updateBrokenRefWrapperRangeDepthSignals(signals, token, wrapperState, isAsteriskEmphasis)
   }
-  if (!sawWrapper || sawOpen) out.hasLeadingUnmatchedClose = false
-  if (!out.hasImbalance) {
-    for (const depth of depthMap.values()) {
-      if (depth !== 0) {
-        out.hasImbalance = true
-        break
-      }
-    }
-  }
-  return out
+  return finalizeBrokenRefWrapperRangeSignals(signals, wrapperState)
+}
+
+const hasRangeCloseOnlyWrapperSignals = (signals) => {
+  if (!signals) return false
+  return (signals.strongCloseInRange > 0 && signals.strongOpenInRange === 0) ||
+    (signals.emCloseInRange > 0 && signals.emOpenInRange === 0)
 }
 
 const hasPreexistingWrapperCloseOnlyInRange = (tokens, startIdx, endIdx, prefixStats = null, wrapperSignals = null) => {
   if (!tokens || startIdx <= 0 || endIdx < startIdx) return false
   const signals = wrapperSignals || buildBrokenRefWrapperRangeSignals(tokens, startIdx, endIdx, 0)
+  if (!hasRangeCloseOnlyWrapperSignals(signals)) return false
+  const needsStrongCloseOnly = signals.strongCloseInRange > 0 && signals.strongOpenInRange === 0
+  const needsEmCloseOnly = signals.emCloseInRange > 0 && signals.emOpenInRange === 0
 
   let preStrongDepth = 0
   let preEmDepth = 0
@@ -329,23 +355,20 @@ const hasPreexistingWrapperCloseOnlyInRange = (tokens, startIdx, endIdx, prefixS
       (endIdx + 1) < prefixStats.strongClose.length &&
       (endIdx + 1) < prefixStats.emOpen.length &&
       (endIdx + 1) < prefixStats.emClose.length) {
-    preStrongDepth = prefixStats.strongDepth[startIdx] || 0
-    preEmDepth = prefixStats.emDepth[startIdx] || 0
-    if (preStrongDepth > 0) {
-      const strongOpensInRange = signals.strongOpenInRange
-      const strongClosesInRange = signals.strongCloseInRange
-      if (strongClosesInRange > 0 && strongOpensInRange === 0) return true
+    if (needsStrongCloseOnly) {
+      preStrongDepth = prefixStats.strongDepth[startIdx] || 0
+      if (preStrongDepth > 0) return true
     }
-    if (preEmDepth > 0) {
-      const emOpensInRange = signals.emOpenInRange
-      const emClosesInRange = signals.emCloseInRange
-      if (emClosesInRange > 0 && emOpensInRange === 0) return true
+    if (needsEmCloseOnly) {
+      preEmDepth = prefixStats.emDepth[startIdx] || 0
+      if (preEmDepth > 0) return true
     }
     return false
-  } else {
-    for (let i = 0; i < startIdx && i < tokens.length; i++) {
-      const token = tokens[i]
-      if (!token || !token.type || !isAsteriskEmphasisToken(token)) continue
+  }
+  for (let i = 0; i < startIdx && i < tokens.length; i++) {
+    const token = tokens[i]
+    if (!token || !token.type || !isAsteriskEmphasisToken(token)) continue
+    if (needsStrongCloseOnly) {
       if (token.type === 'strong_open') {
         preStrongDepth++
         continue
@@ -354,46 +377,95 @@ const hasPreexistingWrapperCloseOnlyInRange = (tokens, startIdx, endIdx, prefixS
         if (preStrongDepth > 0) preStrongDepth--
         continue
       }
+    }
+    if (needsEmCloseOnly) {
       if (token.type === 'em_open') {
         preEmDepth++
         continue
       }
-      if (token.type === 'em_close') {
-        if (preEmDepth > 0) preEmDepth--
+      if (token.type === 'em_close' && preEmDepth > 0) {
+        preEmDepth--
       }
     }
   }
-  if (preStrongDepth > 0 && signals.strongCloseInRange > 0 && signals.strongOpenInRange === 0) return true
-  if (preEmDepth > 0 && signals.emCloseInRange > 0 && signals.emOpenInRange === 0) return true
+  if (needsStrongCloseOnly && preStrongDepth > 0) return true
+  if (needsEmCloseOnly && preEmDepth > 0) return true
   return false
+}
+
+const hasBrokenRefLowConfidenceTextNoise = (signals) => {
+  return signals.hasLongStarNoise || signals.hasUnderscoreText
+}
+
+const hasBrokenRefLowConfidenceInlineSyntax = (signals) => {
+  return signals.hasCodeInline || signals.hasUnderscoreEmphasisToken
+}
+
+const hasBrokenRefLowConfidenceNoise = (signals) => {
+  return hasBrokenRefLowConfidenceTextNoise(signals) || hasBrokenRefLowConfidenceInlineSyntax(signals)
+}
+
+const hasBrokenRefCloseOnlyWrapperRisk = (
+  tokens,
+  startIdx,
+  endIdx,
+  wrapperPrefixStats = null,
+  wrapperSignals = null
+) => {
+  const signals = wrapperSignals || buildBrokenRefWrapperRangeSignals(tokens, startIdx, endIdx, 0)
+  return hasPreexistingWrapperCloseOnlyInRange(tokens, startIdx, endIdx, wrapperPrefixStats, signals)
+}
+
+const hasBrokenRefLowConfidenceWrapperRisk = (
+  tokens,
+  startIdx,
+  endIdx,
+  wrapperPrefixStats = null,
+  wrapperSignals = null
+) => {
+  const signals = wrapperSignals || buildBrokenRefWrapperRangeSignals(tokens, startIdx, endIdx, 0)
+  if (signals.hasLeadingUnmatchedClose) return true
+  return hasBrokenRefCloseOnlyWrapperRisk(tokens, startIdx, endIdx, wrapperPrefixStats, signals)
 }
 
 const isLowConfidenceBrokenRefRange = (tokens, startIdx, endIdx, firstTextOffset = 0, wrapperPrefixStats = null, wrapperSignals = null) => {
   const signals = wrapperSignals || buildBrokenRefWrapperRangeSignals(tokens, startIdx, endIdx, firstTextOffset)
-  if (signals.hasLongStarNoise) return true
-  if (signals.hasUnderscoreText || signals.hasCodeInline || signals.hasUnderscoreEmphasisToken) return true
-  if (signals.hasLeadingUnmatchedClose) return true
-  if (hasPreexistingWrapperCloseOnlyInRange(tokens, startIdx, endIdx, wrapperPrefixStats, signals)) return true
-  return false
+  if (hasBrokenRefLowConfidenceNoise(signals)) return true
+  return hasBrokenRefLowConfidenceWrapperRisk(tokens, startIdx, endIdx, wrapperPrefixStats, signals)
+}
+
+const hasBrokenRefStrongRunEvidence = (tokens, startIdx, endIdx, firstTextOffset = 0) => {
+  return countStrongMarkerRunsInTextRange(tokens, startIdx, endIdx, firstTextOffset, 2) >= 2
+}
+
+const hasBrokenRefExplicitAsteriskSignal = (wrapperSignals) => {
+  return wrapperSignals.hasAsteriskEmphasisToken
+}
+
+const hasBrokenRefImmediateRewriteSignal = (wrapperSignals) => {
+  return wrapperSignals.hasImbalance && hasBrokenRefExplicitAsteriskSignal(wrapperSignals)
+}
+
+const shouldRejectBalancedBrokenRefRewrite = (wrapperSignals) => {
+  return !wrapperSignals.hasImbalance && hasBrokenRefExplicitAsteriskSignal(wrapperSignals)
+}
+
+const shouldAttemptBrokenRefRewriteFromSignals = (tokens, startIdx, endIdx, firstTextOffset, wrapperSignals) => {
+  if (hasBrokenRefImmediateRewriteSignal(wrapperSignals)) return true
+  if (shouldRejectBalancedBrokenRefRewrite(wrapperSignals)) return false
+  return hasBrokenRefStrongRunEvidence(tokens, startIdx, endIdx, firstTextOffset)
 }
 
 const shouldAttemptBrokenRefRewrite = (tokens, startIdx, endIdx, firstTextOffset = 0, wrapperPrefixStats = null) => {
   const wrapperSignals = buildBrokenRefWrapperRangeSignals(tokens, startIdx, endIdx, firstTextOffset)
   if (isLowConfidenceBrokenRefRange(tokens, startIdx, endIdx, firstTextOffset, wrapperPrefixStats, wrapperSignals)) return false
-  if (wrapperSignals.hasImbalance) {
-    if (wrapperSignals.hasAsteriskEmphasisToken) return true
-    return countStrongMarkerRunsInTextRange(tokens, startIdx, endIdx, firstTextOffset, 2) >= 2
-  }
-  if (wrapperSignals.hasAsteriskEmphasisToken) return false
-  return countStrongMarkerRunsInTextRange(tokens, startIdx, endIdx, firstTextOffset, 2) >= 2
+  return shouldAttemptBrokenRefRewriteFromSignals(tokens, startIdx, endIdx, firstTextOffset, wrapperSignals)
 }
 
-const scanInlinePostprocessSignals = (children, hasBracketTextInContent = false) => {
-  let hasBracketText = hasBracketTextInContent
+const scanInlinePostprocessSignals = (children) => {
   let hasEmphasis = false
   let hasLinkOpen = false
   let hasLinkClose = false
-  let hasCodeInline = false
   for (let j = 0; j < children.length; j++) {
     const child = children[j]
     if (!child) continue
@@ -406,21 +478,12 @@ const scanInlinePostprocessSignals = (children, hasBracketTextInContent = false)
     if (!hasLinkClose && child.type === 'link_close') {
       hasLinkClose = true
     }
-    if (!hasCodeInline && child.type === 'code_inline') {
-      hasCodeInline = true
-    }
-    if (hasBracketText || child.type !== 'text' || !child.content) continue
-    if (child.content.indexOf('[') !== -1 || child.content.indexOf(']') !== -1) {
-      hasBracketText = true
-    }
-    if (hasEmphasis && hasBracketText && hasLinkOpen && hasLinkClose) break
+    if (hasEmphasis && hasLinkOpen && hasLinkClose) break
   }
   return {
-    hasBracketText,
     hasEmphasis,
     hasLinkOpen,
-    hasLinkClose,
-    hasCodeInline
+    hasLinkClose
   }
 }
 

@@ -145,6 +145,13 @@ const REPAIR_OPTION_MATRIX = [
   { label: 'aggressive+mditAttrs:false', option: { mode: 'aggressive', mditAttrs: false } }
 ]
 
+const BOUNDARY_REPAIR_OPTION_MATRIX = [
+  { label: 'japanese-boundary', option: { mode: 'japanese-boundary' } },
+  { label: 'japanese-boundary-guard', option: { mode: 'japanese-boundary-guard' } },
+  { label: 'japanese-boundary+mditAttrs:false', option: { mode: 'japanese-boundary', mditAttrs: false } },
+  { label: 'japanese-boundary-guard+mditAttrs:false', option: { mode: 'japanese-boundary-guard', mditAttrs: false } }
+]
+
 const COMPAT_OPTION_MATRIX = [
   { label: 'compatible', option: { mode: 'compatible' } },
   { label: 'compatible+mditAttrs:false', option: { mode: 'compatible', mditAttrs: false } }
@@ -328,6 +335,15 @@ export const runOptionEdgeTests = () => {
     )
   }, allPassRef)
 
+  runCase('repeated .use keeps runtime-effective options coherent', () => {
+    const input = '\u3053\u308c\u306f**[text](url)**\u3067\u3059'
+    const scanInput = '*\u5473\u564c\u6c41\u3002*umai*'
+    const md = new MarkdownIt().use(mditStrongJa, { mode: 'compatible', postprocess: false })
+    md.use(mditStrongJa, { mode: 'aggressive', postprocess: true })
+    const mdExpected = new MarkdownIt().use(mditStrongJa, { mode: 'aggressive', postprocess: true })
+    assert.strictEqual(md.render(input), mdExpected.render(input))
+    assert.strictEqual(md.render(scanInput), mdExpected.render(scanInput))
+  }, allPassRef)
   runCase('postprocess off keeps collapsed ref literal', () => {
     const input = '[**Text**][]'
     const env = { references: { TEXT: { href: 'https://example.com', title: '' } } }
@@ -815,6 +831,94 @@ export const runOptionEdgeTests = () => {
     assert.ok(html.indexOf('</x><a href="u">x</a><x>') !== -1)
   }, allPassRef)
 
+  runCase('postprocess keeps valid separated emphasis around links unchanged', () => {
+    const baseline = new MarkdownIt()
+    const cases = [
+      '\u524d**\u5bff\u53f8** [\u5e97](u) **\u6771\u4eac**\u5f8c',
+      '\u524d**\u5bff\u53f8**[\u5e97](u)**\u6771\u4eac**\u5f8c',
+      '[w](u) *string*  [w](u)',
+      'prefix [w](u) *string*  [w](u) suffix',
+      '[w](u) **string**  [w](u)'
+    ]
+    for (let i = 0; i < REPAIR_OPTION_MATRIX.length; i++) {
+      const cfg = REPAIR_OPTION_MATRIX[i]
+      const md = new MarkdownIt().use(mditStrongJa, cfg.option)
+      for (let c = 0; c < cases.length; c++) {
+        const src = cases[c]
+        assert.strictEqual(md.render(src), baseline.render(src), `${cfg.label} case:${c}`)
+      }
+    }
+  }, allPassRef)
+
+  runCase('collapsed-ref rewrite does not merge other valid separated link emphasis in the same inline', () => {
+    const input = '[**\u5bff\u53f8**][] \u3068 **\u5e97**[x](u)**\u6771\u4eac**'
+    const env = {
+      references: {
+        '**\u5bff\u53f8**': { href: 'https://example.com', title: '' }
+      }
+    }
+    for (let i = 0; i < REPAIR_OPTION_MATRIX.length; i++) {
+      const cfg = REPAIR_OPTION_MATRIX[i]
+      const md = new MarkdownIt().use(mditStrongJa, cfg.option)
+      const html = md.render(input, env)
+      assert.ok(html.indexOf('<a href="https://example.com"><strong>\u5bff\u53f8</strong></a>') !== -1, cfg.label)
+      assert.ok(html.indexOf('<strong>\u5e97</strong><a href="u">x</a><strong>\u6771\u4eac</strong>') !== -1, cfg.label)
+      assert.ok(html.indexOf('<strong>\u5e97<a href="u">x</a>\u6771\u4eac</strong>') === -1, cfg.label)
+    }
+  }, allPassRef)
+
+  runCase('boundary modes keep collapsed-ref rewrite local to the repaired label', () => {
+    const input = '[**\u5bff\u53f8**][] \u3068 **\u5e97**[x](u)**\u6771\u4eac**'
+    const env = {
+      references: {
+        '**\u5bff\u53f8**': { href: 'https://example.com', title: '' }
+      }
+    }
+    for (let i = 0; i < BOUNDARY_REPAIR_OPTION_MATRIX.length; i++) {
+      const cfg = BOUNDARY_REPAIR_OPTION_MATRIX[i]
+      const md = new MarkdownIt().use(mditStrongJa, cfg.option)
+      const html = md.render(input, env)
+      assert.ok(html.indexOf('<a href="https://example.com"><strong>\u5bff\u53f8</strong></a>') !== -1, cfg.label)
+      assert.ok(html.indexOf('<strong>\u5e97</strong><a href="u">x</a><strong>\u6771\u4eac</strong>') !== -1, cfg.label)
+      assert.ok(html.indexOf('<strong>\u5e97<a href="u">x</a>\u6771\u4eac</strong>') === -1, cfg.label)
+    }
+  }, allPassRef)
+
+  runCase('boundary modes keep standalone emphasis between links local when collapsed-ref repair runs earlier in the same inline', () => {
+    const input = '[**寿司**][] [w](u) *string*  [w](u)'
+    const env = {
+      references: {
+        '**寿司**': { href: 'https://example.com', title: '' }
+      }
+    }
+    for (let i = 0; i < BOUNDARY_REPAIR_OPTION_MATRIX.length; i++) {
+      const cfg = BOUNDARY_REPAIR_OPTION_MATRIX[i]
+      const md = new MarkdownIt().use(mditStrongJa, cfg.option)
+      const html = md.render(input, env)
+      assert.ok(html.indexOf('<a href="https://example.com"><strong>寿司</strong></a>') !== -1, cfg.label)
+      assert.ok(html.indexOf('<a href="u">w</a> <em>string</em>  <a href="u">w</a>') !== -1, cfg.label)
+      assert.ok(html.indexOf('<strong><a href="u">w</a> <em>string</em>  <a href="u">w</a></strong>') === -1, cfg.label)
+      assert.ok(html.indexOf('<a href="u">w</a><em>string</em>') === -1, cfg.label)
+    }
+  }, allPassRef)
+
+  runCase('boundary modes repair nested collapsed-ref labels without widening neighboring emphasis', () => {
+    const input = '[***寿司***][] と **店**[x](u)**東京**'
+    const env = {
+      references: {
+        '***寿司***': { href: 'https://example.com/nested', title: '' }
+      }
+    }
+    for (let i = 0; i < BOUNDARY_REPAIR_OPTION_MATRIX.length; i++) {
+      const cfg = BOUNDARY_REPAIR_OPTION_MATRIX[i]
+      const md = new MarkdownIt().use(mditStrongJa, cfg.option)
+      const html = md.render(input, env)
+      assert.ok(html.indexOf('<a href="https://example.com/nested"><em><strong>寿司</strong></em></a>') !== -1, cfg.label)
+      assert.ok(html.indexOf('<strong>店</strong><a href="u">x</a><strong>東京</strong>') !== -1, cfg.label)
+      assert.ok(html.indexOf('<strong>店<a href="u">x</a>東京</strong>') === -1, cfg.label)
+    }
+  }, allPassRef)
+
   runCase('marker-literal text survives rewrite with meta-bearing tokens across repair modes', () => {
     for (let i = 0; i < REPAIR_OPTION_MATRIX.length; i++) {
       const cfg = REPAIR_OPTION_MATRIX[i]
@@ -1091,3 +1195,6 @@ export const runOptionEdgeTests = () => {
 
   return allPassRef.value
 }
+
+
+

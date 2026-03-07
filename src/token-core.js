@@ -194,6 +194,28 @@ const rebuildInlineLevels = (tokens) => {
   }
 }
 
+const rebuildInlineLevelsFrom = (tokens, startIdx = 0) => {
+  if (!tokens || tokens.length === 0) return
+  let from = startIdx > 0 ? startIdx : 0
+  if (from >= tokens.length) return
+  let level = 0
+  if (from > 0) {
+    const prev = tokens[from - 1]
+    if (prev) {
+      level = prev.level
+      if (prev.nesting === 1) level++
+      else if (prev.nesting === -1) level--
+    }
+  }
+  for (let i = from; i < tokens.length; i++) {
+    const t = tokens[i]
+    if (!t) continue
+    t.level = level
+    if (t.nesting === 1) level++
+    else if (t.nesting === -1) level--
+  }
+}
+
 const findLinkOpen = (tokens, closeIdx) => {
   let depth = 0
   for (let i = closeIdx; i >= 0; i--) {
@@ -396,7 +418,7 @@ const ensurePrevStarFlags = (src, start, prevStarFlags) => {
   return prevStarFlags >= 0 ? prevStarFlags : scanPrevSingleStarContextFlags(src, start)
 }
 
-const fixTrailingStrong = (tokens) => {
+const fixTrailingStrong = (tokens, onChangeStart = null) => {
   let changed = false
   for (let i = 1; i < tokens.length; i++) {
     const token = tokens[i]
@@ -435,21 +457,23 @@ const fixTrailingStrong = (tokens) => {
         tokens[innerOpenIdx + 2] && tokens[innerOpenIdx + 2].type === 'em_close' &&
         tokens[innerOpenIdx + 3] && tokens[innerOpenIdx + 3].type === 'text' &&
         closeIdx === innerOpenIdx + 4) {
-      tokens.splice(innerOpenIdx + 2, 1)
-      tokens.splice(innerOpenIdx, 1)
       const movedOpen = new Token('em_open', 'em', 1)
       movedOpen.markup = '*'
       const movedClose = new Token('em_close', 'em', -1)
       movedClose.markup = '*'
-      tokens.splice(innerOpenIdx + 1, 0, movedOpen)
-      tokens.splice(innerOpenIdx + 3, 0, movedClose)
+      const innerReplacement = [
+        tokens[innerOpenIdx + 1],
+        movedOpen,
+        tokens[innerOpenIdx + 3],
+        movedClose
+      ]
+      tokens.splice(innerOpenIdx, 4, ...innerReplacement)
     }
 
     const before = token.content.slice(0, starIdx)
     const after = token.content.slice(starIdx + 2)
 
-    tokens.splice(closeIdx, 1)
-    if (closeIdx < i) i--
+    if (onChangeStart) onChangeStart(openIdx)
 
     const openToken = tokens[openIdx]
     if (!openToken) continue
@@ -458,28 +482,27 @@ const fixTrailingStrong = (tokens) => {
     openToken.markup = '**'
     openToken.nesting = 1
 
-    if (before) {
-      token.content = before
-    } else {
-      tokens.splice(i, 1)
-      i--
-    }
-
-    const insertAt = i + 1
     const strongClose = new Token('strong_close', 'strong', -1)
     strongClose.markup = '**'
-    tokens.splice(insertAt, 0, strongClose)
+    const trailingReplacement = []
+    if (before) {
+      token.content = before
+      trailingReplacement.push(token)
+    }
+    trailingReplacement.push(strongClose)
     if (after) {
       const tail = new Token('text', '', 0)
       tail.content = after
-      tokens.splice(insertAt + 1, 0, tail)
+      trailingReplacement.push(tail)
     }
+    tokens.splice(closeIdx, 2, ...trailingReplacement)
+    i = closeIdx + trailingReplacement.length - 1
     changed = true
   }
   return changed
 }
 
-function fixEmOuterStrongSequence(tokens) {
+function fixEmOuterStrongSequence(tokens, onChangeStart = null) {
   let changed = false
   let i = 0
   while (i < tokens.length) {
@@ -536,6 +559,7 @@ function fixEmOuterStrongSequence(tokens) {
       continue
     }
 
+    if (onChangeStart) onChangeStart(idx0)
     t0.type = 'strong_open'
     t0.tag = 'strong'
     t0.markup = '**'
@@ -548,28 +572,23 @@ function fixEmOuterStrongSequence(tokens) {
     const strongClose = new Token('strong_close', 'strong', -1)
     strongClose.markup = '**'
 
-    tokens.splice(idx7, 1)
-    tokens.splice(idx5, 1)
-    tokens.splice(idx3, 1)
-    tokens.splice(idx1, 1)
-
-    const idx4AfterRemove = idx4 - 2
-    const idx6AfterRemove = idx6 - 3
-    tokens.splice(idx4AfterRemove, 0, emOpen)
-
-    const idx6BeforeEmClose = idx6AfterRemove + 1
-    tokens.splice(idx6BeforeEmClose, 0, emClose)
-
-    const idx6AfterEmClose = idx6BeforeEmClose + 1
-    tokens.splice(idx6AfterEmClose + 1, 0, strongClose)
+    const replacement = [
+      ...tokens.slice(idx1 + 1, idx3),
+      emOpen,
+      ...tokens.slice(idx3 + 1, idx5),
+      emClose,
+      ...tokens.slice(idx5 + 1, idx7),
+      strongClose
+    ]
+    tokens.splice(idx1, idx7 - idx1 + 1, ...replacement)
 
     changed = true
-    i = idx6AfterEmClose + 2
+    i = idx1 + replacement.length
   }
   return changed
 }
 
-const shiftEmWithLeadingStar = (tokens, rangeStart, rangeEnd, closeIdx) => {
+const shiftEmWithLeadingStar = (tokens, rangeStart, rangeEnd, closeIdx, onChangeStart = null) => {
   let openIdx = findMatchingEmOpen(tokens, closeIdx)
   if (openIdx === -1 || openIdx < rangeStart || openIdx >= rangeEnd) return false
 
@@ -598,33 +617,26 @@ const shiftEmWithLeadingStar = (tokens, rangeStart, rangeEnd, closeIdx) => {
   const starToken = tokens[starTokenIdx]
   const before = starToken.content.slice(0, starPos)
   const after = starToken.content.slice(starPos + 1)
-  let insertAt = starTokenIdx
-  if (before) {
-    starToken.content = before
-    insertAt = starTokenIdx + 1
-  } else {
-    tokens.splice(starTokenIdx, 1)
-    if (starTokenIdx < openIdx) {
-      openIdx--
-      closeIdx--
-    }
-  }
+  if (onChangeStart) onChangeStart(starTokenIdx)
 
   const emOpen = new Token('em_open', 'em', 1)
   emOpen.markup = '*'
-  tokens.splice(insertAt, 0, emOpen)
-  if (insertAt <= openIdx) {
-    openIdx++
-    closeIdx++
+  const prefixReplacement = []
+  if (before) {
+    starToken.content = before
+    prefixReplacement.push(starToken)
   }
+  prefixReplacement.push(emOpen)
   if (after) {
     const afterToken = new Token('text', '', 0)
     afterToken.content = after
-    tokens.splice(insertAt + 1, 0, afterToken)
-    if (insertAt + 1 <= openIdx) {
-      openIdx++
-      closeIdx++
-    }
+    prefixReplacement.push(afterToken)
+  }
+  const prefixDelta = prefixReplacement.length - 1
+  tokens.splice(starTokenIdx, 1, ...prefixReplacement)
+  if (starTokenIdx < openIdx) {
+    openIdx += prefixDelta
+    closeIdx += prefixDelta
   }
 
   const openToken = tokens[openIdx]
@@ -634,19 +646,20 @@ const shiftEmWithLeadingStar = (tokens, rangeStart, rangeEnd, closeIdx) => {
   openToken.markup = '*'
   openToken.nesting = -1
 
-  tokens.splice(closeIdx, 1)
+  const tailReplacement = []
   const tailIdx = closeIdx - 1
   if (tailIdx >= 0 && tokens[tailIdx] && tokens[tailIdx].type === 'text') {
     tokens[tailIdx].content += '*'
   } else {
     const tail = new Token('text', '', 0)
     tail.content = '*'
-    tokens.splice(closeIdx, 0, tail)
+    tailReplacement.push(tail)
   }
+  tokens.splice(closeIdx, 1, ...tailReplacement)
   return true
 }
 
-const fixLeadingAsteriskEm = (tokens) => {
+const fixLeadingAsteriskEm = (tokens, onChangeStart = null) => {
   let changed = false
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i]
@@ -656,7 +669,7 @@ const fixLeadingAsteriskEm = (tokens) => {
     const linkCloseIdx = nextIdx
     const linkOpenIdx = findLinkOpen(tokens, linkCloseIdx)
     if (linkOpenIdx === -1) continue
-    if (shiftEmWithLeadingStar(tokens, linkOpenIdx + 1, linkCloseIdx, i)) {
+    if (shiftEmWithLeadingStar(tokens, linkOpenIdx + 1, linkCloseIdx, i, onChangeStart)) {
       changed = true
       i = linkCloseIdx
     }
@@ -805,6 +818,7 @@ const patchScanDelims = (md) => {
 
 export {
   rebuildInlineLevels,
+  rebuildInlineLevelsFrom,
   findLinkOpen,
   nextNonEmptyIndex,
   fixTrailingStrong,

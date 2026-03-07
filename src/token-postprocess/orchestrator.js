@@ -1,138 +1,28 @@
 import Token from 'markdown-it/lib/token.mjs'
 import { buildLinkCloseMap, convertCollapsedReferenceLinks, mergeBrokenMarksAroundLinks } from '../token-link-utils.js'
+import { computeMaxBrokenRefRepairPass, runBrokenRefRepairs } from './broken-ref.js'
 import {
   rebuildInlineLevels,
+  rebuildInlineLevelsFrom,
   fixEmOuterStrongSequence,
   fixLeadingAsteriskEm,
   fixTrailingStrong
 } from '../token-core.js'
 import {
-  getInlineWrapperBase,
   getRuntimeOpt,
-  MODE_FLAG_COMPATIBLE,
-  MODE_FLAG_AGGRESSIVE,
-  MODE_FLAG_JAPANESE_PLUS,
-  MODE_FLAG_JAPANESE_ANY
+  getReferenceCount
 } from '../token-utils.js'
 import {
   hasMarkerChars,
-  isAsteriskEmphasisToken,
   hasJapaneseContextInRange,
   hasEmphasisSignalInRange,
-  hasTextMarkerCharsInRange,
   buildAsteriskWrapperPrefixStats,
-  shouldAttemptBrokenRefRewrite,
   scanInlinePostprocessSignals
 } from './guards.js'
 import {
-  BROKEN_REF_FAST_PATH_RESULT_NO_ACTIVE_SIGNATURE,
-  BROKEN_REF_FAST_PATH_RESULT_NO_MATCH,
-  applyBrokenRefTokenOnlyFastPath,
   tryFixTailPatternTokenOnly,
   tryFixTailDanglingStrongCloseTokenOnly
 } from './fastpaths.js'
-
-const scanBrokenRefState = (text, out) => {
-  if (!text || text.indexOf('[') === -1) {
-    out.depth = 0
-    out.brokenEnd = false
-    out.tailOpen = -1
-    return out
-  }
-  let depth = 0
-  let lastOpen = -1
-  let lastClose = -1
-  for (let i = 0; i < text.length; i++) {
-    const ch = text.charCodeAt(i)
-    if (ch === 0x5B) {
-      depth++
-      lastOpen = i
-    } else if (ch === 0x5D) {
-      if (depth > 0) depth--
-      lastClose = i
-    }
-  }
-  out.depth = depth
-  out.brokenEnd = depth > 0 && lastOpen > lastClose
-  out.tailOpen = out.brokenEnd ? lastOpen : -1
-  return out
-}
-
-const resetBrokenRefScanState = (scanState) => {
-  if (!scanState) return scanState
-  scanState.depth = 0
-  scanState.brokenEnd = false
-  scanState.tailOpen = -1
-  return scanState
-}
-
-const updateBracketDepth = (text, depth) => {
-  if (!text || depth <= 0) return depth
-  for (let i = 0; i < text.length; i++) {
-    const ch = text.charCodeAt(i)
-    if (ch === 0x5B) {
-      depth++
-    } else if (ch === 0x5D) {
-      if (depth > 0) {
-        depth--
-        if (depth === 0) return 0
-      }
-    }
-  }
-  return depth
-}
-
-const expandSegmentEndForWrapperBalance = (tokens, startIdx, endIdx) => {
-  if (!tokens || startIdx < 0 || endIdx < startIdx) return endIdx
-  const depthMap = new Map()
-  let openDepthTotal = 0
-  let expandedEnd = endIdx
-
-  for (let i = startIdx; i <= expandedEnd; i++) {
-    const token = tokens[i]
-    if (!token || !token.type) continue
-    if ((token.type === 'strong_open' || token.type === 'strong_close' || token.type === 'em_open' || token.type === 'em_close') &&
-        !isAsteriskEmphasisToken(token)) {
-      continue
-    }
-    const base = getInlineWrapperBase(token.type)
-    if (!base) continue
-    if (token.type.endsWith('_open')) {
-      depthMap.set(base, (depthMap.get(base) || 0) + 1)
-      openDepthTotal++
-      continue
-    }
-    const prev = depthMap.get(base) || 0
-    if (prev > 0) {
-      depthMap.set(base, prev - 1)
-      openDepthTotal--
-    }
-  }
-
-  while (openDepthTotal > 0 && expandedEnd + 1 < tokens.length) {
-    expandedEnd++
-    const token = tokens[expandedEnd]
-    if (!token || !token.type) continue
-    if ((token.type === 'strong_open' || token.type === 'strong_close' || token.type === 'em_open' || token.type === 'em_close') &&
-        !isAsteriskEmphasisToken(token)) {
-      continue
-    }
-    const base = getInlineWrapperBase(token.type)
-    if (!base) continue
-    if (token.type.endsWith('_open')) {
-      depthMap.set(base, (depthMap.get(base) || 0) + 1)
-      openDepthTotal++
-      continue
-    }
-    const prev = depthMap.get(base) || 0
-    if (prev > 0) {
-      depthMap.set(base, prev - 1)
-      openDepthTotal--
-    }
-  }
-
-  return openDepthTotal > 0 ? -1 : expandedEnd
-}
 
 const fallbackMarkupByType = (type) => {
   if (type === 'strong_open' || type === 'strong_close') return '**'
@@ -151,7 +41,7 @@ const makeTokenLiteralText = (token) => {
   token.info = ''
 }
 
-const sanitizeEmStrongBalance = (tokens) => {
+const sanitizeEmStrongBalance = (tokens, onChangeStart = null) => {
   if (!tokens || tokens.length === 0) return false
   const stack = []
   let changed = false
@@ -168,6 +58,7 @@ const sanitizeEmStrongBalance = (tokens) => {
       stack.pop()
       continue
     }
+    if (onChangeStart) onChangeStart(i)
     makeTokenLiteralText(token)
     changed = true
   }
@@ -175,6 +66,7 @@ const sanitizeEmStrongBalance = (tokens) => {
     const entry = stack[i]
     const token = tokens[entry.idx]
     if (!token) continue
+    if (onChangeStart) onChangeStart(entry.idx)
     makeTokenLiteralText(token)
     changed = true
   }
@@ -188,6 +80,117 @@ const getPostprocessMetrics = (state) => {
   return metrics
 }
 
+const buildInlinePostprocessFacts = (children, inlineContent) => {
+  const preScan = scanInlinePostprocessSignals(children)
+  return {
+    hasBracketText: inlineContent.indexOf('[') !== -1 || inlineContent.indexOf(']') !== -1,
+    hasEmphasis: preScan.hasEmphasis,
+    hasLinkOpen: preScan.hasLinkOpen,
+    hasLinkClose: preScan.hasLinkClose,
+    hasCodeInline: undefined,
+    referenceCount: undefined,
+    metrics: undefined,
+    linkCloseMap: undefined,
+    wrapperPrefixStats: undefined,
+    rebuildLevelStart: undefined
+  }
+}
+
+const ensureInlineHasCodeInline = (facts, tokens) => {
+  if (facts.hasCodeInline !== undefined) return facts.hasCodeInline
+  let hasCodeInline = false
+  if (tokens && tokens.length > 0) {
+    for (let idx = 0; idx < tokens.length; idx++) {
+      if (tokens[idx] && tokens[idx].type === 'code_inline') {
+        hasCodeInline = true
+        break
+      }
+    }
+  }
+  facts.hasCodeInline = hasCodeInline
+  return hasCodeInline
+}
+
+const ensureInlineReferenceCount = (facts, state) => {
+  if (!facts || !facts.hasBracketText) return 0
+  if (facts.referenceCount === undefined) {
+    facts.referenceCount = getReferenceCount(state)
+  }
+  return facts.referenceCount
+}
+
+const ensureInlineMetrics = (facts, state) => {
+  if (!facts) return null
+  if (facts.metrics === undefined) {
+    facts.metrics = getPostprocessMetrics(state)
+  }
+  return facts.metrics
+}
+
+const ensureInlineLinkCloseMap = (facts, tokens) => {
+  if (!tokens || tokens.length === 0) return new Map()
+  if (!facts) return buildLinkCloseMap(tokens, 0, tokens.length - 1)
+  if (facts.linkCloseMap === undefined) {
+    facts.linkCloseMap = buildLinkCloseMap(tokens, 0, tokens.length - 1)
+  }
+  return facts.linkCloseMap
+}
+
+const ensureInlineWrapperPrefixStats = (facts, tokens) => {
+  if (!tokens || tokens.length === 0) return null
+  if (!facts) return buildAsteriskWrapperPrefixStats(tokens)
+  if (facts.wrapperPrefixStats === undefined) {
+    facts.wrapperPrefixStats = buildAsteriskWrapperPrefixStats(tokens)
+  }
+  return facts.wrapperPrefixStats
+}
+
+const invalidateInlineDerivedCaches = (facts) => {
+  if (!facts) return
+  facts.linkCloseMap = undefined
+  facts.wrapperPrefixStats = undefined
+}
+
+const markInlineLevelRebuildFrom = (facts, startIdx) => {
+  if (!facts) return
+  const from = startIdx > 0 ? startIdx : 0
+  if (facts.rebuildLevelStart === undefined || from < facts.rebuildLevelStart) {
+    facts.rebuildLevelStart = from
+  }
+}
+
+const rebuildInlineLevelsForFacts = (tokens, facts) => {
+  if (!facts || facts.rebuildLevelStart === undefined) {
+    rebuildInlineLevels(tokens)
+  } else {
+    rebuildInlineLevelsFrom(tokens, facts.rebuildLevelStart)
+  }
+  if (facts) {
+    facts.rebuildLevelStart = undefined
+  }
+}
+
+const createInlineChangeMarker = (facts) => {
+  return (startIdx) => {
+    markInlineLevelRebuildFrom(facts, startIdx)
+  }
+}
+
+const finalizeInlineLinkRepairStage = (children, facts, markChangedFrom) => {
+  invalidateInlineDerivedCaches(facts)
+  if (!mergeBrokenMarksAroundLinks(children, markChangedFrom)) return false
+  invalidateInlineDerivedCaches(facts)
+  rebuildInlineLevelsForFacts(children, facts)
+  return true
+}
+
+const BROKEN_REF_REPAIR_HOOKS = {
+  ensureLinkCloseMap: ensureInlineLinkCloseMap,
+  ensureWrapperPrefixStats: ensureInlineWrapperPrefixStats,
+  invalidateDerivedCaches: invalidateInlineDerivedCaches,
+  markLevelRebuildFrom: markInlineLevelRebuildFrom
+}
+
 const bumpPostprocessMetric = (metrics, bucket, key) => {
   if (!metrics || !bucket || !key) return
   let table = metrics[bucket]
@@ -196,171 +199,6 @@ const bumpPostprocessMetric = (metrics, bucket, key) => {
     metrics[bucket] = table
   }
   table[key] = (table[key] || 0) + 1
-}
-
-const runBrokenRefRepairPass = (children, scanState, metrics = null) => {
-  resetBrokenRefScanState(scanState)
-  let wrapperPrefixStats = null
-  let brokenRefStart = -1
-  let brokenRefDepth = 0
-  let brokenRefStartTextOffset = 0
-  let linkCloseMap = null
-  let hasBracketText = false
-  let hasEmphasis = false
-  let hasLinkClose = false
-
-  for (let j = 0; j < children.length; j++) {
-    const child = children[j]
-    if (!child) continue
-
-    if (child.type === 'text' && child.content) {
-      const text = child.content
-      const hasOpenBracket = text.indexOf('[') !== -1
-      const hasCloseBracket = text.indexOf(']') !== -1
-      if (!hasBracketText && (hasOpenBracket || hasCloseBracket)) {
-        hasBracketText = true
-      }
-      if (brokenRefStart === -1) {
-        if (hasOpenBracket) {
-          const scan = scanBrokenRefState(text, scanState)
-          if (scan.brokenEnd) {
-            brokenRefStart = j
-            brokenRefDepth = scan.depth
-            brokenRefStartTextOffset = scan.tailOpen > 0 ? scan.tailOpen : 0
-            continue
-          }
-        }
-      } else if (hasOpenBracket || hasCloseBracket) {
-        brokenRefDepth = updateBracketDepth(text, brokenRefDepth)
-        if (brokenRefDepth <= 0) {
-          brokenRefStart = -1
-          brokenRefDepth = 0
-          brokenRefStartTextOffset = 0
-        }
-      }
-    }
-
-    if (!hasEmphasis && isAsteriskEmphasisToken(child)) {
-      hasEmphasis = true
-    }
-    if (!hasLinkClose && child.type === 'link_close') {
-      hasLinkClose = true
-    }
-    if (brokenRefStart === -1 || child.type !== 'link_open') continue
-    if (brokenRefDepth <= 0) {
-      brokenRefStart = -1
-      brokenRefDepth = 0
-      brokenRefStartTextOffset = 0
-      continue
-    }
-    if (linkCloseMap === null) {
-      linkCloseMap = buildLinkCloseMap(children, 0, children.length - 1)
-    }
-    const closeIdx = linkCloseMap.get(j) ?? -1
-    if (closeIdx === -1) continue
-    bumpPostprocessMetric(metrics, 'brokenRefFlow', 'candidate')
-    let segmentEnd = expandSegmentEndForWrapperBalance(children, brokenRefStart, closeIdx)
-    if (segmentEnd === -1) {
-      bumpPostprocessMetric(metrics, 'brokenRefFlow', 'wrapper-expand-fallback')
-      segmentEnd = closeIdx
-    }
-    if (!hasTextMarkerCharsInRange(children, brokenRefStart, segmentEnd, brokenRefStartTextOffset)) {
-      bumpPostprocessMetric(metrics, 'brokenRefFlow', 'skip-no-text-marker')
-      brokenRefStart = -1
-      brokenRefDepth = 0
-      brokenRefStartTextOffset = 0
-      continue
-    }
-    if (wrapperPrefixStats === null) {
-      wrapperPrefixStats = buildAsteriskWrapperPrefixStats(children)
-    }
-    if (!shouldAttemptBrokenRefRewrite(
-      children,
-      brokenRefStart,
-      segmentEnd,
-      brokenRefStartTextOffset,
-      wrapperPrefixStats
-    )) {
-      bumpPostprocessMetric(metrics, 'brokenRefFlow', 'skip-guard')
-      brokenRefStart = -1
-      brokenRefDepth = 0
-      brokenRefStartTextOffset = 0
-      continue
-    }
-    const fastPathResult = applyBrokenRefTokenOnlyFastPath(
-      children,
-      brokenRefStart,
-      segmentEnd,
-      linkCloseMap,
-      metrics,
-      bumpPostprocessMetric
-    )
-    if (fastPathResult === BROKEN_REF_FAST_PATH_RESULT_NO_ACTIVE_SIGNATURE) {
-      bumpPostprocessMetric(metrics, 'brokenRefFlow', 'skip-no-active-signature')
-      brokenRefStart = -1
-      brokenRefDepth = 0
-      brokenRefStartTextOffset = 0
-      continue
-    }
-    if (fastPathResult === BROKEN_REF_FAST_PATH_RESULT_NO_MATCH) {
-      bumpPostprocessMetric(metrics, 'brokenRefFlow', 'skip-no-fastpath-match')
-      brokenRefStart = -1
-      brokenRefDepth = 0
-      brokenRefStartTextOffset = 0
-      continue
-    }
-    bumpPostprocessMetric(metrics, 'brokenRefFlow', 'repaired')
-    return {
-      didRepair: true,
-      hasBracketText,
-      hasEmphasis,
-      hasLinkClose
-    }
-  }
-
-  return {
-    didRepair: false,
-    hasBracketText,
-    hasEmphasis,
-    hasLinkClose
-  }
-}
-
-const computeMaxBrokenRefRepairPass = (children, scanState) => {
-  resetBrokenRefScanState(scanState)
-  let maxRepairPass = 0
-  for (let j = 0; j < children.length; j++) {
-    const child = children[j]
-    if (!child || child.type !== 'text' || !child.content) continue
-    if (child.content.indexOf('[') === -1) continue
-    if (scanBrokenRefState(child.content, scanState).brokenEnd) {
-      maxRepairPass++
-    }
-  }
-  return maxRepairPass
-}
-
-const runBrokenRefRepairs = (children, maxRepairPass, scanState, metrics = null) => {
-  let repairPassCount = 0
-  let changed = false
-  let hasBracketText = false
-  let hasEmphasis = false
-  let hasLinkClose = false
-  while (repairPassCount < maxRepairPass) {
-    const pass = runBrokenRefRepairPass(children, scanState, metrics)
-    hasBracketText = pass.hasBracketText
-    hasEmphasis = pass.hasEmphasis
-    hasLinkClose = pass.hasLinkClose
-    if (!pass.didRepair) break
-    changed = true
-    repairPassCount++
-  }
-  return {
-    changed,
-    hasBracketText,
-    hasEmphasis,
-    hasLinkClose
-  }
 }
 
 const scanTailRepairCandidateAfterLinkClose = (tokens, linkCloseIdx) => {
@@ -388,7 +226,7 @@ const scanTailRepairCandidateAfterLinkClose = (tokens, linkCloseIdx) => {
   return { startIdx, strongCloseIdx: foundStrongClose }
 }
 
-const tryRepairTailCandidate = (tokens, candidate, isJapaneseMode, metrics = null) => {
+const tryRepairTailCandidate = (tokens, candidate, isJapaneseMode, metrics = null, onChangeStart = null) => {
   if (!tokens || !candidate) return false
   const startIdx = candidate.startIdx
   const strongCloseIdx = candidate.strongCloseIdx
@@ -396,17 +234,19 @@ const tryRepairTailCandidate = (tokens, candidate, isJapaneseMode, metrics = nul
   if (isJapaneseMode && !hasJapaneseContextInRange(tokens, startIdx, endIdx)) return false
   if (!hasEmphasisSignalInRange(tokens, startIdx, endIdx)) return false
   if (tryFixTailPatternTokenOnly(tokens, startIdx, endIdx)) {
+    if (onChangeStart) onChangeStart(startIdx)
     bumpPostprocessMetric(metrics, 'tailFastPaths', 'tail-pattern')
     return true
   }
   if (tryFixTailDanglingStrongCloseTokenOnly(tokens, startIdx, strongCloseIdx)) {
+    if (onChangeStart) onChangeStart(startIdx)
     bumpPostprocessMetric(metrics, 'tailFastPaths', 'tail-dangling-strong-close')
     return true
   }
   return false
 }
 
-const fixTailAfterLinkStrongClose = (tokens, isJapaneseMode, metrics = null) => {
+const fixTailAfterLinkStrongClose = (tokens, isJapaneseMode, metrics = null, onChangeStart = null) => {
   let strongDepth = 0
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i]
@@ -419,7 +259,7 @@ const fixTailAfterLinkStrongClose = (tokens, isJapaneseMode, metrics = null) => 
     if (strongDepth !== 0) continue
     const candidate = scanTailRepairCandidateAfterLinkClose(tokens, i)
     if (!candidate) continue
-    if (tryRepairTailCandidate(tokens, candidate, isJapaneseMode, metrics)) return true
+    if (tryRepairTailCandidate(tokens, candidate, isJapaneseMode, metrics, onChangeStart)) return true
   }
   return false
 }
@@ -488,16 +328,13 @@ const hasLeadingStandaloneStrongMarker = (content) => {
   return true
 }
 
-const tryPromoteStrongAroundInlineLink = (tokens, strictAsciiStrongGuard = false) => {
+const tryPromoteStrongAroundInlineLink = (tokens, strictAsciiStrongGuard = false, facts = null) => {
   if (!tokens || tokens.length < 3) return false
   let changed = false
-  let linkCloseMap = null
   for (let i = 1; i < tokens.length - 1; i++) {
     const linkOpen = tokens[i]
     if (!linkOpen || linkOpen.type !== 'link_open') continue
-    if (linkCloseMap === null) {
-      linkCloseMap = buildLinkCloseMap(tokens, 0, tokens.length - 1)
-    }
+    const linkCloseMap = ensureInlineLinkCloseMap(facts, tokens)
     const closeIdx = linkCloseMap.get(i) ?? -1
     if (closeIdx === -1 || closeIdx + 1 >= tokens.length) continue
 
@@ -554,8 +391,8 @@ const tryPromoteStrongAroundInlineLink = (tokens, strictAsciiStrongGuard = false
 
     tokens.splice(i - 1, closeIdx - i + 3, ...replacement)
     changed = true
-    // Token indices changed; invalidate map for the next candidate.
-    linkCloseMap = null
+    invalidateInlineDerivedCaches(facts)
+    markInlineLevelRebuildFrom(facts, i - 1)
     i = i - 1 + replacement.length - 1
   }
   return changed
@@ -564,7 +401,8 @@ const tryPromoteStrongAroundInlineLink = (tokens, strictAsciiStrongGuard = false
 const tryPromoteStrongAroundInlineCode = (
   tokens,
   strictAsciiCodeGuard = false,
-  strictAsciiStrongGuard = false
+  strictAsciiStrongGuard = false,
+  facts = null
 ) => {
   if (!tokens || tokens.length < 3) return false
   let changed = false
@@ -615,8 +453,152 @@ const tryPromoteStrongAroundInlineCode = (
 
     tokens.splice(i, 3, ...replacement)
     changed = true
+    invalidateInlineDerivedCaches(facts)
+    markInlineLevelRebuildFrom(facts, i)
     i += replacement.length - 1
   }
+  return changed
+}
+
+const tryActivateInlineEmphasis = (
+  children,
+  facts,
+  strictAsciiCodeGuard,
+  strictAsciiStrongGuard
+) => {
+  if (!facts || facts.hasEmphasis) return false
+  if (facts.hasLinkOpen &&
+      facts.hasLinkClose &&
+      tryPromoteStrongAroundInlineLink(children, strictAsciiStrongGuard, facts)) {
+    facts.hasEmphasis = true
+    return true
+  }
+  if (facts.hasBracketText || facts.hasLinkOpen || facts.hasLinkClose) return false
+  if (!ensureInlineHasCodeInline(facts, children)) return false
+  if (tryPromoteStrongAroundInlineCode(children, strictAsciiCodeGuard, strictAsciiStrongGuard, facts)) {
+    facts.hasEmphasis = true
+    return true
+  }
+  return false
+}
+
+const shouldRunInlineBrokenRefRepair = (facts, inlineContent, state) => {
+  if (!facts || !facts.hasLinkOpen || !facts.hasLinkClose || !facts.hasBracketText) return false
+  if (inlineContent.indexOf('***') !== -1) return false
+  return ensureInlineReferenceCount(facts, state) > 0
+}
+
+const applyBrokenRefRepairFacts = (facts, repairs) => {
+  if (!facts || !repairs) return
+  facts.hasBracketText = repairs.hasBracketText
+  facts.hasEmphasis = repairs.hasEmphasis
+  facts.hasLinkClose = repairs.hasLinkClose
+}
+
+const createBrokenRefScanState = () => {
+  return { depth: 0, brokenEnd: false, tailOpen: -1 }
+}
+
+const runInlineBrokenRefRepairStage = (children, facts, inlineContent, state) => {
+  if (!shouldRunInlineBrokenRefRepair(facts, inlineContent, state)) return false
+  const scanState = createBrokenRefScanState()
+  const maxRepairPass = computeMaxBrokenRefRepairPass(children, scanState)
+  if (maxRepairPass <= 0) return false
+  const repairs = runBrokenRefRepairs(
+    children,
+    maxRepairPass,
+    scanState,
+    ensureInlineMetrics(facts, state),
+    facts,
+    BROKEN_REF_REPAIR_HOOKS
+  )
+  applyBrokenRefRepairFacts(facts, repairs)
+  return repairs.changed
+}
+
+const runInlineEmphasisRepairStage = (children, facts, state, isJapaneseMode) => {
+  if (!facts.hasEmphasis) return false
+  let changed = false
+  const markChangedFrom = createInlineChangeMarker(facts)
+  if (fixEmOuterStrongSequence(children, markChangedFrom)) changed = true
+  if (facts.hasLinkClose) {
+    const metrics = ensureInlineMetrics(facts, state)
+    if (fixTailAfterLinkStrongClose(children, isJapaneseMode, metrics, markChangedFrom)) changed = true
+    if (fixLeadingAsteriskEm(children, markChangedFrom)) changed = true
+  }
+  if (fixTrailingStrong(children, markChangedFrom)) changed = true
+  if (sanitizeEmStrongBalance(children, markChangedFrom)) changed = true
+  return changed
+}
+
+const shouldRunInlineCollapsedRefRepair = (facts, state) => {
+  if (!facts || !facts.hasBracketText) return false
+  return ensureInlineReferenceCount(facts, state) > 0
+}
+
+const applyCollapsedRefRepairFacts = (facts) => {
+  if (!facts) return
+  facts.hasLinkOpen = true
+  facts.hasLinkClose = true
+}
+
+const rewriteInlineCollapsedReferences = (children, facts, state, markChangedFrom) => {
+  const changed = convertCollapsedReferenceLinks(
+    children,
+    state,
+    facts,
+    markChangedFrom
+  )
+  if (!changed) return false
+  applyCollapsedRefRepairFacts(facts)
+  return true
+}
+
+const runInlineCollapsedRefStage = (children, facts, state) => {
+  if (!shouldRunInlineCollapsedRefRepair(facts, state)) return false
+  const markChangedFrom = createInlineChangeMarker(facts)
+  if (!rewriteInlineCollapsedReferences(children, facts, state, markChangedFrom)) return false
+  finalizeInlineLinkRepairStage(children, facts, markChangedFrom)
+  return true
+}
+
+const shouldSkipInlinePostprocessToken = (children, facts, isJapaneseMode) => {
+  if (!facts.hasEmphasis &&
+      !facts.hasBracketText &&
+      !facts.hasLinkOpen &&
+      !facts.hasLinkClose &&
+      !ensureInlineHasCodeInline(facts, children)) {
+    return true
+  }
+  if (isJapaneseMode &&
+      !hasJapaneseContextInRange(children, 0, children.length - 1)) {
+    return true
+  }
+  return false
+}
+
+const runInlineCoreRepairStages = (
+  children,
+  facts,
+  inlineContent,
+  state,
+  isJapaneseMode,
+  strictAsciiCodeGuard,
+  strictAsciiStrongGuard
+) => {
+  let changed = false
+  if (!facts.hasEmphasis && tryActivateInlineEmphasis(
+    children,
+    facts,
+    strictAsciiCodeGuard,
+    strictAsciiStrongGuard
+  )) {
+    changed = true
+  } else if (!facts.hasEmphasis && !facts.hasBracketText) {
+    return false
+  }
+  if (runInlineBrokenRefRepairStage(children, facts, inlineContent, state)) changed = true
+  if (runInlineEmphasisRepairStage(children, facts, state, isJapaneseMode)) changed = true
   return changed
 }
 
@@ -626,71 +608,45 @@ const processInlinePostprocessToken = (
   state,
   isJapaneseMode,
   strictAsciiCodeGuard,
-  strictAsciiStrongGuard,
-  referenceCount,
-  metrics = null
+  strictAsciiStrongGuard
 ) => {
   if (!token || token.type !== 'inline' || !token.children || token.children.length === 0) return
   const children = token.children
-  const hasBracketTextInContent = inlineContent.indexOf('[') !== -1 || inlineContent.indexOf(']') !== -1
-  const preScan = scanInlinePostprocessSignals(children, hasBracketTextInContent)
-  let hasBracketText = preScan.hasBracketText
-  let hasEmphasis = preScan.hasEmphasis
-  const hasLinkOpen = preScan.hasLinkOpen
-  let hasLinkClose = preScan.hasLinkClose
-  const hasCodeInline = preScan.hasCodeInline
-  if (!hasEmphasis && !hasBracketText && !hasLinkOpen && !hasLinkClose && !hasCodeInline) {
-    return
+  const facts = buildInlinePostprocessFacts(children, inlineContent)
+  if (shouldSkipInlinePostprocessToken(children, facts, isJapaneseMode)) return
+  const changed = runInlineCoreRepairStages(
+    children,
+    facts,
+    inlineContent,
+    state,
+    isJapaneseMode,
+    strictAsciiCodeGuard,
+    strictAsciiStrongGuard
+  )
+  if (changed) rebuildInlineLevelsForFacts(children, facts)
+  runInlineCollapsedRefStage(children, facts, state)
+}
+
+const processInlinePostprocessStateTokens = (
+  state,
+  isJapaneseMode,
+  strictAsciiCodeGuard,
+  strictAsciiStrongGuard
+) => {
+  for (let i = 0; i < state.tokens.length; i++) {
+    const token = state.tokens[i]
+    if (!token || token.type !== 'inline' || !token.children || token.children.length === 0) continue
+    const inlineContent = typeof token.content === 'string' ? token.content : ''
+    if (!hasMarkerChars(inlineContent)) continue
+    processInlinePostprocessToken(
+      token,
+      inlineContent,
+      state,
+      isJapaneseMode,
+      strictAsciiCodeGuard,
+      strictAsciiStrongGuard
+    )
   }
-  if (isJapaneseMode &&
-      !hasJapaneseContextInRange(children, 0, children.length - 1)) {
-    return
-  }
-  let changed = false
-  if (!hasEmphasis) {
-    if (hasLinkOpen &&
-        hasLinkClose &&
-        tryPromoteStrongAroundInlineLink(children, strictAsciiStrongGuard)) {
-      hasEmphasis = true
-      changed = true
-    } else if (!hasBracketText) {
-      if (!hasLinkOpen &&
-          !hasLinkClose &&
-          tryPromoteStrongAroundInlineCode(children, strictAsciiCodeGuard, strictAsciiStrongGuard)) {
-        hasEmphasis = true
-        changed = true
-      } else {
-        return
-      }
-    }
-  }
-  let shouldTryBrokenRefRepair = hasLinkOpen && hasLinkClose && hasBracketText && referenceCount > 0
-  if (shouldTryBrokenRefRepair && inlineContent.indexOf('***') !== -1) {
-    shouldTryBrokenRefRepair = false
-  }
-  if (shouldTryBrokenRefRepair) {
-    const scanState = { depth: 0, brokenEnd: false, tailOpen: -1 }
-    const maxRepairPass = computeMaxBrokenRefRepairPass(children, scanState)
-    if (maxRepairPass > 0) {
-      const repairs = runBrokenRefRepairs(children, maxRepairPass, scanState, metrics)
-      hasBracketText = repairs.hasBracketText
-      hasEmphasis = repairs.hasEmphasis
-      hasLinkClose = repairs.hasLinkClose
-      if (repairs.changed) changed = true
-    }
-  }
-  if (hasEmphasis) {
-    if (fixEmOuterStrongSequence(children)) changed = true
-    if (hasLinkClose && fixTailAfterLinkStrongClose(children, isJapaneseMode, metrics)) changed = true
-    if (hasLinkClose && fixLeadingAsteriskEm(children)) changed = true
-    if (fixTrailingStrong(children)) changed = true
-    if (sanitizeEmStrongBalance(children)) changed = true
-  }
-  if (changed) rebuildInlineLevels(children)
-  if (!hasBracketText) return
-  if (referenceCount > 0) convertCollapsedReferenceLinks(children, state)
-  if (referenceCount === 0 && !hasLinkClose) return
-  mergeBrokenMarksAroundLinks(children)
 }
 
 const registerTokenPostprocess = (md, baseOpt) => {
@@ -698,35 +654,18 @@ const registerTokenPostprocess = (md, baseOpt) => {
   md.__strongJaTokenPostprocessRegistered = true
   md.core.ruler.after('inline', 'strong_ja_token_postprocess', (state) => {
     if (!state || !state.tokens) return
-    const opt = getRuntimeOpt(state, baseOpt)
-    const modeFlags = opt.__strongJaModeFlags
-    const isJapaneseMode = (modeFlags & MODE_FLAG_JAPANESE_ANY) !== 0
-    const strictAsciiCodeGuard = (modeFlags & MODE_FLAG_JAPANESE_PLUS) !== 0
-    const strictAsciiStrongGuard = (modeFlags & MODE_FLAG_AGGRESSIVE) === 0
-    if (modeFlags & MODE_FLAG_COMPATIBLE) return
-    if (opt.postprocess === false) return
-    const references = state.env && state.env.references ? state.env.references : null
-    if (state.__strongJaReferenceCount === undefined) {
-      state.__strongJaReferenceCount = references ? Object.keys(references).length : 0
-    }
-    const referenceCount = state.__strongJaReferenceCount
-    const metrics = getPostprocessMetrics(state)
-    for (let i = 0; i < state.tokens.length; i++) {
-      const token = state.tokens[i]
-      if (!token || token.type !== 'inline' || !token.children || token.children.length === 0) continue
-      const inlineContent = typeof token.content === 'string' ? token.content : ''
-      if (!hasMarkerChars(inlineContent)) continue
-      processInlinePostprocessToken(
-        token,
-        inlineContent,
-        state,
-        isJapaneseMode,
-        strictAsciiCodeGuard,
-        strictAsciiStrongGuard,
-        referenceCount,
-        metrics
-      )
-    }
+    const overrideOpt = state.env && state.env.__strongJaTokenOpt
+    const opt = overrideOpt ? getRuntimeOpt(state, baseOpt) : baseOpt
+    if (!opt.__strongJaPostprocessActive) return
+    const isJapaneseMode = opt.__strongJaIsJapaneseMode
+    const strictAsciiCodeGuard = opt.__strongJaStrictAsciiCodeGuard
+    const strictAsciiStrongGuard = opt.__strongJaStrictAsciiStrongGuard
+    processInlinePostprocessStateTokens(
+      state,
+      isJapaneseMode,
+      strictAsciiCodeGuard,
+      strictAsciiStrongGuard
+    )
   })
 }
 

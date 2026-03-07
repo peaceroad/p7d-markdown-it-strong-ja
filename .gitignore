@@ -20,3 +20,5 @@ simple_*
 ./test-*
 verify_*
 webapp_*
+package-lock.json
+
