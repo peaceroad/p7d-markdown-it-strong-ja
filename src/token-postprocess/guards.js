@@ -1,15 +1,9 @@
 import { isJapaneseChar } from '../token-utils.js'
 
+const CHAR_ASTERISK = 0x2A // *
+
 const hasMarkerChars = (text) => {
   return !!text && text.indexOf('*') !== -1
-}
-
-const contentHasMarkerCharsFrom = (content, from) => {
-  if (!content) return false
-  const start = from > 0 ? from : 0
-  if (start === 0) return hasMarkerChars(content)
-  if (start >= content.length) return false
-  return content.indexOf('*', start) !== -1
 }
 
 const isAsteriskEmphasisToken = (token) => {
@@ -78,20 +72,6 @@ const hasEmphasisSignalInRange = (tokens, startIdx, endIdx) => {
   return false
 }
 
-const hasTextMarkerCharsInRange = (tokens, startIdx, endIdx, firstTextOffset = 0) => {
-  if (!tokens || startIdx < 0 || endIdx < startIdx) return false
-  for (let i = startIdx; i <= endIdx && i < tokens.length; i++) {
-    const token = tokens[i]
-    if (!token || token.type !== 'text' || !token.content) continue
-    if (i === startIdx && firstTextOffset > 0) {
-      if (contentHasMarkerCharsFrom(token.content, firstTextOffset)) return true
-      continue
-    }
-    if (textTokenHasMarkerChars(token)) return true
-  }
-  return false
-}
-
 const isStrongRunSoftSpace = (code) => {
   return code === 0x20 || code === 0x09 || code === 0x0A || code === 0x3000
 }
@@ -107,21 +87,24 @@ const isStrongRunTextLike = (code) => {
   return isStrongRunAsciiWord(code) || isJapaneseChar(code)
 }
 
-const countDelimiterLikeStrongRuns = (content, marker, from = 0, limit = 0) => {
+const countDelimiterLikeStrongRuns = (content, from = 0, limit = 0) => {
   let at = from > 0 ? from : 0
   const len = content.length
-  const markerCode = marker.charCodeAt(0)
   let count = 0
-  while (at < len) {
-    const pos = content.indexOf(marker, at)
-    if (pos === -1) break
+  while (at + 1 < len) {
+    if (content.charCodeAt(at) !== CHAR_ASTERISK ||
+        content.charCodeAt(at + 1) !== CHAR_ASTERISK) {
+      at++
+      continue
+    }
+    const pos = at
     const prevCode = pos > 0 ? content.charCodeAt(pos - 1) : 0
-    const nextPos = pos + marker.length
+    const nextPos = pos + 2
     const nextCode = nextPos < len ? content.charCodeAt(nextPos) : 0
-    const prevSameMarker = prevCode === markerCode
-    const nextSameMarker = nextCode === markerCode
+    const prevSameMarker = prevCode === CHAR_ASTERISK
+    const nextSameMarker = nextCode === CHAR_ASTERISK
     if (prevSameMarker || nextSameMarker) {
-      at = pos + marker.length
+      at = pos + 2
       continue
     }
     const prevSoft = prevCode !== 0 && isStrongRunSoftSpace(prevCode)
@@ -131,92 +114,50 @@ const countDelimiterLikeStrongRuns = (content, marker, from = 0, limit = 0) => {
     const nextTextLike = isStrongRunTextLike(nextCode)
     const hasTextNeighbor = prevTextLike || nextTextLike
     if (!hasTextNeighbor) {
-      at = pos + marker.length
+      at = pos + 2
       continue
     }
     const atBoundary = prevCode === 0 || nextCode === 0
     if (!atBoundary && (!prevTextLike || !nextTextLike)) {
-      at = pos + marker.length
+      at = pos + 2
       continue
     }
     if (hasPrevOrNext && !prevSoft && !nextSoft) {
       count++
       if (limit > 0 && count >= limit) return count
     }
-    at = pos + marker.length
+    at = pos + 2
   }
   return count
-}
-
-const countStrongMarkerRunsInTextRange = (tokens, startIdx, endIdx, firstTextOffset = 0, limit = 0) => {
-  if (!tokens || startIdx < 0 || endIdx < startIdx) return 0
-  let total = 0
-  for (let i = startIdx; i <= endIdx && i < tokens.length; i++) {
-    const token = tokens[i]
-    if (!token || token.type !== 'text' || !token.content) continue
-    const content = token.content
-    const scanFrom = i === startIdx && firstTextOffset > 0 ? firstTextOffset : 0
-    if (scanFrom >= content.length) continue
-    const remain = limit > 0 ? (limit - total) : 0
-    total += countDelimiterLikeStrongRuns(content, '**', scanFrom, remain)
-    if (limit > 0 && total >= limit) {
-      return total
-    }
-  }
-  return total
 }
 
 const buildAsteriskWrapperPrefixStats = (tokens) => {
   const len = Array.isArray(tokens) ? tokens.length : 0
   const strongDepthPrefix = new Array(len + 1)
   const emDepthPrefix = new Array(len + 1)
-  const strongOpenPrefix = new Array(len + 1)
-  const strongClosePrefix = new Array(len + 1)
-  const emOpenPrefix = new Array(len + 1)
-  const emClosePrefix = new Array(len + 1)
   let strongDepth = 0
   let emDepthCount = 0
-  let strongOpenCount = 0
-  let strongCloseCount = 0
-  let emOpenCount = 0
-  let emCloseCount = 0
   strongDepthPrefix[0] = 0
   emDepthPrefix[0] = 0
-  strongOpenPrefix[0] = 0
-  strongClosePrefix[0] = 0
-  emOpenPrefix[0] = 0
-  emClosePrefix[0] = 0
   for (let i = 0; i < len; i++) {
     const token = tokens[i]
     if (token && token.type && isAsteriskEmphasisToken(token)) {
       if (token.type === 'strong_open') {
         strongDepth++
-        strongOpenCount++
       } else if (token.type === 'strong_close') {
         if (strongDepth > 0) strongDepth--
-        strongCloseCount++
       } else if (token.type === 'em_open') {
         emDepthCount++
-        emOpenCount++
       } else if (token.type === 'em_close') {
         if (emDepthCount > 0) emDepthCount--
-        emCloseCount++
       }
     }
     strongDepthPrefix[i + 1] = strongDepth
     emDepthPrefix[i + 1] = emDepthCount
-    strongOpenPrefix[i + 1] = strongOpenCount
-    strongClosePrefix[i + 1] = strongCloseCount
-    emOpenPrefix[i + 1] = emOpenCount
-    emClosePrefix[i + 1] = emCloseCount
   }
   return {
     strongDepth: strongDepthPrefix,
-    emDepth: emDepthPrefix,
-    strongOpen: strongOpenPrefix,
-    strongClose: strongClosePrefix,
-    emOpen: emOpenPrefix,
-    emClose: emClosePrefix
+    emDepth: emDepthPrefix
   }
 }
 
@@ -229,6 +170,8 @@ const createBrokenRefWrapperRangeSignals = () => {
     hasUnderscoreText: false,
     hasCodeInline: false,
     hasUnderscoreEmphasisToken: false,
+    hasTextMarker: false,
+    strongRunCount: 0,
     strongOpenInRange: 0,
     strongCloseInRange: 0,
     emOpenInRange: 0,
@@ -239,16 +182,24 @@ const createBrokenRefWrapperRangeSignals = () => {
 const updateBrokenRefTextRangeSignals = (signals, token, tokenIdx, startIdx, firstTextOffset) => {
   if (!token || token.type !== 'text' || !token.content) return
   const content = token.content
+  const scanFrom = tokenIdx === startIdx && firstTextOffset > 0 ? firstTextOffset : 0
   // Keep this at 0 (instead of firstTextOffset) so historical fail-safe
   // behavior around noisy leading chains in the first text token stays unchanged.
   if (!signals.hasLongStarNoise && content.indexOf('***') !== -1) {
     signals.hasLongStarNoise = true
   }
   if (!signals.hasUnderscoreText) {
-    const scanFrom = tokenIdx === startIdx && firstTextOffset > 0 ? firstTextOffset : 0
     if (scanFrom < content.length && content.indexOf('_', scanFrom) !== -1) {
       signals.hasUnderscoreText = true
     }
+  }
+  if (!signals.hasTextMarker) {
+    signals.hasTextMarker = scanFrom === 0
+      ? textTokenHasMarkerChars(token)
+      : content.indexOf('*', scanFrom) !== -1
+  }
+  if (signals.strongRunCount < 2 && scanFrom < content.length) {
+    signals.strongRunCount += countDelimiterLikeStrongRuns(content, scanFrom, 2 - signals.strongRunCount)
   }
 }
 
@@ -343,18 +294,10 @@ const hasPreexistingWrapperCloseOnlyInRange = (tokens, startIdx, endIdx, prefixS
   const hasPrefix =
     !!prefixStats &&
     Array.isArray(prefixStats.strongDepth) &&
-    Array.isArray(prefixStats.emDepth) &&
-    Array.isArray(prefixStats.strongOpen) &&
-    Array.isArray(prefixStats.strongClose) &&
-    Array.isArray(prefixStats.emOpen) &&
-    Array.isArray(prefixStats.emClose)
+    Array.isArray(prefixStats.emDepth)
   if (hasPrefix &&
       startIdx < prefixStats.strongDepth.length &&
-      startIdx < prefixStats.emDepth.length &&
-      (endIdx + 1) < prefixStats.strongOpen.length &&
-      (endIdx + 1) < prefixStats.strongClose.length &&
-      (endIdx + 1) < prefixStats.emOpen.length &&
-      (endIdx + 1) < prefixStats.emClose.length) {
+      startIdx < prefixStats.emDepth.length) {
     if (needsStrongCloseOnly) {
       preStrongDepth = prefixStats.strongDepth[startIdx] || 0
       if (preStrongDepth > 0) return true
@@ -434,8 +377,8 @@ const isLowConfidenceBrokenRefRange = (tokens, startIdx, endIdx, firstTextOffset
   return hasBrokenRefLowConfidenceWrapperRisk(tokens, startIdx, endIdx, wrapperPrefixStats, signals)
 }
 
-const hasBrokenRefStrongRunEvidence = (tokens, startIdx, endIdx, firstTextOffset = 0) => {
-  return countStrongMarkerRunsInTextRange(tokens, startIdx, endIdx, firstTextOffset, 2) >= 2
+const hasBrokenRefStrongRunEvidence = (wrapperSignals) => {
+  return !!wrapperSignals && wrapperSignals.strongRunCount >= 2
 }
 
 const hasBrokenRefExplicitAsteriskSignal = (wrapperSignals) => {
@@ -450,22 +393,31 @@ const shouldRejectBalancedBrokenRefRewrite = (wrapperSignals) => {
   return !wrapperSignals.hasImbalance && hasBrokenRefExplicitAsteriskSignal(wrapperSignals)
 }
 
-const shouldAttemptBrokenRefRewriteFromSignals = (tokens, startIdx, endIdx, firstTextOffset, wrapperSignals) => {
+const shouldAttemptBrokenRefRewriteFromSignals = (wrapperSignals) => {
   if (hasBrokenRefImmediateRewriteSignal(wrapperSignals)) return true
   if (shouldRejectBalancedBrokenRefRewrite(wrapperSignals)) return false
-  return hasBrokenRefStrongRunEvidence(tokens, startIdx, endIdx, firstTextOffset)
+  return hasBrokenRefStrongRunEvidence(wrapperSignals)
 }
 
-const shouldAttemptBrokenRefRewrite = (tokens, startIdx, endIdx, firstTextOffset = 0, wrapperPrefixStats = null) => {
-  const wrapperSignals = buildBrokenRefWrapperRangeSignals(tokens, startIdx, endIdx, firstTextOffset)
-  if (isLowConfidenceBrokenRefRange(tokens, startIdx, endIdx, firstTextOffset, wrapperPrefixStats, wrapperSignals)) return false
-  return shouldAttemptBrokenRefRewriteFromSignals(tokens, startIdx, endIdx, firstTextOffset, wrapperSignals)
+const shouldAttemptBrokenRefRewrite = (
+  tokens,
+  startIdx,
+  endIdx,
+  firstTextOffset = 0,
+  wrapperPrefixStats = null,
+  wrapperSignals = null
+) => {
+  const signals = wrapperSignals || buildBrokenRefWrapperRangeSignals(tokens, startIdx, endIdx, firstTextOffset)
+  if (!signals.hasTextMarker) return false
+  if (isLowConfidenceBrokenRefRange(tokens, startIdx, endIdx, firstTextOffset, wrapperPrefixStats, signals)) return false
+  return shouldAttemptBrokenRefRewriteFromSignals(signals)
 }
 
 const scanInlinePostprocessSignals = (children) => {
   let hasEmphasis = false
   let hasLinkOpen = false
   let hasLinkClose = false
+  let hasCodeInline = false
   for (let j = 0; j < children.length; j++) {
     const child = children[j]
     if (!child) continue
@@ -478,12 +430,16 @@ const scanInlinePostprocessSignals = (children) => {
     if (!hasLinkClose && child.type === 'link_close') {
       hasLinkClose = true
     }
+    if (!hasCodeInline && child.type === 'code_inline') {
+      hasCodeInline = true
+    }
     if (hasEmphasis && hasLinkOpen && hasLinkClose) break
   }
   return {
     hasEmphasis,
     hasLinkOpen,
-    hasLinkClose
+    hasLinkClose,
+    hasCodeInline
   }
 }
 
@@ -492,8 +448,8 @@ export {
   isAsteriskEmphasisToken,
   hasJapaneseContextInRange,
   hasEmphasisSignalInRange,
-  hasTextMarkerCharsInRange,
   buildAsteriskWrapperPrefixStats,
+  buildBrokenRefWrapperRangeSignals,
   shouldAttemptBrokenRefRewrite,
   scanInlinePostprocessSignals
 }

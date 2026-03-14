@@ -25,6 +25,10 @@ const trimTrailingSpaceTab = (text) => {
   return end === text.length ? text : text.slice(0, end)
 }
 
+const getStateSource = (state) => {
+  return state && typeof state.src === 'string' ? state.src : ''
+}
+
 const registerTokenCompat = (md, baseOpt) => {
   const isCompatibleMode = (state) => {
     const override = state && state.env && state.env.__strongJaTokenOpt
@@ -82,6 +86,8 @@ const registerTokenCompat = (md, baseOpt) => {
     const normalizeSoftbreakSpacing = (state) => {
       if (isCompatibleMode(state)) return
       if (!state) return
+      const src = getStateSource(state)
+      if (!src || src.indexOf('\n') === -1) return
       if (baseOpt.hasCjkBreaks !== true && state.md) {
         baseOpt.hasCjkBreaks = hasCjkBreaksRule(state.md)
       }
@@ -164,6 +170,8 @@ const registerTokenCompat = (md, baseOpt) => {
   const restoreSoftbreaksAfterCjk = (state) => {
     if (isCompatibleMode(state)) return
     if (!state) return
+    const src = getStateSource(state)
+    if (!src || src.indexOf('\n') === -1 || src.indexOf('{') === -1) return
     const overrideOpt = state.env && state.env.__strongJaTokenOpt
     if (overrideOpt) {
       const opt = getRuntimeOpt(state, baseOpt)
@@ -239,6 +247,8 @@ const registerTokenCompat = (md, baseOpt) => {
     md.core.ruler.before('linkify', 'strong_ja_token_pre_attrs', (state) => {
       if (isCompatibleMode(state)) return
       if (!state || !state.tokens) return
+      const src = getStateSource(state)
+      if (!src || src.indexOf('{') === -1 || src.indexOf('}') === -1) return
       const overrideOpt = state.env && state.env.__strongJaTokenOpt
       if (overrideOpt) {
         const opt = getRuntimeOpt(state, baseOpt)

@@ -17,6 +17,7 @@ const SCAN_DELIMS_PATCHED = Symbol.for('strongJaTokenScanDelimsPatched')
 const SINGLE_STAR_LOOKAROUND_MAX = 16
 const PREV_STAR_HAS_OPENER = 1
 const PREV_STAR_HAS_JP_BETWEEN = 2
+const SCAN_DELIMS_LOOKUP_KEY = Symbol.for('strongJaTokenScanDelimsLookup')
 
 const isSoftSpaceCode = (code) => {
   return code === CHAR_SPACE || code === CHAR_TAB || code === CHAR_IDEOGRAPHIC_SPACE
@@ -280,7 +281,58 @@ const isAsciiGuardCloseWrapper = (code) => {
     code === 0x60 // `
 }
 
-const findPrevNonSpaceIndex = (src, start) => {
+const buildScanDelimsLookupCache = (src) => {
+  const len = typeof src === 'string' ? src.length : 0
+  const prevNonSpaceSameLine = new Int32Array(len)
+  const nextNonSpaceSameLine = new Int32Array(len)
+  prevNonSpaceSameLine.fill(-1)
+  nextNonSpaceSameLine.fill(-1)
+
+  let prev = -1
+  for (let i = 0; i < len; i++) {
+    const code = src.charCodeAt(i)
+    if (code === CHAR_NEWLINE) {
+      prev = -1
+      continue
+    }
+    if (!isSoftSpaceCode(code)) prev = i
+    prevNonSpaceSameLine[i] = prev
+  }
+
+  let next = -1
+  for (let i = len - 1; i >= 0; i--) {
+    const code = src.charCodeAt(i)
+    if (code === CHAR_NEWLINE) {
+      next = -1
+      continue
+    }
+    if (!isSoftSpaceCode(code)) next = i
+    nextNonSpaceSameLine[i] = next
+  }
+
+  return {
+    src,
+    prevNonSpaceSameLine,
+    nextNonSpaceSameLine
+  }
+}
+
+const getScanDelimsLookupCache = (state) => {
+  if (!state || typeof state.src !== 'string') return null
+  const cached = state[SCAN_DELIMS_LOOKUP_KEY]
+  if (cached && cached.src === state.src) return cached
+  const next = buildScanDelimsLookupCache(state.src)
+  state[SCAN_DELIMS_LOOKUP_KEY] = next
+  return next
+}
+
+const findPrevNonSpaceIndex = (src, start, lookupCache = null) => {
+  if (start < 0) return -1
+  if (lookupCache &&
+      lookupCache.src === src &&
+      start < lookupCache.prevNonSpaceSameLine.length) {
+    return lookupCache.prevNonSpaceSameLine[start]
+  }
   for (let i = start; i >= 0; i--) {
     const code = src.charCodeAt(i)
     if (code === CHAR_NEWLINE) return -1
@@ -290,7 +342,14 @@ const findPrevNonSpaceIndex = (src, start) => {
   return -1
 }
 
-const findNextNonSpaceIndex = (src, start, max) => {
+const findNextNonSpaceIndex = (src, start, max, lookupCache = null) => {
+  if (lookupCache &&
+      lookupCache.src === src &&
+      start >= 0 &&
+      start < lookupCache.nextNonSpaceSameLine.length) {
+    const next = lookupCache.nextNonSpaceSameLine[start]
+    return next !== -1 && next < max ? next : -1
+  }
   for (let i = start; i < max; i++) {
     const code = src.charCodeAt(i)
     if (code === CHAR_NEWLINE) return -1
@@ -300,26 +359,26 @@ const findNextNonSpaceIndex = (src, start, max) => {
   return -1
 }
 
-const hasAsciiStartAfterOptionalOpenWrappers = (src, index, max) => {
+const hasAsciiStartAfterOptionalOpenWrappers = (src, index, max, lookupCache = null) => {
   let i = index
   // Two wrappers are enough for common shapes: * [ "word" ]*
   for (let wrappers = 0; wrappers < 2 && i >= 0 && i < max; wrappers++) {
     const code = src.charCodeAt(i)
     if (!isAsciiGuardOpenWrapper(code)) break
-    i = findNextNonSpaceIndex(src, i + 1, max)
+    i = findNextNonSpaceIndex(src, i + 1, max, lookupCache)
     if (i === -1) return false
   }
   if (i < 0 || i >= max) return false
   return isAsciiAlphaNum(src.charCodeAt(i))
 }
 
-const hasAsciiEndBeforeOptionalCloseWrappers = (src, index) => {
+const hasAsciiEndBeforeOptionalCloseWrappers = (src, index, lookupCache = null) => {
   let i = index
   // Two wrappers are enough for common shapes: *["word"] *
   for (let wrappers = 0; wrappers < 2 && i >= 0; wrappers++) {
     const code = src.charCodeAt(i)
     if (!isAsciiGuardCloseWrapper(code)) break
-    i = findPrevNonSpaceIndex(src, i - 1)
+    i = findPrevNonSpaceIndex(src, i - 1, lookupCache)
     if (i === -1) return false
   }
   if (i < 0) return false
@@ -353,7 +412,17 @@ const isSentenceBoundaryStop = (code) => {
     code === 0x2049 // ⁉
 }
 
-const findPrevNonSpaceLimited = (src, start, maxLook) => {
+const findPrevNonSpaceLimited = (src, start, maxLook, lookupCache = null) => {
+  if (lookupCache &&
+      lookupCache.src === src &&
+      start >= 0 &&
+      start < lookupCache.prevNonSpaceSameLine.length) {
+    const prev = lookupCache.prevNonSpaceSameLine[start]
+    if (prev !== -1 && (start - prev) < maxLook) {
+      return src.charCodeAt(prev)
+    }
+    return 0
+  }
   let looked = 0
   for (let i = start; i >= 0; i--) {
     if (looked >= maxLook) break
@@ -366,7 +435,17 @@ const findPrevNonSpaceLimited = (src, start, maxLook) => {
   return 0
 }
 
-const findNextNonSpaceLimited = (src, start, max, maxLook) => {
+const findNextNonSpaceLimited = (src, start, max, maxLook, lookupCache = null) => {
+  if (lookupCache &&
+      lookupCache.src === src &&
+      start >= 0 &&
+      start < lookupCache.nextNonSpaceSameLine.length) {
+    const next = lookupCache.nextNonSpaceSameLine[start]
+    if (next !== -1 && next < max && (next - start) < maxLook) {
+      return src.charCodeAt(next)
+    }
+    return 0
+  }
   let looked = 0
   for (let i = start; i < max; i++) {
     if (looked >= maxLook) break
@@ -379,13 +458,13 @@ const findNextNonSpaceLimited = (src, start, max, maxLook) => {
   return 0
 }
 
-const hasJapaneseContextForBracketWrapper = (src, start, pos, max, lastChar, nextChar) => {
+const hasJapaneseContextForBracketWrapper = (src, start, pos, max, lastChar, nextChar, lookupCache = null) => {
   if (isWrapperOpenLike(nextChar)) {
-    const right = findNextNonSpaceLimited(src, pos, max, SINGLE_STAR_LOOKAROUND_MAX)
+    const right = findNextNonSpaceLimited(src, pos, max, SINGLE_STAR_LOOKAROUND_MAX, lookupCache)
     if (isJapaneseChar(right)) return true
   }
   if (isWrapperCloseLike(lastChar)) {
-    const left = findPrevNonSpaceLimited(src, start - 2, SINGLE_STAR_LOOKAROUND_MAX)
+    const left = findPrevNonSpaceLimited(src, start - 2, SINGLE_STAR_LOOKAROUND_MAX, lookupCache)
     if (isJapaneseChar(left)) return true
   }
   return false
@@ -415,7 +494,8 @@ const scanPrevSingleStarContextFlags = (src, start) => {
 }
 
 const ensurePrevStarFlags = (src, start, prevStarFlags) => {
-  return prevStarFlags >= 0 ? prevStarFlags : scanPrevSingleStarContextFlags(src, start)
+  if (prevStarFlags >= 0) return prevStarFlags
+  return scanPrevSingleStarContextFlags(src, start)
 }
 
 const fixTrailingStrong = (tokens, onChangeStart = null) => {
@@ -707,6 +787,7 @@ const patchScanDelims = (md) => {
     const plusMode = (modeFlags & MODE_FLAG_JAPANESE_PLUS) !== 0
     const aggressiveMode = (modeFlags & MODE_FLAG_AGGRESSIVE) !== 0
     const max = this.posMax
+    let lookupCache = null
     const lastChar = start > 0 ? src.charCodeAt(start - 1) : 0x20
 
     const count = base && base.length ? base.length : 1
@@ -719,7 +800,15 @@ const patchScanDelims = (md) => {
     const rightJapanese = isJapaneseChar(nextChar)
     let hasJapaneseContext = leftJapanese || rightJapanese
     if (!hasJapaneseContext && count === 1) {
-      hasJapaneseContext = hasJapaneseContextForBracketWrapper(src, start, pos, max, lastChar, nextChar)
+      hasJapaneseContext = hasJapaneseContextForBracketWrapper(
+        src,
+        start,
+        pos,
+        max,
+        lastChar,
+        nextChar,
+        lookupCache || (lookupCache = getScanDelimsLookupCache(this))
+      )
     }
     if (!hasJapaneseContext && count === 1 && isExtraSingleStarClosePunct(lastChar)) {
       prevStarFlags = ensurePrevStarFlags(src, start, prevStarFlags)
@@ -734,22 +823,31 @@ const patchScanDelims = (md) => {
     let isLastWhiteSpace = isWhiteSpace(lastChar) || isSoftSpaceCode(lastChar)
     let isNextWhiteSpace = isWhiteSpace(nextChar) || isSoftSpaceCode(nextChar)
     if (isLastWhiteSpace && isSoftSpaceCode(lastChar)) {
-      const prevNonSpaceIdx = findPrevNonSpaceIndex(src, start - 2)
+      const prevNonSpaceIdx = findPrevNonSpaceIndex(
+        src,
+        start - 2,
+        lookupCache || (lookupCache = getScanDelimsLookupCache(this))
+      )
       if (prevNonSpaceIdx !== -1) {
         const prevNonSpaceLocal = src.charCodeAt(prevNonSpaceIdx)
         const plusStrictAsciiBoundary = plusMode &&
-          hasAsciiEndBeforeOptionalCloseWrappers(src, prevNonSpaceIdx)
+          hasAsciiEndBeforeOptionalCloseWrappers(src, prevNonSpaceIdx, lookupCache)
         if (prevNonSpaceLocal !== CHAR_ASTERISK && !plusStrictAsciiBoundary) {
           isLastWhiteSpace = false
         }
       }
     }
     if (isNextWhiteSpace && isSoftSpaceCode(nextChar)) {
-      const nextNonSpaceIdx = findNextNonSpaceIndex(src, pos, max)
+      const nextNonSpaceIdx = findNextNonSpaceIndex(
+        src,
+        pos,
+        max,
+        lookupCache || (lookupCache = getScanDelimsLookupCache(this))
+      )
       if (nextNonSpaceIdx !== -1) {
         const nextNonSpace = src.charCodeAt(nextNonSpaceIdx)
         const plusStrictAsciiBoundary = plusMode &&
-          hasAsciiStartAfterOptionalOpenWrappers(src, nextNonSpaceIdx, max)
+          hasAsciiStartAfterOptionalOpenWrappers(src, nextNonSpaceIdx, max, lookupCache)
         if (nextNonSpace !== CHAR_ASTERISK && !plusStrictAsciiBoundary) {
           isNextWhiteSpace = false
         }

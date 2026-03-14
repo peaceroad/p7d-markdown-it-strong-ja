@@ -1,7 +1,7 @@
 import { buildLinkCloseMap } from '../token-link-utils.js'
 import {
   isAsteriskEmphasisToken,
-  hasTextMarkerCharsInRange,
+  buildBrokenRefWrapperRangeSignals,
   buildAsteriskWrapperPrefixStats,
   shouldAttemptBrokenRefRewrite
 } from './guards.js'
@@ -194,7 +194,13 @@ const resolveBrokenRefCandidateGuardFlow = (
   hooks = null,
   fallbackCache = null
 ) => {
-  if (!hasTextMarkerCharsInRange(children, brokenRefCandidate.start, segmentEnd, brokenRefCandidate.startTextOffset)) {
+  const wrapperSignals = buildBrokenRefWrapperRangeSignals(
+    children,
+    brokenRefCandidate.start,
+    segmentEnd,
+    brokenRefCandidate.startTextOffset
+  )
+  if (!wrapperSignals.hasTextMarker) {
     return BROKEN_REF_FLOW_SKIP_NO_TEXT_MARKER
   }
   const wrapperPrefixStats = ensureBrokenRefWrapperPrefixStats(children, facts, hooks, fallbackCache)
@@ -203,7 +209,8 @@ const resolveBrokenRefCandidateGuardFlow = (
     brokenRefCandidate.start,
     segmentEnd,
     brokenRefCandidate.startTextOffset,
-    wrapperPrefixStats
+    wrapperPrefixStats,
+    wrapperSignals
   )) {
     return BROKEN_REF_FLOW_SKIP_GUARD
   }

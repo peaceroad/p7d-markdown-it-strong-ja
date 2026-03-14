@@ -66,8 +66,10 @@
 
 ## Performance Notes
 - Caches: `md.__strongJaHasCjkBreaks`, `state.__strongJaTokenRuntimeOpt`.
-- Per-inline facts lazily cache `code_inline`, reference count, metrics, `link_open -> link_close` maps, wrapper-prefix stats, and earliest-changed level-rebuild index.
+- Per-inline facts keep only inline-derived signals (`hasCodeInline`, `link_open -> link_close` maps, wrapper-prefix stats, earliest-changed level-rebuild index); state-level reference count and debug metrics are reused directly instead of being re-cached per inline.
 - `scanDelims` patch is idempotent per inline-state prototype (avoids multi-instance re-wrapping).
+- `scanDelims` now creates its per-inline lookup object lazily and only materializes same-line prev/next non-space arrays on the first actual neighborhood lookup, so marker-light inputs avoid upfront O(n) cache work.
+- Previous single-star context stays memoized per delimiter call (`prevStarFlags`) instead of a state-wide per-position cache, because each `*` start is typically scanned once.
 - Runtime option merge is cached per parse-state + override object (`state.__strongJaTokenRuntimeOpt`); no-override renders skip runtime-option merge on the hot path.
 - Japanese-context scans in postprocess are gated by mode (`japanese-boundary`/`japanese-boundary-guard` only); `aggressive`/`compatible` avoid that extra pass.
 - Postprocess now checks marker presence (`*`) before Japanese-context scans and bracket-text checks on each inline token.
@@ -76,12 +78,11 @@
 - Postprocess broken-ref repair loop runs only when inline children include both `link_open` and `link_close`, and bracket text is present.
 - Segment-local candidates are rejected early when no asterisk emphasis signal exists.
 - Broken-ref wrapper close-only guard now uses per-pass asterisk wrapper-depth prefix caches, avoiding repeated `0..startIdx` rescans per candidate.
-- Broken-ref wrapper close-only guard now also uses prefix open/close counts, so in-range close-only checks avoid per-candidate range rescans.
 - Broken-ref wrapper prefix stats are built lazily per repair pass, avoiding unnecessary upfront scans in no-candidate passes.
 - Broken-ref wrapper-balanced segment expansion now tracks asterisk `strong/em` depth with fixed counters instead of a generic wrapper map.
 - Broken-ref helper fallbacks now memoize link-close maps and wrapper-prefix stats per pass even when the orchestrator facts hooks are not used.
 - Broken-ref passes seed known bracket/emphasis/link-close flags from inline facts and re-summarize final token state after repair-bounded exits, so later stages do not depend on partial scan frontier state.
-- Broken-ref candidate gating now avoids a redundant range scan by relying on text-marker presence checks (`*`) as the primary precondition.
+- Broken-ref candidate gating now folds text-marker presence and strong-run evidence into the shared wrapper-range scan, removing extra candidate range passes before fast-path dispatch.
 - Broken-ref wrapper-risk gating now shares one wrapper-range scan (`buildBrokenRefWrapperRangeSignals`) across leading-close and preexisting-close-only checks.
 - Broken-ref wrapper gating now reuses `buildBrokenRefWrapperRangeSignals` for imbalance + asterisk-emphasis-token context, removing the extra wrapper-imbalance pass.
 - Broken-ref repair now checks active fast-path signatures before dispatch, reducing no-match dispatch churn in malformed-heavy inputs.
@@ -89,12 +90,12 @@
 - Canonical tail repairs are handled by token-only rearrangement.
 - Malformed nested broken-ref cases are handled by token-only strong relocation before sanitize.
 - Leading-close + inner-strong malformed broken-ref spans are handled by token-only marker relocation before sanitize.
-- Postprocess inline pre-scan short-circuits once emphasis + bracket + link-pair flags are all discovered.
+- Postprocess inline pre-scan now seeds `code_inline` together with emphasis/link flags, so later skip/activation checks avoid an extra child scan.
 - Link range handling precomputes `link_open -> link_close` pairs per target range, avoiding per-link close-index rescans in hot paths.
 - Collapsed-ref reconstruction memoizes `link_open -> link_close` pairs per pass and invalidates after token mutations.
 - Collapsed-ref label wrapping now plans surrounding wrapper pairs first and rewrites the whole collapsed-ref range in one splice instead of a remove-then-wrap two-step.
 - Token-link helpers memoize bracket presence per token via `__strongJaHasBracket`/`__strongJaBracketAtomic`.
-- Compat softbreak passes short-circuit when no emphasis; restore-softbreaks tracks the last text char in a single pass.
+- Compat passes now fast-reject on raw-source sentinel chars before token-stream walks (`\n` for softbreak paths, brace presence for attrs paths); softbreak normalization still short-circuits when no emphasis, and restore-softbreaks tracks the last text char in a single pass.
 - Compat runtime override checks now short-circuit when no per-render override is provided.
 
 ## Risks / Watchpoints

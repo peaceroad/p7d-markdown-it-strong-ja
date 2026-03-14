@@ -8,6 +8,7 @@ const MODE_FLAG_AGGRESSIVE = 1 << 1
 const MODE_FLAG_JAPANESE_BASE = 1 << 2
 const MODE_FLAG_JAPANESE_PLUS = 1 << 3
 const MODE_FLAG_JAPANESE_ANY = MODE_FLAG_JAPANESE_BASE | MODE_FLAG_JAPANESE_PLUS
+const HAS_OWN = Object.prototype.hasOwnProperty
 const REG_CJK_BREAKS_RULE_NAME = /(^|[_-])cjk_breaks([_-]|$)/
 const VALID_CANONICAL_MODES = new Set([
   'compatible',
@@ -146,7 +147,14 @@ const getReferenceCount = (state) => {
   let referenceCount = state.__strongJaReferenceCount
   if (referenceCount !== undefined) return referenceCount
   const references = state.env && state.env.references
-  referenceCount = references ? Object.keys(references).length : 0
+  if (!references) {
+    state.__strongJaReferenceCount = 0
+    return 0
+  }
+  referenceCount = 0
+  for (const key in references) {
+    if (HAS_OWN.call(references, key)) referenceCount++
+  }
   state.__strongJaReferenceCount = referenceCount
   return referenceCount
 }

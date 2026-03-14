@@ -120,10 +120,7 @@ const cloneTextToken = (source, content) => {
 }
 
 const applyBracketSegmentFlags = (token, seg) => {
-  if (seg === '[' || seg === ']') {
-    token.__strongJaHasBracket = true
-    token.__strongJaBracketAtomic = true
-  } else if (seg === '[]') {
+  if (seg === '[' || seg === ']' || seg === '[]') {
     token.__strongJaHasBracket = true
     token.__strongJaBracketAtomic = true
   } else {
@@ -641,16 +638,21 @@ const collectBrokenMarkLinkMergeRemovals = (tokens) => {
 
 const applyBrokenMarkLinkMergeRemovals = (tokens, removals, onChangeStart = null) => {
   if (!removals || removals.length === 0) return false
-  const removeFlags = new Array(tokens.length).fill(false)
   for (let idx = removals.length - 1; idx >= 0; idx--) {
-    const removal = removals[idx]
-    if (onChangeStart) onChangeStart(removal.closeIdx)
-    removeFlags[removal.closeIdx] = true
-    removeFlags[removal.reopenIdx] = true
+    if (onChangeStart) onChangeStart(removals[idx].closeIdx)
   }
   const kept = []
+  let removalIdx = 0
+  let nextRemoval = removals[removalIdx]
   for (let idx = 0; idx < tokens.length; idx++) {
-    if (!removeFlags[idx]) kept.push(tokens[idx])
+    if (nextRemoval && (idx === nextRemoval.closeIdx || idx === nextRemoval.reopenIdx)) {
+      if (idx === nextRemoval.reopenIdx) {
+        removalIdx++
+        nextRemoval = removals[removalIdx]
+      }
+      continue
+    }
+    kept.push(tokens[idx])
   }
   tokens.splice(0, tokens.length, ...kept)
   return true

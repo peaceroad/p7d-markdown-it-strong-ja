@@ -87,44 +87,11 @@ const buildInlinePostprocessFacts = (children, inlineContent) => {
     hasEmphasis: preScan.hasEmphasis,
     hasLinkOpen: preScan.hasLinkOpen,
     hasLinkClose: preScan.hasLinkClose,
-    hasCodeInline: undefined,
-    referenceCount: undefined,
-    metrics: undefined,
+    hasCodeInline: preScan.hasCodeInline,
     linkCloseMap: undefined,
     wrapperPrefixStats: undefined,
     rebuildLevelStart: undefined
   }
-}
-
-const ensureInlineHasCodeInline = (facts, tokens) => {
-  if (facts.hasCodeInline !== undefined) return facts.hasCodeInline
-  let hasCodeInline = false
-  if (tokens && tokens.length > 0) {
-    for (let idx = 0; idx < tokens.length; idx++) {
-      if (tokens[idx] && tokens[idx].type === 'code_inline') {
-        hasCodeInline = true
-        break
-      }
-    }
-  }
-  facts.hasCodeInline = hasCodeInline
-  return hasCodeInline
-}
-
-const ensureInlineReferenceCount = (facts, state) => {
-  if (!facts || !facts.hasBracketText) return 0
-  if (facts.referenceCount === undefined) {
-    facts.referenceCount = getReferenceCount(state)
-  }
-  return facts.referenceCount
-}
-
-const ensureInlineMetrics = (facts, state) => {
-  if (!facts) return null
-  if (facts.metrics === undefined) {
-    facts.metrics = getPostprocessMetrics(state)
-  }
-  return facts.metrics
 }
 
 const ensureInlineLinkCloseMap = (facts, tokens) => {
@@ -281,6 +248,9 @@ const isSoftSpaceCode = (code) => {
   return code === 0x20 || code === 0x09 || code === 0x3000
 }
 
+const CHAR_ASTERISK = 0x2A // *
+const CHAR_BACKSLASH = 0x5C // \
+
 const isAsciiWordCode = (code) => {
   return (code >= 0x30 && code <= 0x39) ||
     (code >= 0x41 && code <= 0x5A) ||
@@ -299,7 +269,7 @@ const textStartsAsciiWord = (text) => {
 
 const isEscapedMarkerAt = (content, index) => {
   let slashCount = 0
-  for (let i = index - 1; i >= 0 && content.charCodeAt(i) === 0x5C; i--) {
+  for (let i = index - 1; i >= 0 && content.charCodeAt(i) === CHAR_BACKSLASH; i--) {
     slashCount++
   }
   return (slashCount % 2) === 1
@@ -307,24 +277,24 @@ const isEscapedMarkerAt = (content, index) => {
 
 const findLastStandaloneStrongMarker = (content) => {
   if (!content || content.length < 2) return -1
-  let pos = content.lastIndexOf('**')
-  while (pos !== -1) {
+  for (let pos = content.length - 2; pos >= 0; pos--) {
+    if (content.charCodeAt(pos) !== CHAR_ASTERISK ||
+        content.charCodeAt(pos + 1) !== CHAR_ASTERISK) {
+      continue
+    }
     const prev = pos > 0 ? content.charCodeAt(pos - 1) : 0
     const next = pos + 2 < content.length ? content.charCodeAt(pos + 2) : 0
-    if (prev !== 0x2A &&
-        next !== 0x2A &&
-        !isEscapedMarkerAt(content, pos)) {
-      return pos
-    }
-    pos = content.lastIndexOf('**', pos - 1)
+    if (prev === CHAR_ASTERISK || next === CHAR_ASTERISK) continue
+    if (prev === CHAR_BACKSLASH && isEscapedMarkerAt(content, pos)) continue
+    return pos
   }
   return -1
 }
 
 const hasLeadingStandaloneStrongMarker = (content) => {
   if (!content || content.length < 2) return false
-  if (content.charCodeAt(0) !== 0x2A || content.charCodeAt(1) !== 0x2A) return false
-  if (content.length > 2 && content.charCodeAt(2) === 0x2A) return false
+  if (content.charCodeAt(0) !== CHAR_ASTERISK || content.charCodeAt(1) !== CHAR_ASTERISK) return false
+  if (content.length > 2 && content.charCodeAt(2) === CHAR_ASTERISK) return false
   return true
 }
 
@@ -474,7 +444,7 @@ const tryActivateInlineEmphasis = (
     return true
   }
   if (facts.hasBracketText || facts.hasLinkOpen || facts.hasLinkClose) return false
-  if (!ensureInlineHasCodeInline(facts, children)) return false
+  if (!facts.hasCodeInline) return false
   if (tryPromoteStrongAroundInlineCode(children, strictAsciiCodeGuard, strictAsciiStrongGuard, facts)) {
     facts.hasEmphasis = true
     return true
@@ -485,7 +455,7 @@ const tryActivateInlineEmphasis = (
 const shouldRunInlineBrokenRefRepair = (facts, inlineContent, state) => {
   if (!facts || !facts.hasLinkOpen || !facts.hasLinkClose || !facts.hasBracketText) return false
   if (inlineContent.indexOf('***') !== -1) return false
-  return ensureInlineReferenceCount(facts, state) > 0
+  return getReferenceCount(state) > 0
 }
 
 const applyBrokenRefRepairFacts = (facts, repairs) => {
@@ -508,7 +478,7 @@ const runInlineBrokenRefRepairStage = (children, facts, inlineContent, state) =>
     children,
     maxRepairPass,
     scanState,
-    ensureInlineMetrics(facts, state),
+    getPostprocessMetrics(state),
     facts,
     BROKEN_REF_REPAIR_HOOKS
   )
@@ -522,7 +492,7 @@ const runInlineEmphasisRepairStage = (children, facts, state, isJapaneseMode) =>
   const markChangedFrom = createInlineChangeMarker(facts)
   if (fixEmOuterStrongSequence(children, markChangedFrom)) changed = true
   if (facts.hasLinkClose) {
-    const metrics = ensureInlineMetrics(facts, state)
+    const metrics = getPostprocessMetrics(state)
     if (fixTailAfterLinkStrongClose(children, isJapaneseMode, metrics, markChangedFrom)) changed = true
     if (fixLeadingAsteriskEm(children, markChangedFrom)) changed = true
   }
@@ -533,7 +503,7 @@ const runInlineEmphasisRepairStage = (children, facts, state, isJapaneseMode) =>
 
 const shouldRunInlineCollapsedRefRepair = (facts, state) => {
   if (!facts || !facts.hasBracketText) return false
-  return ensureInlineReferenceCount(facts, state) > 0
+  return getReferenceCount(state) > 0
 }
 
 const applyCollapsedRefRepairFacts = (facts) => {
@@ -567,7 +537,7 @@ const shouldSkipInlinePostprocessToken = (children, facts, isJapaneseMode) => {
       !facts.hasBracketText &&
       !facts.hasLinkOpen &&
       !facts.hasLinkClose &&
-      !ensureInlineHasCodeInline(facts, children)) {
+      !facts.hasCodeInline) {
     return true
   }
   if (isJapaneseMode &&
