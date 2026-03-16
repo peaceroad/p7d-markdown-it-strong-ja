@@ -127,15 +127,23 @@ const deriveOptionInfo = (opt) => {
   return opt
 }
 
+const hasRuntimeOverride = (override) => {
+  if (!override || typeof override !== 'object') return false
+  return (HAS_OWN.call(override, 'mode') && override.mode !== undefined) ||
+    (HAS_OWN.call(override, 'postprocess') && override.postprocess !== undefined)
+}
+
 const getRuntimeOpt = (state, baseOpt) => {
-  if (!state || !state.env || !state.env.__strongJaTokenOpt) return deriveOptionInfo(baseOpt)
-  const override = state.env.__strongJaTokenOpt
+  const override = state && state.env ? state.env.__strongJaTokenOpt : null
+  if (!hasRuntimeOverride(override)) return deriveOptionInfo(baseOpt)
   if (state.__strongJaTokenRuntimeOpt &&
       state.__strongJaTokenRuntimeBase === baseOpt &&
       state.__strongJaTokenRuntimeOverride === override) {
     return state.__strongJaTokenRuntimeOpt
   }
-  const merged = { ...baseOpt, ...override }
+  const merged = baseOpt && typeof baseOpt === 'object' ? { ...baseOpt } : {}
+  if (HAS_OWN.call(override, 'mode') && override.mode !== undefined) merged.mode = override.mode
+  if (HAS_OWN.call(override, 'postprocess') && override.postprocess !== undefined) merged.postprocess = override.postprocess
   state.__strongJaTokenRuntimeOpt = deriveOptionInfo(merged)
   state.__strongJaTokenRuntimeBase = baseOpt
   state.__strongJaTokenRuntimeOverride = override
@@ -233,6 +241,7 @@ export {
   getModeFlags,
   deriveModeInfo,
   deriveOptionInfo,
+  hasRuntimeOverride,
   MODE_FLAG_COMPATIBLE,
   MODE_FLAG_AGGRESSIVE,
   MODE_FLAG_JAPANESE_BASE,

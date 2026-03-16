@@ -5,6 +5,7 @@ import {
   hasCjkBreaksRule,
   isCjkBreaksRuleName,
   getRuntimeOpt,
+  hasRuntimeOverride,
   moveRuleAfter
 } from './token-utils.js'
 
@@ -32,7 +33,7 @@ const getStateSource = (state) => {
 const registerTokenCompat = (md, baseOpt) => {
   const isCompatibleMode = (state) => {
     const override = state && state.env && state.env.__strongJaTokenOpt
-    if (!override) return baseOpt.__strongJaIsCompatibleMode === true
+    if (!hasRuntimeOverride(override)) return baseOpt.__strongJaIsCompatibleMode === true
     const opt = getRuntimeOpt(state, baseOpt)
     return opt.__strongJaIsCompatibleMode === true
   }
@@ -172,11 +173,6 @@ const registerTokenCompat = (md, baseOpt) => {
     if (!state) return
     const src = getStateSource(state)
     if (!src || src.indexOf('\n') === -1 || src.indexOf('{') === -1) return
-    const overrideOpt = state.env && state.env.__strongJaTokenOpt
-    if (overrideOpt) {
-      const opt = getRuntimeOpt(state, baseOpt)
-      if (opt.mditAttrs !== false) return
-    }
     if (!state.md || state.md.__strongJaRestoreSoftbreaksForAttrs !== true) return
     if (baseOpt.hasCjkBreaks !== true && state.md) {
       baseOpt.hasCjkBreaks = hasCjkBreaksRule(state.md)
@@ -249,11 +245,6 @@ const registerTokenCompat = (md, baseOpt) => {
       if (!state || !state.tokens) return
       const src = getStateSource(state)
       if (!src || src.indexOf('{') === -1 || src.indexOf('}') === -1) return
-      const overrideOpt = state.env && state.env.__strongJaTokenOpt
-      if (overrideOpt) {
-        const opt = getRuntimeOpt(state, baseOpt)
-        if (opt.mditAttrs === false) return
-      }
       for (let i = 0; i < state.tokens.length; i++) {
         const token = state.tokens[i]
         if (!token || token.type !== 'inline' || !token.children || token.children.length === 0) continue

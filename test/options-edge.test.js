@@ -335,14 +335,17 @@ export const runOptionEdgeTests = () => {
     )
   }, allPassRef)
 
-  runCase('repeated .use keeps runtime-effective options coherent', () => {
-    const input = '\u3053\u308c\u306f**[text](url)**\u3067\u3059'
+  runCase('repeated .use is first-install-wins and does not duplicate rules', () => {
+    const input = '[**Text**][]'
     const scanInput = '*\u5473\u564c\u6c41\u3002*umai*'
+    const env = { references: { TEXT: { href: 'https://example.com', title: '' } } }
     const md = new MarkdownIt().use(mditStrongJa, { mode: 'compatible', postprocess: false })
     md.use(mditStrongJa, { mode: 'aggressive', postprocess: true })
-    const mdExpected = new MarkdownIt().use(mditStrongJa, { mode: 'aggressive', postprocess: true })
-    assert.strictEqual(md.render(input), mdExpected.render(input))
+    const mdExpected = new MarkdownIt().use(mditStrongJa, { mode: 'compatible', postprocess: false })
+    assert.strictEqual(md.render(input, env), mdExpected.render(input, env))
     assert.strictEqual(md.render(scanInput), mdExpected.render(scanInput))
+    const ruleNames = md.core.ruler.__rules__.map((rule) => rule.name)
+    assert.strictEqual(ruleNames.filter((name) => name === 'strong_ja_token_postprocess').length, 1)
   }, allPassRef)
   runCase('postprocess off keeps collapsed ref literal', () => {
     const input = '[**Text**][]'
@@ -602,6 +605,41 @@ export const runOptionEdgeTests = () => {
     assert.strictEqual(
       md.render(input, env),
       '<p>[<strong>Text</strong>][]</p>\n'
+    )
+  }, allPassRef)
+
+  runCase('per-render setup-time override keys are ignored', () => {
+    const input = 'これは**[text](url)**です'
+    const md = new MarkdownIt().use(mditStrongJa, {
+      mode: 'compatible',
+      postprocess: false
+    })
+    assert.strictEqual(
+      md.render(input, {
+        __strongJaTokenOpt: {
+          mditAttrs: false,
+          patchCorePush: false,
+          coreRulesBeforePostprocess: ['inline']
+        }
+      }),
+      md.render(input)
+    )
+  }, allPassRef)
+
+  runCase('per-render undefined runtime override keys are ignored', () => {
+    const input = 'これは**[text](url)**です'
+    const md = new MarkdownIt().use(mditStrongJa, {
+      mode: 'compatible',
+      postprocess: false
+    })
+    assert.strictEqual(
+      md.render(input, {
+        __strongJaTokenOpt: {
+          mode: undefined,
+          postprocess: undefined
+        }
+      }),
+      md.render(input)
     )
   }, allPassRef)
 

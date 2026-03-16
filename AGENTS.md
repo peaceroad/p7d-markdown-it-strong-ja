@@ -26,11 +26,12 @@
 - `patchCorePush`: track late `cjk_breaks` registration when `mditAttrs: false` (rule name comes from the cjk-breaks plugin).
 
 ### Option Notes
-- `mode` and `postprocess` are runtime-effective via per-render override.
-- `mditAttrs`, `patchCorePush`, and `coreRulesBeforePostprocess` are setup-time effective (registration/order is fixed after the first `.use(...)` on a `MarkdownIt` instance). Repeated `.use(...)` updates the shared runtime option object, but it cannot retroactively add/remove setup-time rules.
+- `mode` and `postprocess` are runtime-effective via the initial install or per-render override.
+- Repeated `.use(...)` on the same `MarkdownIt` instance is first-install-wins no-op; create a new instance for a different plugin option set.
+- `mditAttrs`, `patchCorePush`, and `coreRulesBeforePostprocess` are setup-time effective (registration/order is fixed after the first `.use(...)` on a `MarkdownIt` instance).
 
 ## Per-render override
-- `state.env.__strongJaTokenOpt` can override options per render; merged with `md.__strongJaTokenOpt`.
+- `state.env.__strongJaTokenOpt` can override runtime-effective options per render; merged with `md.__strongJaTokenOpt`.
 - Runtime-only in practice: setup-time registration/order options are fixed at plugin initialization.
 
 ## Processing Flow

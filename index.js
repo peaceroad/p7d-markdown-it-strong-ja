@@ -19,29 +19,21 @@ const buildNormalizedOption = (md, option) => {
   return opt
 }
 
-const writeSharedOption = (target, source) => {
-  for (const key of Object.keys(target)) {
-    delete target[key]
-  }
-  Object.assign(target, source)
-  return target
-}
-
 const mditStrongJa = (md, option) => {
   if (option && typeof option.engine === 'string' && option.engine !== 'token') {
     throw new Error('mditStrongJa: legacy engine was removed; use token (default)')
   }
+  if (md.__strongJaTokenInstalled) {
+    return md
+  }
   const nextOpt = buildNormalizedOption(md, option)
-  const opt = md.__strongJaTokenOpt && typeof md.__strongJaTokenOpt === 'object'
-    ? writeSharedOption(md.__strongJaTokenOpt, nextOpt)
-    : nextOpt
-
-  md.__strongJaTokenOpt = opt
+  md.__strongJaTokenOpt = nextOpt
   patchScanDelims(md)
-  registerTokenCompat(md, opt)
+  registerTokenCompat(md, nextOpt)
 
-  registerTokenPostprocess(md, opt)
-  ensureCoreRuleOrder(md, opt.__strongJaNormalizedCoreRulesBeforePostprocess, 'strong_ja_token_postprocess')
+  registerTokenPostprocess(md, nextOpt)
+  ensureCoreRuleOrder(md, nextOpt.__strongJaNormalizedCoreRulesBeforePostprocess, 'strong_ja_token_postprocess')
+  md.__strongJaTokenInstalled = true
 
   return md
 }

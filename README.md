@@ -396,10 +396,10 @@ Supporting visuals:
 
 ## Notes
 
-- Use `state.env.__strongJaTokenOpt` to override options per render.
-- Overrides are merged with plugin options, but setup-time behavior (such as rule registration/order) cannot be switched at render time and cannot be retrofitted after the first `.use(...)` on the same `MarkdownIt` instance.
-- `mode` and `postprocess` are runtime-effective. `mditAttrs`, `patchCorePush`, and `coreRulesBeforePostprocess` are setup-time effective after the first `.use(...)` on a `MarkdownIt` instance.
+- Use `state.env.__strongJaTokenOpt` to override runtime-effective options per render.
+- Repeated `.use(...)` on the same `MarkdownIt` instance is treated as first-install-wins no-op. Create a new `MarkdownIt` instance for a different plugin option set.
+- Runtime-effective override keys are merged with plugin options, but setup-time behavior (such as rule registration/order) cannot be switched at render time and cannot be retrofitted after the first `.use(...)` on the same `MarkdownIt` instance.
+- `mode` and `postprocess` are runtime-effective via initial install or per-render override. `mditAttrs`, `patchCorePush`, and `coreRulesBeforePostprocess` are setup-time effective after the first `.use(...)` on a `MarkdownIt` instance.
 - This is an ESM plugin (`type: module`) and is tested against `markdown-it` 14.x in Node.js, browser bundlers, and VS Code extension pipelines that use `markdown-it` ESM.
 - The implementation relies on `markdown-it` internal ESM modules / core rule internals (`lib/token.mjs`, `lib/common/utils.mjs`, `ruler.__rules__`) plus a `scanDelims` prototype patch, so internal `markdown-it` changes may require plugin updates.
 - `scanDelims` patch is applied once per `MarkdownIt` prototype in the same process.
-

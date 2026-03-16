@@ -10,6 +10,7 @@ import {
 } from '../token-core.js'
 import {
   getRuntimeOpt,
+  hasRuntimeOverride,
   getReferenceCount
 } from '../token-utils.js'
 import {
@@ -625,7 +626,7 @@ const registerTokenPostprocess = (md, baseOpt) => {
   md.core.ruler.after('inline', 'strong_ja_token_postprocess', (state) => {
     if (!state || !state.tokens) return
     const overrideOpt = state.env && state.env.__strongJaTokenOpt
-    const opt = overrideOpt ? getRuntimeOpt(state, baseOpt) : baseOpt
+    const opt = hasRuntimeOverride(overrideOpt) ? getRuntimeOpt(state, baseOpt) : baseOpt
     if (!opt.__strongJaPostprocessActive) return
     const isJapaneseMode = opt.__strongJaIsJapaneseMode
     const strictAsciiCodeGuard = opt.__strongJaStrictAsciiCodeGuard
