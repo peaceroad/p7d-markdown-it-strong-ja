@@ -8,6 +8,9 @@
 - `mixed-ja-en-stars-mode.txt`: 比較用 Markdown ケース（現在 8 ケース）
 - `render-mode-html.js`: 比較 HTML 生成スクリプト
 - `mixed-ja-en-stars-mode.html`: 生成済み可視化結果
+- `author-intent-cases.txt`: author-intent 付き自然さ確認コーパス（人手評価向け）
+- `render-author-intent-html.js`: author-intent コーパスの比較 HTML 生成スクリプト
+- `author-intent-cases.html`: 上記コーパスの生成済み可視化結果
 - `render-inline-wrapper-matrix-html.js`: `* / **` と `inline code/link` の境界マトリクス可視化スクリプト
 - `inline-wrapper-matrix.html`: 上記マトリクスの生成済み可視化結果
   - 注: `default(japanese)` は `japanese-boundary-guard` のエイリアスなので、重複表示を避けるため matrix 本体では省略
@@ -16,6 +19,7 @@
 
 ```bash
 node example/render-mode-html.js
+node example/render-author-intent-html.js
 node example/render-inline-wrapper-matrix-html.js
 ```
 
@@ -28,6 +32,77 @@ node example/render-inline-wrapper-matrix-html.js
 - 安全性: 壊れ入力でタグ破綻を起こさないか（fail-safe）
 - 可搬性: 他 plugin 併用時に壊れにくいか
 - 速度: 修復経路での追加コストが小さいか
+
+### このディレクトリでまだ弱い点
+
+- `mixed-ja-en-stars-mode.*` の集計は `em` / `strong` / literal `*` の数と `markdown-it` 差分が中心で、「人間にとってどの出力が一番自然か」を直接ロックしてはいない
+- そのため、回復量が多いモードと、執筆者意図に最も近いモードがズレるケースを定量化しづらい
+- 特に `japanese-boundary-guard` の「過変換抑制」と、`japanese-boundary` / `aggressive` の「積極回復」の優劣は、ケースごとの author intent がないと判断しにくい
+
+## author-intent corpus で確認したいこと
+
+`author-intent-cases.*` は、単なるタグ数比較ではなく「この入力ではどのモードが一番自然か」を見るための補助コーパスです。
+
+各ケースは次の情報を持ちます。
+
+- `intent`: その入力で書き手が何を強調したかったか
+- `preferred`: その意図に最も合うと考えるモード
+- `acceptable`: 妥協可能なモード
+- `focus`: そのケースで見たい論点
+- `markdown`: 実際の入力
+
+この corpus は現時点では **自動採点用ではなく、人手レビュー用** です。  
+先にケースを育ててから、必要なら後段で簡易スコア化します。
+
+## 現時点の author-intent 所見
+
+現在の `author-intent-cases.txt` は 15 ケースです。
+
+- `japanese-boundary-guard`: preferred `12`
+- `japanese-boundary`: preferred `2`
+- `compatible`: preferred `1`
+- `aggressive`: preferred `0`
+
+ここから読めること:
+
+- **default としての `japanese-boundary-guard` はかなり強い**  
+  user-facing な日本語/日英混在 prose では、過変換抑制と局所回復のバランスが良い
+- ただし **universal best ではない**  
+  `* English craft*` や `* \`umami\`*` のように、space-leading English/code を本当に強調したい意図では `japanese-boundary` の方が自然に見える
+- pure-English malformed tail は、`compatible` / baseline 寄りの方が自然に見えるケースがある
+- 現時点では **`japanese-boundary-guard` を置き換える明確な上位 mode は見えていない**  
+  もし次に改善を狙うなら、default 置換よりも「space-leading English をどこまで許すか」の細い option/variant を考える方が筋が良い
+
+この counts はまだ小さな curated corpus 上の結果であり、最終結論ではありません。  
+ただし、**「default はかなり妥当だが、特定の author intent では保守的すぎる」** という傾向は、すでに十分見えています。
+
+## 次に増やすべきケース
+
+- 意図どおりに日本語語句だけを強調したいケース
+- 日英混在で「英語側は強調したくない」ケース
+- 逆に、日英混在でも英語語句を強調したいケース
+- code/link/ref の外側に `*` / `**` を置いたケース
+- 同一段落内で複数文にまたがるケース
+- 単一 `*` の spillover を止めたいケース
+- fail-safe を優先して literal `*` を残したいケース
+
+補足:
+
+- **同一段落内の複数文ケースは重要** です。`scanDelims` の前方/後方文脈や sentence-boundary stop、postprocess の局所修復がこの単位で効くためです
+- 一方で、**段落をまたぐケースは優先度が下がります**。`markdown-it` の inline scope 自体が段落で切れるので、同じ意味での spillover は起きにくいです
+
+## どう確認するか
+
+おすすめの進め方は次の順です。
+
+1. `author-intent-cases.txt` に「執筆者意図が明確なケース」を少数ずつ追加する  
+2. `node example/render-author-intent-html.js` で全モードを並べて見る  
+3. `preferred` / `acceptable` の指定が実際の見た目と合うかをレビューする  
+4. 迷うケースは corpus から外さず、`acceptable` を広げて「どこが曖昧か」を明示する  
+5. ケースが十分たまってから、はじめて mode default や guard 条件の見直しを考える
+
+要するに、次に必要なのは「実装ロジックをすぐ大きく変えること」ではなく、  
+**author-intent 付きのサンプルを増やして、自然さの判断材料を蓄積すること** です。
 
 ## モード仕様（実装上）
 
@@ -119,6 +194,7 @@ node example/render-inline-wrapper-matrix-html.js
 
 - postprocess は strict token-only 化済み（runtime の reparse fallback なし）
 - 未知の malformed 入力は fail-safe で非変換（壊すより残す）
+- 自然さ評価はまだ `mixed-ja-en-stars-mode.*` の差分観察が中心で、author-intent corpus はこれから育てる段階
 - 実装詳細は `docs/note-post-processing.md`、移行ログは `docs/note-post-processing-dev-log.md` を参照
 
 ## テストとの対応

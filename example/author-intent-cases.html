@@ -1,0 +1,1551 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Author Intent Cases</title>
+  <style>
+    :root {
+      --bg: #f5f3ee;
+      --card: #fffdf8;
+      --line: #d9d2c7;
+      --text: #1f2937;
+      --muted: #5b6470;
+      --preferred-bg: #e8f7ed;
+      --preferred-line: #7cc08f;
+      --acceptable-bg: #fff5d8;
+      --acceptable-line: #d8b24c;
+      --neutral-bg: #eef2f7;
+      --neutral-line: #b7c4d6;
+      --same-bg: #edfdf5;
+      --same-fg: #166534;
+      --diff-bg: #fff7ed;
+      --diff-fg: #9a3412;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(1100px 460px at 100% -10%, #d8ece7 0%, transparent 60%),
+        radial-gradient(900px 420px at -10% 0%, #fbe7d7 0%, transparent 60%),
+        linear-gradient(180deg, #f3efe8, var(--bg));
+      color: var(--text);
+      font-family: "Yu Gothic UI", "Hiragino Kaku Gothic ProN", "Segoe UI", sans-serif;
+      line-height: 1.75;
+    }
+    main { max-width: 1080px; margin: 0 auto; padding: 18px; }
+    h1 { margin: 0 0 8px; font-size: 30px; }
+    .lead { margin: 0 0 8px; color: var(--muted); font-size: 14px; }
+    .panel, .case {
+      background: rgba(255, 253, 248, 0.92);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+      backdrop-filter: blur(2px);
+    }
+    .summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    .summary-table th, .summary-table td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+    }
+    .summary-table thead th { background: #f7f2e8; }
+    .notes { margin: 8px 0 0; padding-left: 18px; color: var(--muted); }
+    .notes li { margin: 4px 0; }
+    .case h2 { margin: 0 0 8px; font-size: 18px; }
+    .meta {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 4px 8px;
+      margin: 0 0 8px;
+      font-size: 13px;
+    }
+    .meta dt { font-weight: 700; color: #374151; }
+    .meta dd { margin: 0; color: var(--muted); }
+    details { margin-bottom: 8px; }
+    summary { cursor: pointer; color: #374151; font-size: 12px; }
+    .markdown-toggle summary {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.7);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    .mode-card {
+      border: 1px solid var(--neutral-line);
+      background: var(--neutral-bg);
+      border-radius: 10px;
+      padding: 10px;
+    }
+    .mode-card.role-preferred {
+      border-color: var(--preferred-line);
+      background: var(--preferred-bg);
+    }
+    .mode-card.role-acceptable {
+      border-color: var(--acceptable-line);
+      background: var(--acceptable-bg);
+    }
+    .mode-card header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas: "title html";
+      gap: 4px 10px;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .title-row {
+      grid-area: title;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 8px;
+      min-width: 0;
+    }
+    .mode-card h3 { margin: 0; font-size: 14px; line-height: 1.35; }
+    .html-toggle {
+      grid-area: html;
+      margin: 0;
+      justify-self: end;
+    }
+    .html-toggle summary {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border: 1px solid rgba(0, 0, 0, 0.14);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.82);
+      white-space: nowrap;
+    }
+    .html-toggle pre {
+      margin-top: 8px;
+    }
+    .badges { display: flex; flex-wrap: wrap; gap: 6px; }
+    .badge {
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      border: 1px solid transparent;
+      background: #fff;
+    }
+    .badge.preferred {
+      background: #dcfce7;
+      color: #166534;
+      border-color: #86efac;
+    }
+    .badge.acceptable {
+      background: #fef3c7;
+      color: #92400e;
+      border-color: #fcd34d;
+    }
+    .badge.neutral {
+      background: #eef2ff;
+      color: #4338ca;
+      border-color: #c7d2fe;
+    }
+    .badge.same {
+      background: var(--same-bg);
+      color: var(--same-fg);
+      border-color: #86efac;
+    }
+    .badge.diff {
+      background: var(--diff-bg);
+      color: var(--diff-fg);
+      border-color: #fdba74;
+    }
+    .rendered {
+      border: 1px dashed rgba(0, 0, 0, 0.12);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.85);
+      padding: 7px 12px;
+      min-height: 0;
+      line-height: 1.55;
+      font-size: 16px;
+    }
+    pre.source {
+      margin: 0;
+      padding: 8px 10px;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.88);
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font-family: "Cascadia Code", "Consolas", monospace;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    @media (max-width: 720px) {
+      main { padding: 12px; }
+      h1 { font-size: 24px; }
+      .meta { grid-template-columns: 1fr; }
+      .mode-card header {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          "title"
+          "html";
+        align-items: start;
+      }
+      .html-toggle {
+        justify-self: start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Author-Intent Naturalness Cases</h1>
+    <p class="lead">タグ数や markdown-it 差分だけではなく、「この入力で書き手がどこを強調したかったか」を明示したケースを並べて見るための example です。</p>
+    <p class="lead">このページは自動採点ページではありません。Preferred / Acceptable は、mode を見比べるための review hint です。</p>
+    <p class="lead">single-sentence だけでなく、同一段落内の multi-sentence case も含めています。sentence-boundary stop や local repair が後続文に spillover しないかを見るためです。</p>
+
+    <section class="panel">
+      <h2>How to use</h2>
+      <ul class="notes">
+        <li>まず <strong>Intent</strong> と <strong>Focus</strong> を読み、そのあと上から順に mode の見た目を比較する。</li>
+        <li>Preferred は「このケースで一番自然に見えてほしい mode」、Acceptable は妥協可能な mode を示す。</li>
+        <li>迷うケースは削らずに残し、Preferred / Acceptable を見直して corpus 側に判断の揺れを蓄積する。</li>
+        <li>同一段落の複数文ケースは重要だが、段落をまたぐケースは inline scope が切れるため優先度を下げてよい。</li>
+      </ul>
+      <table class="summary-table">
+        <thead><tr><th>Mode</th><th>Preferred count</th></tr></thead>
+        <tbody><tr><th>japanese-boundary</th><td>2</td></tr><tr><th>japanese-boundary-guard (default alias: japanese)</th><td>12</td></tr><tr><th>aggressive</th><td>0</td></tr><tr><th>compatible / markdown-it</th><td>1</td></tr></tbody>
+      </table>
+    </section>
+
+    
+  <section class="case">
+    <h2>1. jp-quoted-strong-should-recover</h2>
+    <dl class="meta">
+      <dt>Intent</dt><dd>日本語の語句「だし」を strong として読み取りたい。literal ** のまま残すより、自然な強調を優先したい。</dd>
+      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
+      <dt>Acceptable</dt><dd>japanese-boundary, aggressive</dd>
+      <dt>Focus</dt><dd>日本語引用符 + strong の基本回復。default が markdown-it 互換より自然に見えるか。</dd>
+    </dl>
+    <details class="markdown-toggle">
+      <summary>Markdown Source</summary>
+      <pre class="source">和食の基本は**「だし」**です。</pre>
+    </details>
+    <div class="grid">
+      
+      <article class="mode-card role-preferred">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary-guard (default alias: japanese)</h3>
+            <div class="badges">
+              <span class="badge preferred">Preferred</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;和食の基本は&lt;strong&gt;「だし」&lt;/strong&gt;です。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>和食の基本は<strong>「だし」</strong>です。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;和食の基本は&lt;strong&gt;「だし」&lt;/strong&gt;です。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>和食の基本は<strong>「だし」</strong>です。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>aggressive</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;和食の基本は&lt;strong&gt;「だし」&lt;/strong&gt;です。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>和食の基本は<strong>「だし」</strong>です。</p>
+</div>
+      </article>
+      <article class="mode-card role-neutral">
+        <header>
+          <div class="title-row">
+            <h3>compatible / markdown-it</h3>
+            <div class="badges">
+              <span class="badge neutral">Compare</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;和食の基本は**「だし」**です。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>和食の基本は**「だし」**です。</p>
+</div>
+      </article>
+    </div>
+  </section>
+  <section class="case">
+    <h2>2. mixed-space-leading-english-should-stay-literal</h2>
+    <dl class="meta">
+      <dt>Intent</dt><dd>日本語文中の `* English*` は、不自然な English 側の過変換を避けたい。default では literal のままの方が自然。</dd>
+      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
+      <dt>Acceptable</dt><dd>compatible</dd>
+      <dt>Focus</dt><dd>半角スペース隣接 + ASCII 開始の mixed JA/EN guard が、default の性格として妥当か。</dd>
+    </dl>
+    <details class="markdown-toggle">
+      <summary>Markdown Source</summary>
+      <pre class="source">日本語です。* English* です。</pre>
+    </details>
+    <div class="grid">
+      
+      <article class="mode-card role-preferred">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary-guard (default alias: japanese)</h3>
+            <div class="badges">
+              <span class="badge preferred">Preferred</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;日本語です。* English* です。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>日本語です。* English* です。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>compatible / markdown-it</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;日本語です。* English* です。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>日本語です。* English* です。</p>
+</div>
+      </article>
+      <article class="mode-card role-neutral">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary</h3>
+            <div class="badges">
+              <span class="badge neutral">Compare</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;日本語です。&lt;em&gt; English&lt;/em&gt; です。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>日本語です。<em> English</em> です。</p>
+</div>
+      </article>
+      <article class="mode-card role-neutral">
+        <header>
+          <div class="title-row">
+            <h3>aggressive</h3>
+            <div class="badges">
+              <span class="badge neutral">Compare</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;日本語です。&lt;em&gt; English&lt;/em&gt; です。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>日本語です。<em> English</em> です。</p>
+</div>
+      </article>
+    </div>
+  </section>
+  <section class="case">
+    <h2>3. mixed-no-space-english-should-emphasize</h2>
+    <dl class="meta">
+      <dt>Intent</dt><dd>英語語句そのものを普通に emphasis したい。ここでは suppress しすぎない方が自然。</dd>
+      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
+      <dt>Acceptable</dt><dd>japanese-boundary, aggressive, compatible</dd>
+      <dt>Focus</dt><dd>space-adjacent ではない英語強調を default が殺していないか。</dd>
+    </dl>
+    <details class="markdown-toggle">
+      <summary>Markdown Source</summary>
+      <pre class="source">日本語でも*English term*はそのまま強調したい。</pre>
+    </details>
+    <div class="grid">
+      
+      <article class="mode-card role-preferred">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary-guard (default alias: japanese)</h3>
+            <div class="badges">
+              <span class="badge preferred">Preferred</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;日本語でも&lt;em&gt;English term&lt;/em&gt;はそのまま強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>日本語でも<em>English term</em>はそのまま強調したい。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;日本語でも&lt;em&gt;English term&lt;/em&gt;はそのまま強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>日本語でも<em>English term</em>はそのまま強調したい。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>aggressive</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;日本語でも&lt;em&gt;English term&lt;/em&gt;はそのまま強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>日本語でも<em>English term</em>はそのまま強調したい。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>compatible / markdown-it</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;日本語でも&lt;em&gt;English term&lt;/em&gt;はそのまま強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>日本語でも<em>English term</em>はそのまま強調したい。</p>
+</div>
+      </article>
+    </div>
+  </section>
+  <section class="case">
+    <h2>4. fullwidth-space-leading-english-should-stay-literal</h2>
+    <dl class="meta">
+      <dt>Intent</dt><dd>和文句読点 + 全角空白の直後にある `* English term*` は、default では無理に強調しない方が自然。</dd>
+      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
+      <dt>Acceptable</dt><dd>compatible</dd>
+      <dt>Focus</dt><dd>全角空白境界でも mixed JA/EN guard が破綻せず、space-leading English suppress を維持できるか。</dd>
+    </dl>
+    <details class="markdown-toggle">
+      <summary>Markdown Source</summary>
+      <pre class="source">和食です！　* English term* はここでは literal のままにしたい。</pre>
+    </details>
+    <div class="grid">
+      
+      <article class="mode-card role-preferred">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary-guard (default alias: japanese)</h3>
+            <div class="badges">
+              <span class="badge preferred">Preferred</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;和食です！　* English term* はここでは literal のままにしたい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>和食です！　* English term* はここでは literal のままにしたい。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>compatible / markdown-it</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;和食です！　* English term* はここでは literal のままにしたい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>和食です！　* English term* はここでは literal のままにしたい。</p>
+</div>
+      </article>
+      <article class="mode-card role-neutral">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary</h3>
+            <div class="badges">
+              <span class="badge neutral">Compare</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;和食です！　&lt;em&gt; English term&lt;/em&gt; はここでは literal のままにしたい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>和食です！　<em> English term</em> はここでは literal のままにしたい。</p>
+</div>
+      </article>
+      <article class="mode-card role-neutral">
+        <header>
+          <div class="title-row">
+            <h3>aggressive</h3>
+            <div class="badges">
+              <span class="badge neutral">Compare</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;和食です！　&lt;em&gt; English term&lt;/em&gt; はここでは literal のままにしたい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>和食です！　<em> English term</em> はここでは literal のままにしたい。</p>
+</div>
+      </article>
+    </div>
+  </section>
+  <section class="case">
+    <h2>5. jp-link-outer-strong-should-repair</h2>
+    <dl class="meta">
+      <dt>Intent</dt><dd>リンク全体を strong にしたい。リンクの外側にある ** は回復されてほしい。</dd>
+      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
+      <dt>Acceptable</dt><dd>japanese-boundary, aggressive</dd>
+      <dt>Focus</dt><dd>link outer markers の補修が user-facing prose として自然か。</dd>
+    </dl>
+    <details class="markdown-toggle">
+      <summary>Markdown Source</summary>
+      <pre class="source">説明文ではこれは**[寿司](https://example.com/sushi)**です。</pre>
+    </details>
+    <div class="grid">
+      
+      <article class="mode-card role-preferred">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary-guard (default alias: japanese)</h3>
+            <div class="badges">
+              <span class="badge preferred">Preferred</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;説明文ではこれは&lt;strong&gt;&lt;a href="https://example.com/sushi"&gt;寿司&lt;/a&gt;&lt;/strong&gt;です。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>説明文ではこれは<strong><a href="https://example.com/sushi">寿司</a></strong>です。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;説明文ではこれは&lt;strong&gt;&lt;a href="https://example.com/sushi"&gt;寿司&lt;/a&gt;&lt;/strong&gt;です。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>説明文ではこれは<strong><a href="https://example.com/sushi">寿司</a></strong>です。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>aggressive</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;説明文ではこれは&lt;strong&gt;&lt;a href="https://example.com/sushi"&gt;寿司&lt;/a&gt;&lt;/strong&gt;です。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>説明文ではこれは<strong><a href="https://example.com/sushi">寿司</a></strong>です。</p>
+</div>
+      </article>
+      <article class="mode-card role-neutral">
+        <header>
+          <div class="title-row">
+            <h3>compatible / markdown-it</h3>
+            <div class="badges">
+              <span class="badge neutral">Compare</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;説明文ではこれは**&lt;a href="https://example.com/sushi"&gt;寿司&lt;/a&gt;**です。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>説明文ではこれは**<a href="https://example.com/sushi">寿司</a>**です。</p>
+</div>
+      </article>
+    </div>
+  </section>
+  <section class="case">
+    <h2>6. single-star-spillover-should-close-jp-side</h2>
+    <dl class="meta">
+      <dt>Intent</dt><dd>前半の日本語側だけを emphasis したい。後ろの英語側に spillover してほしくない。</dd>
+      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
+      <dt>Acceptable</dt><dd>japanese-boundary, aggressive</dd>
+      <dt>Focus</dt><dd>単一 * の方向補正が、文境界またぎの違和感を減らせているか。</dd>
+    </dl>
+    <details class="markdown-toggle">
+      <summary>Markdown Source</summary>
+      <pre class="source">*味噌汁。*umai*</pre>
+    </details>
+    <div class="grid">
+      
+      <article class="mode-card role-preferred">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary-guard (default alias: japanese)</h3>
+            <div class="badges">
+              <span class="badge preferred">Preferred</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;&lt;em&gt;味噌汁。&lt;/em&gt;umai*&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p><em>味噌汁。</em>umai*</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;&lt;em&gt;味噌汁。&lt;/em&gt;umai*&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p><em>味噌汁。</em>umai*</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>aggressive</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;&lt;em&gt;味噌汁。&lt;/em&gt;umai*&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p><em>味噌汁。</em>umai*</p>
+</div>
+      </article>
+      <article class="mode-card role-neutral">
+        <header>
+          <div class="title-row">
+            <h3>compatible / markdown-it</h3>
+            <div class="badges">
+              <span class="badge neutral">Compare</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;*味噌汁。&lt;em&gt;umai&lt;/em&gt;&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>*味噌汁。<em>umai</em></p>
+</div>
+      </article>
+    </div>
+  </section>
+  <section class="case">
+    <h2>7. writer-intends-space-leading-code-emphasis</h2>
+    <dl class="meta">
+      <dt>Intent</dt><dd>入力は `* \`umami\`*` だが、執筆者意図としては code を含む英語語句全体を emphasis したかったケースとして扱う。</dd>
+      <dt>Preferred</dt><dd>japanese-boundary</dd>
+      <dt>Acceptable</dt><dd>aggressive</dd>
+      <dt>Focus</dt><dd>default guard が保守的すぎると感じる代表例。guard の限界を確認する。</dd>
+    </dl>
+    <details class="markdown-toggle">
+      <summary>Markdown Source</summary>
+      <pre class="source">和食では* `umami`*を使う。</pre>
+    </details>
+    <div class="grid">
+      
+      <article class="mode-card role-preferred">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary</h3>
+            <div class="badges">
+              <span class="badge preferred">Preferred</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;和食では&lt;em&gt; &lt;code&gt;umami&lt;/code&gt;&lt;/em&gt;を使う。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>和食では<em> <code>umami</code></em>を使う。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>aggressive</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;和食では&lt;em&gt; &lt;code&gt;umami&lt;/code&gt;&lt;/em&gt;を使う。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>和食では<em> <code>umami</code></em>を使う。</p>
+</div>
+      </article>
+      <article class="mode-card role-neutral">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary-guard (default alias: japanese)</h3>
+            <div class="badges">
+              <span class="badge neutral">Compare</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;和食では* &lt;code&gt;umami&lt;/code&gt;*を使う。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>和食では* <code>umami</code>*を使う。</p>
+</div>
+      </article>
+      <article class="mode-card role-neutral">
+        <header>
+          <div class="title-row">
+            <h3>compatible / markdown-it</h3>
+            <div class="badges">
+              <span class="badge neutral">Compare</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;和食では* &lt;code&gt;umami&lt;/code&gt;*を使う。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>和食では* <code>umami</code>*を使う。</p>
+</div>
+      </article>
+    </div>
+  </section>
+  <section class="case">
+    <h2>8. writer-intends-space-leading-english-emphasis</h2>
+    <dl class="meta">
+      <dt>Intent</dt><dd>入力は `* English craft*` だが、書き手は英語語句を強調したかったと解釈する。default より積極回復を好むケース。</dd>
+      <dt>Preferred</dt><dd>japanese-boundary</dd>
+      <dt>Acceptable</dt><dd>aggressive</dd>
+      <dt>Focus</dt><dd>mixed JA/EN suppress が author intent と衝突するケースを明示する。</dd>
+    </dl>
+    <details class="markdown-toggle">
+      <summary>Markdown Source</summary>
+      <pre class="source">料理メモでは* English craft*という表現をそのまま強調したい。</pre>
+    </details>
+    <div class="grid">
+      
+      <article class="mode-card role-preferred">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary</h3>
+            <div class="badges">
+              <span class="badge preferred">Preferred</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;料理メモでは&lt;em&gt; English craft&lt;/em&gt;という表現をそのまま強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>料理メモでは<em> English craft</em>という表現をそのまま強調したい。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>aggressive</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;料理メモでは&lt;em&gt; English craft&lt;/em&gt;という表現をそのまま強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>料理メモでは<em> English craft</em>という表現をそのまま強調したい。</p>
+</div>
+      </article>
+      <article class="mode-card role-neutral">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary-guard (default alias: japanese)</h3>
+            <div class="badges">
+              <span class="badge neutral">Compare</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;料理メモでは* English craft*という表現をそのまま強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>料理メモでは* English craft*という表現をそのまま強調したい。</p>
+</div>
+      </article>
+      <article class="mode-card role-neutral">
+        <header>
+          <div class="title-row">
+            <h3>compatible / markdown-it</h3>
+            <div class="badges">
+              <span class="badge neutral">Compare</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;料理メモでは* English craft*という表現をそのまま強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>料理メモでは* English craft*という表現をそのまま強調したい。</p>
+</div>
+      </article>
+    </div>
+  </section>
+  <section class="case">
+    <h2>9. triple-star-space-leading-english-should-stay-literal</h2>
+    <dl class="meta">
+      <dt>Intent</dt><dd>`*** English rhythm***` のような多重 `*` でも、space-leading English は default では suppress したい。</dd>
+      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
+      <dt>Acceptable</dt><dd>compatible</dd>
+      <dt>Focus</dt><dd>guard が単一 `*` だけでなく `***` にも一貫して効いているか。</dd>
+    </dl>
+    <details class="markdown-toggle">
+      <summary>Markdown Source</summary>
+      <pre class="source">和食の説明では*** English rhythm***より和文の自然さを優先したい。</pre>
+    </details>
+    <div class="grid">
+      
+      <article class="mode-card role-preferred">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary-guard (default alias: japanese)</h3>
+            <div class="badges">
+              <span class="badge preferred">Preferred</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;和食の説明では*** English rhythm***より和文の自然さを優先したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>和食の説明では*** English rhythm***より和文の自然さを優先したい。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>compatible / markdown-it</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;和食の説明では*** English rhythm***より和文の自然さを優先したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>和食の説明では*** English rhythm***より和文の自然さを優先したい。</p>
+</div>
+      </article>
+      <article class="mode-card role-neutral">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary</h3>
+            <div class="badges">
+              <span class="badge neutral">Compare</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;和食の説明では&lt;em&gt;&lt;strong&gt; English rhythm&lt;/strong&gt;&lt;/em&gt;より和文の自然さを優先したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>和食の説明では<em><strong> English rhythm</strong></em>より和文の自然さを優先したい。</p>
+</div>
+      </article>
+      <article class="mode-card role-neutral">
+        <header>
+          <div class="title-row">
+            <h3>aggressive</h3>
+            <div class="badges">
+              <span class="badge neutral">Compare</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;和食の説明では&lt;em&gt;&lt;strong&gt; English rhythm&lt;/strong&gt;&lt;/em&gt;より和文の自然さを優先したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>和食の説明では<em><strong> English rhythm</strong></em>より和文の自然さを優先したい。</p>
+</div>
+      </article>
+    </div>
+  </section>
+  <section class="case">
+    <h2>10. triple-star-no-space-english-can-convert</h2>
+    <dl class="meta">
+      <dt>Intent</dt><dd>`***English rhythm***` は space-leading ではないので、default でも過剰 suppress せず変換される方が自然。</dd>
+      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
+      <dt>Acceptable</dt><dd>japanese-boundary, aggressive, compatible</dd>
+      <dt>Focus</dt><dd>guard が「英語を全部殺す」のではなく、「space-leading English だけを抑える」振る舞いになっているか。</dd>
+    </dl>
+    <details class="markdown-toggle">
+      <summary>Markdown Source</summary>
+      <pre class="source">日本語でも***English rhythm***はそのまま強調したい。</pre>
+    </details>
+    <div class="grid">
+      
+      <article class="mode-card role-preferred">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary-guard (default alias: japanese)</h3>
+            <div class="badges">
+              <span class="badge preferred">Preferred</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;日本語でも&lt;em&gt;&lt;strong&gt;English rhythm&lt;/strong&gt;&lt;/em&gt;はそのまま強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>日本語でも<em><strong>English rhythm</strong></em>はそのまま強調したい。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;日本語でも&lt;em&gt;&lt;strong&gt;English rhythm&lt;/strong&gt;&lt;/em&gt;はそのまま強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>日本語でも<em><strong>English rhythm</strong></em>はそのまま強調したい。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>aggressive</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;日本語でも&lt;em&gt;&lt;strong&gt;English rhythm&lt;/strong&gt;&lt;/em&gt;はそのまま強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>日本語でも<em><strong>English rhythm</strong></em>はそのまま強調したい。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>compatible / markdown-it</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;日本語でも&lt;em&gt;&lt;strong&gt;English rhythm&lt;/strong&gt;&lt;/em&gt;はそのまま強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>日本語でも<em><strong>English rhythm</strong></em>はそのまま強調したい。</p>
+</div>
+      </article>
+    </div>
+  </section>
+  <section class="case">
+    <h2>11. multi-sentence-guard-should-stay-local</h2>
+    <dl class="meta">
+      <dt>Intent</dt><dd>1文目の `* English term*` は literal のままにしたいが、2文目の日本語 emphasis は普通に効いてほしい。前の文の suppress が後続文に波及しない方が自然。</dd>
+      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
+      <dt>Acceptable</dt><dd>compatible</dd>
+      <dt>Focus</dt><dd>同一段落・複数文で、space-leading English suppress と通常の日本語 emphasis が共存できるか。</dd>
+    </dl>
+    <details class="markdown-toggle">
+      <summary>Markdown Source</summary>
+      <pre class="source">日本語です。* English term* はそのままにしたい。次の文では*寿司*を普通に強調したい。</pre>
+    </details>
+    <div class="grid">
+      
+      <article class="mode-card role-preferred">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary-guard (default alias: japanese)</h3>
+            <div class="badges">
+              <span class="badge preferred">Preferred</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;日本語です。* English term* はそのままにしたい。次の文では&lt;em&gt;寿司&lt;/em&gt;を普通に強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>日本語です。* English term* はそのままにしたい。次の文では<em>寿司</em>を普通に強調したい。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>compatible / markdown-it</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;日本語です。* English term* はそのままにしたい。次の文では&lt;em&gt;寿司&lt;/em&gt;を普通に強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>日本語です。* English term* はそのままにしたい。次の文では<em>寿司</em>を普通に強調したい。</p>
+</div>
+      </article>
+      <article class="mode-card role-neutral">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary</h3>
+            <div class="badges">
+              <span class="badge neutral">Compare</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;日本語です。&lt;em&gt; English term&lt;/em&gt; はそのままにしたい。次の文では&lt;em&gt;寿司&lt;/em&gt;を普通に強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>日本語です。<em> English term</em> はそのままにしたい。次の文では<em>寿司</em>を普通に強調したい。</p>
+</div>
+      </article>
+      <article class="mode-card role-neutral">
+        <header>
+          <div class="title-row">
+            <h3>aggressive</h3>
+            <div class="badges">
+              <span class="badge neutral">Compare</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;日本語です。&lt;em&gt; English term&lt;/em&gt; はそのままにしたい。次の文では&lt;em&gt;寿司&lt;/em&gt;を普通に強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>日本語です。<em> English term</em> はそのままにしたい。次の文では<em>寿司</em>を普通に強調したい。</p>
+</div>
+      </article>
+    </div>
+  </section>
+  <section class="case">
+    <h2>12. multi-sentence-link-repair-should-not-bleed</h2>
+    <dl class="meta">
+      <dt>Intent</dt><dd>1文目のリンク全体 strong は回復してほしいが、2文目の通常 emphasis まで巻き込んでほしくない。repair は局所的である方が自然。</dd>
+      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
+      <dt>Acceptable</dt><dd>japanese-boundary, aggressive</dd>
+      <dt>Focus</dt><dd>同一段落・複数文で、postprocess repair が後続の正常な emphasis に影響しないか。</dd>
+    </dl>
+    <details class="markdown-toggle">
+      <summary>Markdown Source</summary>
+      <pre class="source">説明文ではこれは**[寿司](https://example.com/sushi)**です。次の文では*だし*の香りも強調したい。</pre>
+    </details>
+    <div class="grid">
+      
+      <article class="mode-card role-preferred">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary-guard (default alias: japanese)</h3>
+            <div class="badges">
+              <span class="badge preferred">Preferred</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;説明文ではこれは&lt;strong&gt;&lt;a href="https://example.com/sushi"&gt;寿司&lt;/a&gt;&lt;/strong&gt;です。次の文では&lt;em&gt;だし&lt;/em&gt;の香りも強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>説明文ではこれは<strong><a href="https://example.com/sushi">寿司</a></strong>です。次の文では<em>だし</em>の香りも強調したい。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;説明文ではこれは&lt;strong&gt;&lt;a href="https://example.com/sushi"&gt;寿司&lt;/a&gt;&lt;/strong&gt;です。次の文では&lt;em&gt;だし&lt;/em&gt;の香りも強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>説明文ではこれは<strong><a href="https://example.com/sushi">寿司</a></strong>です。次の文では<em>だし</em>の香りも強調したい。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>aggressive</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;説明文ではこれは&lt;strong&gt;&lt;a href="https://example.com/sushi"&gt;寿司&lt;/a&gt;&lt;/strong&gt;です。次の文では&lt;em&gt;だし&lt;/em&gt;の香りも強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>説明文ではこれは<strong><a href="https://example.com/sushi">寿司</a></strong>です。次の文では<em>だし</em>の香りも強調したい。</p>
+</div>
+      </article>
+      <article class="mode-card role-neutral">
+        <header>
+          <div class="title-row">
+            <h3>compatible / markdown-it</h3>
+            <div class="badges">
+              <span class="badge neutral">Compare</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;説明文ではこれは**&lt;a href="https://example.com/sushi"&gt;寿司&lt;/a&gt;**です。次の文では&lt;em&gt;だし&lt;/em&gt;の香りも強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>説明文ではこれは**<a href="https://example.com/sushi">寿司</a>**です。次の文では<em>だし</em>の香りも強調したい。</p>
+</div>
+      </article>
+    </div>
+  </section>
+  <section class="case">
+    <h2>13. multi-sentence-single-star-boundary-stop</h2>
+    <dl class="meta">
+      <dt>Intent</dt><dd>最初の壊れた single `*` は日本語側で閉じたいが、その判断が文境界を越えて後続文の `*だし*` まで不自然に巻き込まない方が自然。</dd>
+      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
+      <dt>Acceptable</dt><dd>japanese-boundary, aggressive</dd>
+      <dt>Focus</dt><dd>sentence-boundary stop が、同一段落の複数文で spillover を抑えられているか。</dd>
+    </dl>
+    <details class="markdown-toggle">
+      <summary>Markdown Source</summary>
+      <pre class="source">*味噌汁。*umai* と書いてしまった。次の文では*だし*も強調したい。</pre>
+    </details>
+    <div class="grid">
+      
+      <article class="mode-card role-preferred">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary-guard (default alias: japanese)</h3>
+            <div class="badges">
+              <span class="badge preferred">Preferred</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;&lt;em&gt;味噌汁。&lt;/em&gt;umai* と書いてしまった。次の文では&lt;em&gt;だし&lt;/em&gt;も強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p><em>味噌汁。</em>umai* と書いてしまった。次の文では<em>だし</em>も強調したい。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;&lt;em&gt;味噌汁。&lt;/em&gt;umai* と書いてしまった。次の文では&lt;em&gt;だし&lt;/em&gt;も強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p><em>味噌汁。</em>umai* と書いてしまった。次の文では<em>だし</em>も強調したい。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>aggressive</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;&lt;em&gt;味噌汁。&lt;/em&gt;umai&lt;em&gt; と書いてしまった。次の文では&lt;/em&gt;だし*も強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p><em>味噌汁。</em>umai<em> と書いてしまった。次の文では</em>だし*も強調したい。</p>
+</div>
+      </article>
+      <article class="mode-card role-neutral">
+        <header>
+          <div class="title-row">
+            <h3>compatible / markdown-it</h3>
+            <div class="badges">
+              <span class="badge neutral">Compare</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;&lt;em&gt;味噌汁。&lt;em&gt;umai&lt;/em&gt; と書いてしまった。次の文では&lt;/em&gt;だし*も強調したい。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p><em>味噌汁。<em>umai</em> と書いてしまった。次の文では</em>だし*も強調したい。</p>
+</div>
+      </article>
+    </div>
+  </section>
+  <section class="case">
+    <h2>14. pure-english-malformed-tail-should-stay-baseline</h2>
+    <dl class="meta">
+      <dt>Intent</dt><dd>純英語の malformed tail は、この plugin の日本語補助対象外として baseline 寄りに留まる方が自然。</dd>
+      <dt>Preferred</dt><dd>compatible</dd>
+      <dt>Acceptable</dt><dd>japanese-boundary-guard, japanese-boundary</dd>
+      <dt>Focus</dt><dd>pure-English malformed span に対して default が過剰介入していないか。aggressive との差を意図的なものとして確認する。</dd>
+    </dl>
+    <details class="markdown-toggle">
+      <summary>Markdown Source</summary>
+      <pre class="source">broken **tail [aa**aa***Text***and*More*bb**bb](https://x.test) after</pre>
+    </details>
+    <div class="grid">
+      
+      <article class="mode-card role-preferred">
+        <header>
+          <div class="title-row">
+            <h3>compatible / markdown-it</h3>
+            <div class="badges">
+              <span class="badge preferred">Preferred</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;broken **tail &lt;a href="https://x.test"&gt;aa&lt;strong&gt;aa&lt;/strong&gt;&lt;em&gt;Text&lt;/em&gt;&lt;em&gt;&lt;em&gt;and&lt;/em&gt;More&lt;/em&gt;bb**bb&lt;/a&gt; after&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>broken **tail <a href="https://x.test">aa<strong>aa</strong><em>Text</em><em><em>and</em>More</em>bb**bb</a> after</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;broken **tail &lt;a href="https://x.test"&gt;aa&lt;strong&gt;aa&lt;/strong&gt;&lt;em&gt;Text&lt;/em&gt;&lt;em&gt;&lt;em&gt;and&lt;/em&gt;More&lt;/em&gt;bb**bb&lt;/a&gt; after&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>broken **tail <a href="https://x.test">aa<strong>aa</strong><em>Text</em><em><em>and</em>More</em>bb**bb</a> after</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary-guard (default alias: japanese)</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;broken **tail &lt;a href="https://x.test"&gt;aa&lt;strong&gt;aa&lt;/strong&gt;&lt;em&gt;Text&lt;/em&gt;&lt;em&gt;&lt;em&gt;and&lt;/em&gt;More&lt;/em&gt;bb**bb&lt;/a&gt; after&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>broken **tail <a href="https://x.test">aa<strong>aa</strong><em>Text</em><em><em>and</em>More</em>bb**bb</a> after</p>
+</div>
+      </article>
+      <article class="mode-card role-neutral">
+        <header>
+          <div class="title-row">
+            <h3>aggressive</h3>
+            <div class="badges">
+              <span class="badge neutral">Compare</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;broken **tail &lt;a href="https://x.test"&gt;aa&lt;strong&gt;aa&lt;/strong&gt;&lt;em&gt;Text&lt;/em&gt;&lt;strong&gt;and&lt;em&gt;More&lt;/em&gt;bb&lt;/strong&gt;bb&lt;/a&gt; after&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>broken **tail <a href="https://x.test">aa<strong>aa</strong><em>Text</em><strong>and<em>More</em>bb</strong>bb</a> after</p>
+</div>
+      </article>
+    </div>
+  </section>
+  <section class="case">
+    <h2>15. low-confidence-tail-should-stay-safe</h2>
+    <dl class="meta">
+      <dt>Intent</dt><dd>この malformed span では、無理に strong 化するより fail-safe で literal ** を残した方が自然。</dd>
+      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
+      <dt>Acceptable</dt><dd>japanese-boundary, compatible</dd>
+      <dt>Focus</dt><dd>回復量より安全性を優先したいケース。aggressive が過剰にならないかを見る。</dd>
+    </dl>
+    <details class="markdown-toggle">
+      <summary>Markdown Source</summary>
+      <pre class="source">注記では**aa`stock`***tail*です。</pre>
+    </details>
+    <div class="grid">
+      
+      <article class="mode-card role-preferred">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary-guard (default alias: japanese)</h3>
+            <div class="badges">
+              <span class="badge preferred">Preferred</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;注記では**aa&lt;code&gt;stock&lt;/code&gt;**&lt;em&gt;tail&lt;/em&gt;です。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>注記では**aa<code>stock</code>**<em>tail</em>です。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>japanese-boundary</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;注記では**aa&lt;code&gt;stock&lt;/code&gt;**&lt;em&gt;tail&lt;/em&gt;です。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>注記では**aa<code>stock</code>**<em>tail</em>です。</p>
+</div>
+      </article>
+      <article class="mode-card role-acceptable">
+        <header>
+          <div class="title-row">
+            <h3>compatible / markdown-it</h3>
+            <div class="badges">
+              <span class="badge acceptable">Acceptable</span>
+              <span class="badge same">Same as markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;注記では**aa&lt;code&gt;stock&lt;/code&gt;**&lt;em&gt;tail&lt;/em&gt;です。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>注記では**aa<code>stock</code>**<em>tail</em>です。</p>
+</div>
+      </article>
+      <article class="mode-card role-neutral">
+        <header>
+          <div class="title-row">
+            <h3>aggressive</h3>
+            <div class="badges">
+              <span class="badge neutral">Compare</span>
+              <span class="badge diff">Diff from markdown-it</span>
+            </div>
+          </div>
+          <details class="html-toggle">
+            <summary>HTML Source</summary>
+            <pre class="source html-source">&lt;p&gt;注記では&lt;strong&gt;aa&lt;code&gt;stock&lt;/code&gt;&lt;/strong&gt;&lt;em&gt;tail&lt;/em&gt;です。&lt;/p&gt;
+</pre>
+          </details>
+        </header>
+        <div class="rendered"><p>注記では<strong>aa<code>stock</code></strong><em>tail</em>です。</p>
+</div>
+      </article>
+    </div>
+  </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,194 @@
+# Author-intent oriented naturalness review cases
+#
+# Purpose:
+# - compare mode outputs against intended author emphasis
+# - keep cases small and reviewable
+# - prefer concrete prose-like inputs over synthetic micro-cases
+#
+# Fields:
+# [case ...]
+# [intent]
+# [preferred]
+# [acceptable]
+# [focus]
+# [markdown]
+
+[case jp-quoted-strong-should-recover]
+[intent]
+日本語の語句「だし」を strong として読み取りたい。literal ** のまま残すより、自然な強調を優先したい。
+[preferred]
+japanese-boundary-guard
+[acceptable]
+japanese-boundary,aggressive
+[focus]
+日本語引用符 + strong の基本回復。default が markdown-it 互換より自然に見えるか。
+[markdown]
+和食の基本は**「だし」**です。
+
+[case mixed-space-leading-english-should-stay-literal]
+[intent]
+日本語文中の `* English*` は、不自然な English 側の過変換を避けたい。default では literal のままの方が自然。
+[preferred]
+japanese-boundary-guard
+[acceptable]
+compatible
+[focus]
+半角スペース隣接 + ASCII 開始の mixed JA/EN guard が、default の性格として妥当か。
+[markdown]
+日本語です。* English* です。
+
+[case mixed-no-space-english-should-emphasize]
+[intent]
+英語語句そのものを普通に emphasis したい。ここでは suppress しすぎない方が自然。
+[preferred]
+japanese-boundary-guard
+[acceptable]
+japanese-boundary,aggressive,compatible
+[focus]
+space-adjacent ではない英語強調を default が殺していないか。
+[markdown]
+日本語でも*English term*はそのまま強調したい。
+
+[case fullwidth-space-leading-english-should-stay-literal]
+[intent]
+和文句読点 + 全角空白の直後にある `* English term*` は、default では無理に強調しない方が自然。
+[preferred]
+japanese-boundary-guard
+[acceptable]
+compatible
+[focus]
+全角空白境界でも mixed JA/EN guard が破綻せず、space-leading English suppress を維持できるか。
+[markdown]
+和食です！　* English term* はここでは literal のままにしたい。
+
+[case jp-link-outer-strong-should-repair]
+[intent]
+リンク全体を strong にしたい。リンクの外側にある ** は回復されてほしい。
+[preferred]
+japanese-boundary-guard
+[acceptable]
+japanese-boundary,aggressive
+[focus]
+link outer markers の補修が user-facing prose として自然か。
+[markdown]
+説明文ではこれは**[寿司](https://example.com/sushi)**です。
+
+[case single-star-spillover-should-close-jp-side]
+[intent]
+前半の日本語側だけを emphasis したい。後ろの英語側に spillover してほしくない。
+[preferred]
+japanese-boundary-guard
+[acceptable]
+japanese-boundary,aggressive
+[focus]
+単一 * の方向補正が、文境界またぎの違和感を減らせているか。
+[markdown]
+*味噌汁。*umai*
+
+[case writer-intends-space-leading-code-emphasis]
+[intent]
+入力は `* \`umami\`*` だが、執筆者意図としては code を含む英語語句全体を emphasis したかったケースとして扱う。
+[preferred]
+japanese-boundary
+[acceptable]
+aggressive
+[focus]
+default guard が保守的すぎると感じる代表例。guard の限界を確認する。
+[markdown]
+和食では* `umami`*を使う。
+
+[case writer-intends-space-leading-english-emphasis]
+[intent]
+入力は `* English craft*` だが、書き手は英語語句を強調したかったと解釈する。default より積極回復を好むケース。
+[preferred]
+japanese-boundary
+[acceptable]
+aggressive
+[focus]
+mixed JA/EN suppress が author intent と衝突するケースを明示する。
+[markdown]
+料理メモでは* English craft*という表現をそのまま強調したい。
+
+[case triple-star-space-leading-english-should-stay-literal]
+[intent]
+`*** English rhythm***` のような多重 `*` でも、space-leading English は default では suppress したい。
+[preferred]
+japanese-boundary-guard
+[acceptable]
+compatible
+[focus]
+guard が単一 `*` だけでなく `***` にも一貫して効いているか。
+[markdown]
+和食の説明では*** English rhythm***より和文の自然さを優先したい。
+
+[case triple-star-no-space-english-can-convert]
+[intent]
+`***English rhythm***` は space-leading ではないので、default でも過剰 suppress せず変換される方が自然。
+[preferred]
+japanese-boundary-guard
+[acceptable]
+japanese-boundary,aggressive,compatible
+[focus]
+guard が「英語を全部殺す」のではなく、「space-leading English だけを抑える」振る舞いになっているか。
+[markdown]
+日本語でも***English rhythm***はそのまま強調したい。
+
+[case multi-sentence-guard-should-stay-local]
+[intent]
+1文目の `* English term*` は literal のままにしたいが、2文目の日本語 emphasis は普通に効いてほしい。前の文の suppress が後続文に波及しない方が自然。
+[preferred]
+japanese-boundary-guard
+[acceptable]
+compatible
+[focus]
+同一段落・複数文で、space-leading English suppress と通常の日本語 emphasis が共存できるか。
+[markdown]
+日本語です。* English term* はそのままにしたい。次の文では*寿司*を普通に強調したい。
+
+[case multi-sentence-link-repair-should-not-bleed]
+[intent]
+1文目のリンク全体 strong は回復してほしいが、2文目の通常 emphasis まで巻き込んでほしくない。repair は局所的である方が自然。
+[preferred]
+japanese-boundary-guard
+[acceptable]
+japanese-boundary,aggressive
+[focus]
+同一段落・複数文で、postprocess repair が後続の正常な emphasis に影響しないか。
+[markdown]
+説明文ではこれは**[寿司](https://example.com/sushi)**です。次の文では*だし*の香りも強調したい。
+
+[case multi-sentence-single-star-boundary-stop]
+[intent]
+最初の壊れた single `*` は日本語側で閉じたいが、その判断が文境界を越えて後続文の `*だし*` まで不自然に巻き込まない方が自然。
+[preferred]
+japanese-boundary-guard
+[acceptable]
+japanese-boundary,aggressive
+[focus]
+sentence-boundary stop が、同一段落の複数文で spillover を抑えられているか。
+[markdown]
+*味噌汁。*umai* と書いてしまった。次の文では*だし*も強調したい。
+
+[case pure-english-malformed-tail-should-stay-baseline]
+[intent]
+純英語の malformed tail は、この plugin の日本語補助対象外として baseline 寄りに留まる方が自然。
+[preferred]
+compatible
+[acceptable]
+japanese-boundary-guard,japanese-boundary
+[focus]
+pure-English malformed span に対して default が過剰介入していないか。aggressive との差を意図的なものとして確認する。
+[markdown]
+broken **tail [aa**aa***Text***and*More*bb**bb](https://x.test) after
+
+[case low-confidence-tail-should-stay-safe]
+[intent]
+この malformed span では、無理に strong 化するより fail-safe で literal ** を残した方が自然。
+[preferred]
+japanese-boundary-guard
+[acceptable]
+japanese-boundary,compatible
+[focus]
+回復量より安全性を優先したいケース。aggressive が過剰にならないかを見る。
+[markdown]
+注記では**aa`stock`***tail*です。
