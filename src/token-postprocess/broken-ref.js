@@ -115,14 +115,14 @@ const expandSegmentEndForWrapperBalance = (tokens, startIdx, endIdx) => {
   return balance.total > 0 ? -1 : expandedEnd
 }
 
-const bumpBrokenRefMetric = (metrics, bucket, key) => {
-  if (!metrics || !bucket || !key) return
+const bumpBrokenRefMetric = (metrics, bucket, key, delta = 1) => {
+  if (!metrics || !bucket || !key || delta <= 0) return
   let table = metrics[bucket]
   if (!table || typeof table !== 'object') {
     table = Object.create(null)
     metrics[bucket] = table
   }
-  table[key] = (table[key] || 0) + 1
+  table[key] = (table[key] || 0) + delta
 }
 
 const ensureBrokenRefLinkCloseMap = (tokens, facts = null, hooks = null, fallbackCache = null) => {
@@ -190,6 +190,7 @@ const resolveBrokenRefCandidateGuardFlow = (
   children,
   brokenRefCandidate,
   segmentEnd,
+  metrics = null,
   facts = null,
   hooks = null,
   fallbackCache = null
@@ -203,6 +204,10 @@ const resolveBrokenRefCandidateGuardFlow = (
   if (!wrapperSignals.hasTextMarker) {
     return BROKEN_REF_FLOW_SKIP_NO_TEXT_MARKER
   }
+  if (!hasBrokenRefActiveFastPathTokenSignal(wrapperSignals)) {
+    bumpBrokenRefMetric(metrics, 'brokenRefCandidateFlow', 'no-active-signature')
+    return BROKEN_REF_FLOW_SKIP_NO_ACTIVE_SIGNATURE
+  }
   const wrapperPrefixStats = ensureBrokenRefWrapperPrefixStats(children, facts, hooks, fallbackCache)
   if (!shouldAttemptBrokenRefRewrite(
     children,
@@ -214,6 +219,7 @@ const resolveBrokenRefCandidateGuardFlow = (
   )) {
     return BROKEN_REF_FLOW_SKIP_GUARD
   }
+  bumpBrokenRefMetric(metrics, 'brokenRefCandidateFlow', 'guard-passed')
   return null
 }
 
@@ -232,12 +238,16 @@ const resolveBrokenRefFastPathFlow = (
     metrics,
     bumpBrokenRefMetric
   )
+  bumpBrokenRefMetric(metrics, 'brokenRefCandidateFlow', 'fastpath-dispatch')
   if (fastPathResult === BROKEN_REF_FAST_PATH_RESULT_NO_ACTIVE_SIGNATURE) {
+    bumpBrokenRefMetric(metrics, 'brokenRefCandidateFlow', 'no-active-signature')
     return BROKEN_REF_FLOW_SKIP_NO_ACTIVE_SIGNATURE
   }
   if (fastPathResult === BROKEN_REF_FAST_PATH_RESULT_NO_MATCH) {
+    bumpBrokenRefMetric(metrics, 'brokenRefCandidateFlow', 'no-fastpath-match')
     return BROKEN_REF_FLOW_SKIP_NO_FASTPATH_MATCH
   }
+  bumpBrokenRefMetric(metrics, 'brokenRefCandidateFlow', 'repaired')
   return BROKEN_REF_FLOW_REPAIRED
 }
 
@@ -256,6 +266,7 @@ const runBrokenRefCandidateRewrite = (
     children,
     brokenRefCandidate,
     segmentEnd,
+    metrics,
     facts,
     hooks,
     fallbackCache
@@ -308,7 +319,7 @@ const createBrokenRefPassSignals = (seedSignals = null) => {
 const observeBrokenRefTextToken = (passSignals, candidateState, text, tokenIdx, scanState) => {
   const hasOpenBracket = text.indexOf('[') !== -1
   const hasCloseBracket = text.indexOf(']') !== -1
-  if (!passSignals.hasBracketText && (hasOpenBracket || hasCloseBracket)) {
+  if (passSignals && !passSignals.hasBracketText && (hasOpenBracket || hasCloseBracket)) {
     passSignals.hasBracketText = true
   }
   if (candidateState.start === -1) {
@@ -383,6 +394,7 @@ const tryRepairBrokenRefCandidateAtLinkOpen = (
   const closeIdx = linkCloseMap.get(childIdx) ?? -1
   if (closeIdx === -1) return null
   bumpBrokenRefMetric(metrics, 'brokenRefFlow', 'candidate')
+  bumpBrokenRefMetric(metrics, 'brokenRefCandidateFlow', 'candidate')
   const flowResult = runBrokenRefCandidateRewrite(
     children,
     brokenRefCandidate,
@@ -437,46 +449,123 @@ const runBrokenRefRepairPass = (children, scanState, metrics = null, facts = nul
   return buildBrokenRefRepairPassResult(false, passSignals)
 }
 
-const computeMaxBrokenRefRepairPass = (children, scanState) => {
+const hasPotentialBrokenRefRepairPass = (children, scanState) => {
   resetBrokenRefScanState(scanState)
-  let maxRepairPass = 0
   for (let j = 0; j < children.length; j++) {
     const child = children[j]
     if (!child || child.type !== 'text' || !child.content) continue
     if (child.content.indexOf('[') === -1) continue
     if (scanBrokenRefState(child.content, scanState).brokenEnd) {
-      maxRepairPass++
+      return true
     }
   }
-  return maxRepairPass
+  return false
 }
 
-const runBrokenRefRepairs = (children, maxRepairPass, scanState, metrics = null, facts = null, hooks = null) => {
+const hasBrokenRefActiveFastPathTokenSignal = (wrapperSignals) => {
+  if (!wrapperSignals) return false
+  // Current broken-ref fast paths are all strong-token driven.
+  return wrapperSignals.strongOpenInRange > 0 || wrapperSignals.strongCloseInRange > 0
+}
+
+const countGuardedBrokenRefRepairPasses = (children, scanState, facts = null, hooks = null) => {
+  resetBrokenRefScanState(scanState)
+  const brokenRefCandidate = resetBrokenRefCandidateState({ start: -1, depth: 0, startTextOffset: 0 })
+  const fallbackCache = {
+    linkCloseMap: undefined,
+    wrapperPrefixStats: undefined
+  }
   let repairPassCount = 0
+  for (let j = 0; j < children.length; j++) {
+    const child = children[j]
+    if (!child) continue
+    if (child.type === 'text' && child.content) {
+      observeBrokenRefTextToken(null, brokenRefCandidate, child.content, j, scanState)
+    }
+    if (child.type !== 'link_open' || brokenRefCandidate.start === -1) continue
+    if (brokenRefCandidate.depth <= 0) {
+      resetBrokenRefCandidateState(brokenRefCandidate)
+      continue
+    }
+    const linkCloseMap = ensureBrokenRefLinkCloseMap(children, facts, hooks, fallbackCache)
+    const closeIdx = linkCloseMap.get(j) ?? -1
+    if (closeIdx === -1) continue
+    const segmentEnd = resolveBrokenRefSegmentEnd(children, brokenRefCandidate, closeIdx)
+    const wrapperSignals = buildBrokenRefWrapperRangeSignals(
+      children,
+      brokenRefCandidate.start,
+      segmentEnd,
+      brokenRefCandidate.startTextOffset
+    )
+    if (!wrapperSignals.hasTextMarker || !hasBrokenRefActiveFastPathTokenSignal(wrapperSignals)) {
+      resetBrokenRefCandidateState(brokenRefCandidate)
+      continue
+    }
+    const wrapperPrefixStats = ensureBrokenRefWrapperPrefixStats(children, facts, hooks, fallbackCache)
+    if (shouldAttemptBrokenRefRewrite(
+      children,
+      brokenRefCandidate.start,
+      segmentEnd,
+      brokenRefCandidate.startTextOffset,
+      wrapperPrefixStats,
+      wrapperSignals
+    )) {
+      repairPassCount++
+    }
+    resetBrokenRefCandidateState(brokenRefCandidate)
+  }
+  return repairPassCount
+}
+
+const buildBrokenRefRepairsResult = (changed, passSignals) => {
+  return {
+    changed,
+    hasBracketText: passSignals.hasBracketText,
+    hasEmphasis: passSignals.hasEmphasis,
+    hasLinkClose: passSignals.hasLinkClose
+  }
+}
+
+const runBrokenRefRepairs = (children, scanState, metrics = null, facts = null, hooks = null) => {
+  const seedSignals = createBrokenRefPassSignals(createBrokenRefSignalSeed(facts))
+  if (!hasPotentialBrokenRefRepairPass(children, scanState)) {
+    return buildBrokenRefRepairsResult(false, seedSignals)
+  }
+
   let changed = false
-  while (repairPassCount < maxRepairPass) {
-    const pass = runBrokenRefRepairPass(children, scanState, metrics, facts, hooks)
+  bumpBrokenRefMetric(metrics, 'brokenRefPasses', 'budgeted')
+  bumpBrokenRefMetric(metrics, 'brokenRefPasses', 'executed')
+
+  let pass = runBrokenRefRepairPass(children, scanState, metrics, facts, hooks)
+  if (!pass.didRepair) {
+    bumpBrokenRefMetric(metrics, 'brokenRefPasses', 'stopped-no-repair')
+    return buildBrokenRefRepairsResult(changed, pass)
+  }
+
+  changed = true
+  bumpBrokenRefMetric(metrics, 'brokenRefPasses', 'repaired')
+
+  const remainingBudget = countGuardedBrokenRefRepairPasses(children, scanState, facts, hooks)
+  if (remainingBudget > 0) {
+    bumpBrokenRefMetric(metrics, 'brokenRefPasses', 'budgeted', remainingBudget)
+  }
+
+  let repairPassCount = 0
+  while (repairPassCount < remainingBudget) {
+    bumpBrokenRefMetric(metrics, 'brokenRefPasses', 'executed')
+    pass = runBrokenRefRepairPass(children, scanState, metrics, facts, hooks)
     if (!pass.didRepair) {
-      return {
-        changed,
-        hasBracketText: pass.hasBracketText,
-        hasEmphasis: pass.hasEmphasis,
-        hasLinkClose: pass.hasLinkClose
-      }
+      bumpBrokenRefMetric(metrics, 'brokenRefPasses', 'stopped-no-repair')
+      return buildBrokenRefRepairsResult(changed, pass)
     }
     changed = true
     repairPassCount++
+    bumpBrokenRefMetric(metrics, 'brokenRefPasses', 'repaired')
   }
   const finalSignals = collectBrokenRefPassSignals(children, createBrokenRefSignalSeed(facts))
-  return {
-    changed,
-    hasBracketText: finalSignals.hasBracketText,
-    hasEmphasis: finalSignals.hasEmphasis,
-    hasLinkClose: finalSignals.hasLinkClose
-  }
+  return buildBrokenRefRepairsResult(changed, finalSignals)
 }
 
 export {
-  computeMaxBrokenRefRepairPass,
   runBrokenRefRepairs
 }

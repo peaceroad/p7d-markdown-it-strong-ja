@@ -64,6 +64,52 @@ const assertMetricHit = (metrics, bucket, key, label) => {
   assert.ok(count > 0, `${label}: expected ${bucket}.${key} hit`)
 }
 
+const assertMetricMissing = (metrics, bucket, key, label) => {
+  const table = metrics && metrics[bucket] ? metrics[bucket] : null
+  const count = table && typeof table[key] === 'number' ? table[key] : 0
+  assert.strictEqual(count, 0, `${label}: expected ${bucket}.${key} miss`)
+}
+
+const assertBrokenRefCandidateFlow = (metrics, flow, label) => {
+  assertMetricHit(metrics, 'brokenRefCandidateFlow', 'candidate', `${label} candidate-flow`)
+  if (flow === 'skip-no-text-marker' || flow === 'skip-guard' || flow === 'skip-no-active-signature') {
+    assertMetricMissing(metrics, 'brokenRefCandidateFlow', 'guard-passed', `${label} guard-passed`)
+    assertMetricMissing(metrics, 'brokenRefCandidateFlow', 'fastpath-dispatch', `${label} fastpath-dispatch`)
+  } else {
+    assertMetricHit(metrics, 'brokenRefCandidateFlow', 'guard-passed', `${label} guard-passed`)
+    assertMetricHit(metrics, 'brokenRefCandidateFlow', 'fastpath-dispatch', `${label} fastpath-dispatch`)
+  }
+  if (flow === 'skip-no-active-signature') {
+    assertMetricHit(metrics, 'brokenRefCandidateFlow', 'no-active-signature', `${label} no-active-signature`)
+    assertMetricMissing(metrics, 'brokenRefCandidateFlow', 'no-fastpath-match', `${label} no-fastpath-match`)
+    assertMetricMissing(metrics, 'brokenRefCandidateFlow', 'repaired', `${label} repaired`)
+    return
+  }
+  if (flow === 'skip-no-fastpath-match') {
+    assertMetricHit(metrics, 'brokenRefCandidateFlow', 'no-fastpath-match', `${label} no-fastpath-match`)
+    assertMetricMissing(metrics, 'brokenRefCandidateFlow', 'repaired', `${label} repaired`)
+    return
+  }
+  if (flow === 'repaired') {
+    assertMetricHit(metrics, 'brokenRefCandidateFlow', 'repaired', `${label} repaired`)
+    return
+  }
+  assertMetricMissing(metrics, 'brokenRefCandidateFlow', 'no-active-signature', `${label} no-active-signature`)
+  assertMetricMissing(metrics, 'brokenRefCandidateFlow', 'no-fastpath-match', `${label} no-fastpath-match`)
+  assertMetricMissing(metrics, 'brokenRefCandidateFlow', 'repaired', `${label} repaired`)
+}
+
+const assertBrokenRefPasses = (metrics, flow, label) => {
+  assertMetricHit(metrics, 'brokenRefPasses', 'budgeted', `${label} budgeted`)
+  assertMetricHit(metrics, 'brokenRefPasses', 'executed', `${label} executed`)
+  if (flow === 'repaired') {
+    assertMetricHit(metrics, 'brokenRefPasses', 'repaired', `${label} repaired-pass`)
+    return
+  }
+  assertMetricHit(metrics, 'brokenRefPasses', 'stopped-no-repair', `${label} stopped-no-repair`)
+  assertMetricMissing(metrics, 'brokenRefPasses', 'repaired', `${label} repaired-pass`)
+}
+
 export const runPostprocessFlowTests = () => {
   let allPass = true
   const runCase = (name, fn) => {
@@ -114,6 +160,8 @@ export const runPostprocessFlowTests = () => {
 
       assertMetricHit(on.metrics, 'brokenRefFlow', 'candidate', `${testCase.name} candidate`)
       assertMetricHit(on.metrics, 'brokenRefFlow', testCase.flow, `${testCase.name} flow`)
+      assertBrokenRefCandidateFlow(on.metrics, testCase.flow, testCase.name)
+      assertBrokenRefPasses(on.metrics, testCase.flow, testCase.name)
 
       const brokenRefFastPaths = on.metrics && on.metrics.brokenRefFastPaths
         ? on.metrics.brokenRefFastPaths

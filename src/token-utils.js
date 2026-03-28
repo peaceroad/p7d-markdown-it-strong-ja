@@ -135,19 +135,27 @@ const hasRuntimeOverride = (override) => {
 
 const getRuntimeOpt = (state, baseOpt) => {
   const override = state && state.env ? state.env.__strongJaTokenOpt : null
-  if (!hasRuntimeOverride(override)) return deriveOptionInfo(baseOpt)
-  if (state.__strongJaTokenRuntimeOpt &&
+  const hasOverride = hasRuntimeOverride(override)
+  if (state &&
+      state.__strongJaTokenRuntimeOpt &&
       state.__strongJaTokenRuntimeBase === baseOpt &&
-      state.__strongJaTokenRuntimeOverride === override) {
+      state.__strongJaTokenRuntimeOverride === override &&
+      state.__strongJaTokenRuntimeHasOverride === hasOverride) {
     return state.__strongJaTokenRuntimeOpt
   }
-  const merged = baseOpt && typeof baseOpt === 'object' ? { ...baseOpt } : {}
-  if (HAS_OWN.call(override, 'mode') && override.mode !== undefined) merged.mode = override.mode
-  if (HAS_OWN.call(override, 'postprocess') && override.postprocess !== undefined) merged.postprocess = override.postprocess
-  state.__strongJaTokenRuntimeOpt = deriveOptionInfo(merged)
+  let resolved = deriveOptionInfo(baseOpt)
+  if (hasOverride) {
+    const merged = baseOpt && typeof baseOpt === 'object' ? { ...baseOpt } : {}
+    if (HAS_OWN.call(override, 'mode') && override.mode !== undefined) merged.mode = override.mode
+    if (HAS_OWN.call(override, 'postprocess') && override.postprocess !== undefined) merged.postprocess = override.postprocess
+    resolved = deriveOptionInfo(merged)
+  }
+  if (!state) return resolved
+  state.__strongJaTokenRuntimeOpt = resolved
   state.__strongJaTokenRuntimeBase = baseOpt
   state.__strongJaTokenRuntimeOverride = override
-  return state.__strongJaTokenRuntimeOpt
+  state.__strongJaTokenRuntimeHasOverride = hasOverride
+  return resolved
 }
 
 const getReferenceCount = (state) => {

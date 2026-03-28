@@ -77,11 +77,18 @@ const run = ({ seed = 20260214, count = 4000, mode = 'aggressive' } = {}) => {
   const totals = {
     brokenRefFastPaths: Object.create(null),
     tailFastPaths: Object.create(null),
-    brokenRefFlow: Object.create(null)
+    brokenRefFlow: Object.create(null),
+    brokenRefCandidateFlow: Object.create(null),
+    brokenRefPasses: Object.create(null),
+    emphasisFixers: Object.create(null),
+    emphasisSanitize: Object.create(null)
   }
   const examples = {
     brokenRefFastPaths: Object.create(null),
-    tailFastPaths: Object.create(null)
+    tailFastPaths: Object.create(null),
+    brokenRefCandidateFlow: Object.create(null),
+    emphasisFixers: Object.create(null),
+    emphasisSanitize: Object.create(null)
   }
 
   for (let i = 0; i < count; i++) {
@@ -92,6 +99,10 @@ const run = ({ seed = 20260214, count = 4000, mode = 'aggressive' } = {}) => {
     addCounts(totals.brokenRefFastPaths, metrics.brokenRefFastPaths)
     addCounts(totals.tailFastPaths, metrics.tailFastPaths)
     addCounts(totals.brokenRefFlow, metrics.brokenRefFlow)
+    addCounts(totals.brokenRefCandidateFlow, metrics.brokenRefCandidateFlow)
+    addCounts(totals.brokenRefPasses, metrics.brokenRefPasses)
+    addCounts(totals.emphasisFixers, metrics.emphasisFixers)
+    addCounts(totals.emphasisSanitize, metrics.emphasisSanitize)
     if (metrics.brokenRefFastPaths) {
       for (const key of Object.keys(metrics.brokenRefFastPaths)) {
         if (!examples.brokenRefFastPaths[key]) examples.brokenRefFastPaths[key] = src
@@ -102,12 +113,31 @@ const run = ({ seed = 20260214, count = 4000, mode = 'aggressive' } = {}) => {
         if (!examples.tailFastPaths[key]) examples.tailFastPaths[key] = src
       }
     }
+    if (metrics.emphasisFixers) {
+      for (const key of Object.keys(metrics.emphasisFixers)) {
+        if (!examples.emphasisFixers[key]) examples.emphasisFixers[key] = src
+      }
+    }
+    if (metrics.brokenRefCandidateFlow) {
+      for (const key of Object.keys(metrics.brokenRefCandidateFlow)) {
+        if (!examples.brokenRefCandidateFlow[key]) examples.brokenRefCandidateFlow[key] = src
+      }
+    }
+    if (metrics.emphasisSanitize) {
+      for (const key of Object.keys(metrics.emphasisSanitize)) {
+        if (!examples.emphasisSanitize[key]) examples.emphasisSanitize[key] = src
+      }
+    }
   }
 
   console.log(`[fastpath-analyze] seed=${seed} count=${count} mode=${mode}`)
   console.log('[fastpath-analyze] brokenRefFastPaths:', totals.brokenRefFastPaths)
   console.log('[fastpath-analyze] tailFastPaths:', totals.tailFastPaths)
   console.log('[fastpath-analyze] brokenRefFlow:', totals.brokenRefFlow)
+  console.log('[fastpath-analyze] brokenRefCandidateFlow:', totals.brokenRefCandidateFlow)
+  console.log('[fastpath-analyze] brokenRefPasses:', totals.brokenRefPasses)
+  console.log('[fastpath-analyze] emphasisFixers:', totals.emphasisFixers)
+  console.log('[fastpath-analyze] emphasisSanitize:', totals.emphasisSanitize)
 
   const dumpExamples = (bucketName) => {
     const bucket = examples[bucketName]
@@ -121,7 +151,9 @@ const run = ({ seed = 20260214, count = 4000, mode = 'aggressive' } = {}) => {
 
   dumpExamples('brokenRefFastPaths')
   dumpExamples('tailFastPaths')
+  dumpExamples('brokenRefCandidateFlow')
+  dumpExamples('emphasisFixers')
+  dumpExamples('emphasisSanitize')
 }
 
 run(parseArgs())
-

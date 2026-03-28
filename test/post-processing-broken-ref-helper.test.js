@@ -5,7 +5,7 @@ import mditStrongJa from '../index.js'
 import { buildLinkCloseMap } from '../src/token-link-utils.js'
 import { rebuildInlineLevelsFrom } from '../src/token-core.js'
 import { buildAsteriskWrapperPrefixStats } from '../src/token-postprocess/guards.js'
-import { computeMaxBrokenRefRepairPass, runBrokenRefRepairs } from '../src/token-postprocess/broken-ref.js'
+import { runBrokenRefRepairs } from '../src/token-postprocess/broken-ref.js'
 
 const BROKEN_REF_HELPER_INPUT = '**[a**a**[x*](u)*a**\n\n[ref]: u'
 
@@ -112,12 +112,9 @@ export const runBrokenRefHelperTests = () => {
     const hookedMetrics = {}
     const fallbackScanState = {}
     const hookedScanState = {}
-    const fallbackMaxPass = computeMaxBrokenRefRepairPass(fallbackChildren, fallbackScanState)
-    const hookedMaxPass = computeMaxBrokenRefRepairPass(hookedChildren, hookedScanState)
     const hookedFacts = createBrokenRefFacts()
     const hookedResult = runBrokenRefRepairs(
       hookedChildren,
-      hookedMaxPass,
       hookedScanState,
       hookedMetrics,
       hookedFacts,
@@ -125,7 +122,6 @@ export const runBrokenRefHelperTests = () => {
     )
     const fallbackResult = runBrokenRefRepairs(
       fallbackChildren,
-      fallbackMaxPass,
       fallbackScanState,
       fallbackMetrics
     )

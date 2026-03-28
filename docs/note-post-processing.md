@@ -34,6 +34,7 @@ Initial pre-scan captures:
 - bracket context (`[` or `]`) from inline content, then confirmed on children when needed
 - link pair presence (`link_open` + `link_close`)
 - existing emphasis presence (`em/strong`) before any repair stage
+- asterisk-wrapper balance risk for sanitize gating
 - Japanese context only when mode is `japanese-boundary` / `japanese-boundary-guard`
 
 Lazy fields on the same facts object are populated only on the repair paths that need them:
@@ -56,7 +57,6 @@ Module:
 
 Main helpers:
 
-- `computeMaxBrokenRefRepairPass`
 - `runBrokenRefRepairs`
 - `runBrokenRefRepairPass`
 - `runBrokenRefCandidateRewrite`
@@ -168,6 +168,23 @@ Effect:
   - fixture source: `test/post-processing/flow-cases.txt`
 - `test/post-processing-broken-ref-helper.test.js`
   - locks direct helper parity between orchestrator-style hooks and fallback cache paths
+- `test/post-processing-emphasis-helper.test.js`
+  - locks direct token-contract behavior for:
+    - `fixTrailingStrong`
+    - `fixEmOuterStrongSequence`
+    - `fixLeadingAsteriskEm`
+    - `sanitizeEmStrongBalance`
+    - `scanInlinePostprocessSignals` asterisk-wrapper balance signal
+- `test/post-processing-emphasis-metrics.test.js`
+  - locks representative render-time `emphasisFixers.*` and `emphasisSanitize.*` metric hits:
+    - `leading-asterisk-em`
+    - `em-outer-strong-sequence`
+    - `trailing-strong`
+    - `sanitize-em-strong-balance`
+    - `attempted`
+    - `attempted-after-change`
+    - `repaired`
+    - `skipped-balanced`
 - `test/post-processing-progress.test.js`
   - verifies `postprocess:true` adds no extra `md.inline.parse` calls vs `postprocess:false`
   - fixtures: `test/post-processing/token-only-regressions.txt`
@@ -177,7 +194,7 @@ Effect:
   - fixtures: `test/post-processing/noop-heavy-cases.txt`
 - `test/postprocess-gate.js` / `npm run test:postprocess-gate`
   - one-command release gate for postprocess suites + deterministic analyzers
-  - includes fail-safe/noop/progress/fastpath/fastpath-roster/flow/broken-ref-helper + postprocess-call/fastpath analyzer runs
+  - includes fail-safe/noop/progress/fastpath/fastpath-roster/flow/broken-ref-helper/emphasis-helper/emphasis-metrics + postprocess-call/fastpath analyzer runs
 
 ### 4.2 Full Regression
 
@@ -236,7 +253,7 @@ When adding/changing token-only fast paths:
 - Fast-path analyzer snapshot (`npm run analyze:fastpath -- --count 8000 --seed <fixed-seed> --mode aggressive`, reference run):
   - `brokenRefFastPaths`: none observed in random malformed corpus
   - `tailFastPaths`: `tail-dangling-strong-close=975`, `tail-pattern=4`
-  - `brokenRefFlow`: `candidate=468`, `skip-no-text-marker=426`, `skip-guard=35`, `skip-no-active-signature=7`
+  - `brokenRefFlow`: `candidate=468`, `skip-no-text-marker=426`, `skip-no-active-signature=12`, `skip-guard=30`
 - Postprocess malformed-corpus snapshot (`npm run bench:postprocess`, median, reference run):
   - `markdown-it`: `0.0721ms/doc`
   - `japanese-boundary + postprocess:on`: `0.1069ms/doc`
@@ -253,6 +270,10 @@ When adding/changing token-only fast paths:
   - `brokenRefFastPaths`
   - `tailFastPaths`
   - `brokenRefFlow` (candidate/skip/repaired diagnostics)
+  - `brokenRefCandidateFlow` (candidate -> guard -> fast-path dispatch/result)
+  - `brokenRefPasses` (budgeted/executed/repaired/stopped-no-repair)
+  - `emphasisFixers` (`leading-asterisk-em`, `em-outer-strong-sequence`, `trailing-strong`, `sanitize-em-strong-balance`)
+  - `emphasisSanitize` (`attempted`, `attempted-after-change`, `attempted-pre-scan-risk`, `repaired`, `no-change`, `skipped-balanced`)
 
 ### 7.4 Main Concerns
 
@@ -291,15 +312,20 @@ Done when:
   - consolidated low-confidence wrapper/risk scans into one helper (`buildBrokenRefWrapperRangeSignals`) reused across leading-close / preexisting-close-only / wrapper-imbalance checks
   - removed redundant wrapper-imbalance pass (`getAsteriskWrapperRangeInfo`) by reusing wrapper signals in `shouldAttemptBrokenRefRewrite`
   - merged risk+wrapper guard signals into single-pass `buildBrokenRefWrapperRangeSignals(..., firstTextOffset)` and removed redundant range helpers
-  - extracted broken-ref single-pass helper (`runBrokenRefRepairPass`)
-  - extracted inline pre-scan helper (`scanInlinePostprocessSignals`)
-  - extracted repair-pass budget helper (`computeMaxBrokenRefRepairPass`)
-  - extracted repair loop helper (`runBrokenRefRepairs`)
-  - extracted per-inline orchestrator (`processInlinePostprocessToken`)
-  - extracted tail candidate scan/apply helpers (`scanTailRepairCandidateAfterLinkClose`, `tryRepairTailCandidate`)
-  - flattened broken-ref rewrite decision into a single helper (`shouldAttemptBrokenRefRewrite`) for lower call depth
-  - moved broken-ref repair-budget precondition to inline orchestrator and delayed `scanState` allocation to repair-needed cases only
-  - all postprocess and full regression suites remain green
+- extracted broken-ref single-pass helper (`runBrokenRefRepairPass`)
+- extracted inline pre-scan helper (`scanInlinePostprocessSignals`)
+- sanitizer now runs only when pre-scan or earlier repair indicates possible asterisk-wrapper imbalance
+- broken-ref repairs now use a hybrid loop:
+  - first run a cheap existence probe
+  - execute one repair pass immediately
+  - only after a successful repair, recompute the remaining guard-passed candidate budget for follow-up passes
+- ranges without any strong-token fast-path signal now short-circuit to `skip-no-active-signature` before fast-path dispatch
+- extracted repair loop helper (`runBrokenRefRepairs`)
+- extracted per-inline orchestrator (`processInlinePostprocessToken`)
+- extracted tail candidate scan/apply helpers (`scanTailRepairCandidateAfterLinkClose`, `tryRepairTailCandidate`)
+- flattened broken-ref rewrite decision into a single helper (`shouldAttemptBrokenRefRewrite`) for lower call depth
+- moved broken-ref repair-budget precondition to inline orchestrator and delayed `scanState` allocation to repair-needed cases only
+- all postprocess and full regression suites remain green
 
 Done when:
 

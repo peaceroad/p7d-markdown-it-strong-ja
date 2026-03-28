@@ -9,6 +9,8 @@ import { runPostprocessFastPathTests } from './post-processing-fastpath.test.js'
 import { runPostprocessFastPathRosterTests } from './post-processing-fastpath-roster.test.js'
 import { runPostprocessFlowTests } from './post-processing-flow.test.js'
 import { runBrokenRefHelperTests } from './post-processing-broken-ref-helper.test.js'
+import { runPostprocessEmphasisHelperTests } from './post-processing-emphasis-helper.test.js'
+import { runPostprocessEmphasisMetricsTests } from './post-processing-emphasis-metrics.test.js'
 import { runLinkHelperTests } from './post-processing-link-helper.test.js'
 import { pathToFileURL } from 'url'
 
@@ -24,6 +26,8 @@ export const runEdgeTests = () => {
   allPass = runPostprocessFastPathRosterTests() && allPass
   allPass = runPostprocessFlowTests() && allPass
   allPass = runBrokenRefHelperTests() && allPass
+  allPass = runPostprocessEmphasisHelperTests() && allPass
+  allPass = runPostprocessEmphasisMetricsTests() && allPass
   allPass = runLinkHelperTests() && allPass
   allPass = runTokenOnlyProgressTests() && allPass
   return allPass

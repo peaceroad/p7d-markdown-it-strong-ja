@@ -389,13 +389,9 @@ const hasBrokenRefImmediateRewriteSignal = (wrapperSignals) => {
   return wrapperSignals.hasImbalance && hasBrokenRefExplicitAsteriskSignal(wrapperSignals)
 }
 
-const shouldRejectBalancedBrokenRefRewrite = (wrapperSignals) => {
-  return !wrapperSignals.hasImbalance && hasBrokenRefExplicitAsteriskSignal(wrapperSignals)
-}
-
 const shouldAttemptBrokenRefRewriteFromSignals = (wrapperSignals) => {
   if (hasBrokenRefImmediateRewriteSignal(wrapperSignals)) return true
-  if (shouldRejectBalancedBrokenRefRewrite(wrapperSignals)) return false
+  if (!wrapperSignals.hasImbalance && hasBrokenRefExplicitAsteriskSignal(wrapperSignals)) return false
   return hasBrokenRefStrongRunEvidence(wrapperSignals)
 }
 
@@ -418,11 +414,26 @@ const scanInlinePostprocessSignals = (children) => {
   let hasLinkOpen = false
   let hasLinkClose = false
   let hasCodeInline = false
+  let hasAsteriskWrapperImbalance = false
+  const emphasisStack = []
   for (let j = 0; j < children.length; j++) {
     const child = children[j]
     if (!child) continue
-    if (!hasEmphasis && isAsteriskEmphasisToken(child)) {
+    const isAsteriskEmphasis = isAsteriskEmphasisToken(child)
+    if (isAsteriskEmphasis) {
       hasEmphasis = true
+      if (!hasAsteriskWrapperImbalance) {
+        if (child.type === 'strong_open' || child.type === 'em_open') {
+          emphasisStack.push(child.type)
+        } else {
+          const expected = child.type === 'strong_close' ? 'strong_open' : 'em_open'
+          if (emphasisStack.length > 0 && emphasisStack[emphasisStack.length - 1] === expected) {
+            emphasisStack.pop()
+          } else {
+            hasAsteriskWrapperImbalance = true
+          }
+        }
+      }
     }
     if (!hasLinkOpen && child.type === 'link_open') {
       hasLinkOpen = true
@@ -433,13 +444,16 @@ const scanInlinePostprocessSignals = (children) => {
     if (!hasCodeInline && child.type === 'code_inline') {
       hasCodeInline = true
     }
-    if (hasEmphasis && hasLinkOpen && hasLinkClose) break
+  }
+  if (!hasAsteriskWrapperImbalance && emphasisStack.length > 0) {
+    hasAsteriskWrapperImbalance = true
   }
   return {
     hasEmphasis,
     hasLinkOpen,
     hasLinkClose,
-    hasCodeInline
+    hasCodeInline,
+    hasAsteriskWrapperImbalance
   }
 }
 

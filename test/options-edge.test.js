@@ -322,6 +322,20 @@ export const runOptionEdgeTests = () => {
     assert.strictEqual(md2.inline.State.prototype.scanDelims, patched)
   }, allPassRef)
 
+  runCase('stock markdown-it presets install without missing-anchor failures', () => {
+    const input = '**「だし」**'
+    const cases = [
+      { preset: 'default', expected: '<p><strong>「だし」</strong></p>\n' },
+      { preset: 'zero', expected: '<p>**「だし」**</p>\n' },
+      { preset: 'commonmark', expected: '<p><strong>「だし」</strong></p>\n' }
+    ]
+    for (let i = 0; i < cases.length; i++) {
+      const testCase = cases[i]
+      const md = new MarkdownIt(testCase.preset).use(mditStrongJa)
+      assert.strictEqual(md.render(input), testCase.expected, testCase.preset)
+    }
+  }, allPassRef)
+
   runCase('per-render mode override', () => {
     const input = 'これは**[text](url)**です'
     const md = new MarkdownIt().use(mditStrongJa, { mode: 'compatible' })

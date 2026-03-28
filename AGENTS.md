@@ -60,8 +60,8 @@
 - In `mode: japanese-boundary`/`japanese-boundary-guard`, inline segments without Japanese context skip postprocess rewriting.
 - `mode: compatible` bypasses postprocess repairs and keeps markdown-it output for malformed link/ref patterns.
 - Broken-segment repair still expands end range to close outstanding inline wrapper pairs (`*_open/*_close`) so unresolved collapsed refs with inline links do not leave orphan `</strong>`/`</em>` tags.
-- Postprocess sanitizes unmatched `strong/em` tokens back to literal `*`/`**` text in repaired segments to avoid malformed HTML tags on extreme malformed inputs.
-- Optional debug metrics are available via `state.env.__strongJaPostprocessMetrics` (`brokenRefFastPaths`, `tailFastPaths`, `brokenRefFlow`).
+- Postprocess sanitizes unmatched `strong/em` tokens back to literal `*`/`**` text in repaired or pre-scan-flagged segments to avoid malformed HTML tags on extreme malformed inputs.
+- Optional debug metrics are available via `state.env.__strongJaPostprocessMetrics` (`brokenRefFastPaths`, `tailFastPaths`, `brokenRefFlow`, `brokenRefCandidateFlow`, `brokenRefPasses`, `emphasisFixers`, `emphasisSanitize`).
 - Map is copied from the original token range when possible.
 - Repairs are fail-safe: unsupported or low-confidence malformed shapes are preserved as-is (fail-closed).
 
@@ -71,12 +71,13 @@
 - `scanDelims` patch is idempotent per inline-state prototype (avoids multi-instance re-wrapping).
 - `scanDelims` now creates its per-inline lookup object lazily and only materializes same-line prev/next non-space arrays on the first actual neighborhood lookup, so marker-light inputs avoid upfront O(n) cache work.
 - Previous single-star context stays memoized per delimiter call (`prevStarFlags`) instead of a state-wide per-position cache, because each `*` start is typically scanned once.
-- Runtime option merge is cached per parse-state + override object (`state.__strongJaTokenRuntimeOpt`); no-override renders skip runtime-option merge on the hot path.
+- Runtime option resolution is cached per parse-state + override object (`state.__strongJaTokenRuntimeOpt`), including no-override renders, so repeated `scanDelims` calls reuse the same resolved option object.
 - Japanese-context scans in postprocess are gated by mode (`japanese-boundary`/`japanese-boundary-guard` only); `aggressive`/`compatible` avoid that extra pass.
 - Postprocess now checks marker presence (`*`) before Japanese-context scans and bracket-text checks on each inline token.
 - Postprocess skips inline blocks without asterisk markers (`*`) before child-level scans.
 - Postprocess short-circuits inline blocks that have brackets but no `*` markers before child-level scans.
 - Postprocess broken-ref repair loop runs only when inline children include both `link_open` and `link_close`, and bracket text is present.
+- Broken-ref repair now avoids the old full pre-count on the common no-op path: it probes for any broken tail, runs one repair pass immediately, and only recomputes the remaining candidate budget after a successful repair.
 - Segment-local candidates are rejected early when no asterisk emphasis signal exists.
 - Broken-ref wrapper close-only guard now uses per-pass asterisk wrapper-depth prefix caches, avoiding repeated `0..startIdx` rescans per candidate.
 - Broken-ref wrapper prefix stats are built lazily per repair pass, avoiding unnecessary upfront scans in no-candidate passes.
@@ -86,12 +87,12 @@
 - Broken-ref candidate gating now folds text-marker presence and strong-run evidence into the shared wrapper-range scan, removing extra candidate range passes before fast-path dispatch.
 - Broken-ref wrapper-risk gating now shares one wrapper-range scan (`buildBrokenRefWrapperRangeSignals`) across leading-close and preexisting-close-only checks.
 - Broken-ref wrapper gating now reuses `buildBrokenRefWrapperRangeSignals` for imbalance + asterisk-emphasis-token context, removing the extra wrapper-imbalance pass.
-- Broken-ref repair now checks active fast-path signatures before dispatch, reducing no-match dispatch churn in malformed-heavy inputs.
+- Broken-ref repair now rejects ranges with no strong-token fast-path signal before dispatch and still checks active fast-path signatures before dispatch, reducing no-op dispatch churn in malformed-heavy inputs.
 - Edited inline blocks now use suffix-only `rebuildInlineLevelsFrom(...)` whenever an earliest changed index is known; full rebuild stays as a safety fallback.
 - Canonical tail repairs are handled by token-only rearrangement.
 - Malformed nested broken-ref cases are handled by token-only strong relocation before sanitize.
 - Leading-close + inner-strong malformed broken-ref spans are handled by token-only marker relocation before sanitize.
-- Postprocess inline pre-scan now seeds `code_inline` together with emphasis/link flags, so later skip/activation checks avoid an extra child scan.
+- Postprocess inline pre-scan now seeds `code_inline` and asterisk-wrapper balance risk together with emphasis/link flags, so later skip/activation checks and sanitize gating avoid extra child scans.
 - Link range handling precomputes `link_open -> link_close` pairs per target range, avoiding per-link close-index rescans in hot paths.
 - Collapsed-ref reconstruction memoizes `link_open -> link_close` pairs per pass and invalidates after token mutations.
 - Collapsed-ref label wrapping now plans surrounding wrapper pairs first and rewrites the whole collapsed-ref range in one splice instead of a remove-then-wrap two-step.
@@ -120,6 +121,8 @@
 - Fast-path fixture source: `test/post-processing/fastpath-cases.txt`.
 - Broken-ref flow lock: `node test/post-processing-flow.test.js` (locks `brokenRefFlow` branch reasons + HTML parity/divergence expectations).
 - Broken-ref helper lock: `node test/post-processing-broken-ref-helper.test.js` (locks direct helper parity between orchestrator-style hooks and fallback cache paths).
+- Emphasis helper lock: `node test/post-processing-emphasis-helper.test.js` (locks direct token-contract behavior for `fixTrailingStrong` / `fixEmOuterStrongSequence` / `fixLeadingAsteriskEm` / `sanitizeEmStrongBalance`).
+- Emphasis metrics lock: `node test/post-processing-emphasis-metrics.test.js` (locks representative `emphasisFixers.*` plus `emphasisSanitize.*` metrics hits through render-time postprocess flow).
 - Link-helper lock: `node test/post-processing-link-helper.test.js` (locks collapsed-ref helper rewrite shape and synthetic line-map propagation).
 - Postprocess case-file tests share parser utility: `test/post-processing/case-file-utils.js` (`parseCaseSections`).
 - No-op heavy regressions: `node test/post-processing-noop.test.js` (fuzz-mined pathological inputs; bounds extra inline-parse delta `<=0` and asserts HTML parity vs `postprocess:false`).
@@ -130,6 +133,6 @@
 - Token-only progress fixtures are currently all `expect_calls=none` and act as zero-extra-call regression locks.
 - Token-only progress tail fixtures include code-inline and ref-like sentinels (`tail-code-inline-guard-aggressive`, `tail-ref-like-range-guard-aggressive`).
 - Postprocess-call stress probe: `npm run analyze:postprocess-calls -- --count 2500 --seed <fixed-seed>` (current target snapshot: `extra_renders=0`, `extra_calls=0`).
-- Fast-path activity probe: `npm run analyze:fastpath -- --count <count> --seed <fixed-seed> --mode <mode>` (aggregates `brokenRefFastPaths`/`tailFastPaths`/`brokenRefFlow`).
+- Fast-path activity probe: `npm run analyze:fastpath -- --count <count> --seed <fixed-seed> --mode <mode>` (aggregates `brokenRefFastPaths`/`tailFastPaths`/`brokenRefFlow`/`brokenRefCandidateFlow`/`brokenRefPasses`/`emphasisFixers`/`emphasisSanitize`).
 - Bench (from repo root): `node test/material/performance_compare.mjs ../../index.js 500 3`
 

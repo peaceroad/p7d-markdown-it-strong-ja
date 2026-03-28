@@ -1,6 +1,6 @@
 import Token from 'markdown-it/lib/token.mjs'
 import { buildLinkCloseMap, convertCollapsedReferenceLinks, mergeBrokenMarksAroundLinks } from '../token-link-utils.js'
-import { computeMaxBrokenRefRepairPass, runBrokenRefRepairs } from './broken-ref.js'
+import { runBrokenRefRepairs } from './broken-ref.js'
 import {
   rebuildInlineLevels,
   rebuildInlineLevelsFrom,
@@ -24,55 +24,7 @@ import {
   tryFixTailPatternTokenOnly,
   tryFixTailDanglingStrongCloseTokenOnly
 } from './fastpaths.js'
-
-const fallbackMarkupByType = (type) => {
-  if (type === 'strong_open' || type === 'strong_close') return '**'
-  if (type === 'em_open' || type === 'em_close') return '*'
-  return ''
-}
-
-const makeTokenLiteralText = (token) => {
-  if (!token) return
-  const literal = token.markup || fallbackMarkupByType(token.type)
-  token.type = 'text'
-  token.tag = ''
-  token.nesting = 0
-  token.content = literal
-  token.markup = ''
-  token.info = ''
-}
-
-const sanitizeEmStrongBalance = (tokens, onChangeStart = null) => {
-  if (!tokens || tokens.length === 0) return false
-  const stack = []
-  let changed = false
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i]
-    if (!token || !token.type) continue
-    if (token.type === 'strong_open' || token.type === 'em_open') {
-      stack.push({ type: token.type, idx: i })
-      continue
-    }
-    if (token.type !== 'strong_close' && token.type !== 'em_close') continue
-    const expected = token.type === 'strong_close' ? 'strong_open' : 'em_open'
-    if (stack.length > 0 && stack[stack.length - 1].type === expected) {
-      stack.pop()
-      continue
-    }
-    if (onChangeStart) onChangeStart(i)
-    makeTokenLiteralText(token)
-    changed = true
-  }
-  for (let i = stack.length - 1; i >= 0; i--) {
-    const entry = stack[i]
-    const token = tokens[entry.idx]
-    if (!token) continue
-    if (onChangeStart) onChangeStart(entry.idx)
-    makeTokenLiteralText(token)
-    changed = true
-  }
-  return changed
-}
+import { sanitizeEmStrongBalance } from './emphasis-balance.js'
 
 const getPostprocessMetrics = (state) => {
   if (!state || !state.env) return null
@@ -86,6 +38,7 @@ const buildInlinePostprocessFacts = (children, inlineContent) => {
   return {
     hasBracketText: inlineContent.indexOf('[') !== -1 || inlineContent.indexOf(']') !== -1,
     hasEmphasis: preScan.hasEmphasis,
+    hasAsteriskWrapperImbalance: preScan.hasAsteriskWrapperImbalance,
     hasLinkOpen: preScan.hasLinkOpen,
     hasLinkClose: preScan.hasLinkClose,
     hasCodeInline: preScan.hasCodeInline,
@@ -159,14 +112,14 @@ const BROKEN_REF_REPAIR_HOOKS = {
   markLevelRebuildFrom: markInlineLevelRebuildFrom
 }
 
-const bumpPostprocessMetric = (metrics, bucket, key) => {
-  if (!metrics || !bucket || !key) return
+const bumpPostprocessMetric = (metrics, bucket, key, delta = 1) => {
+  if (!metrics || !bucket || !key || delta <= 0) return
   let table = metrics[bucket]
   if (!table || typeof table !== 'object') {
     table = Object.create(null)
     metrics[bucket] = table
   }
-  table[key] = (table[key] || 0) + 1
+  table[key] = (table[key] || 0) + delta
 }
 
 const scanTailRepairCandidateAfterLinkClose = (tokens, linkCloseIdx) => {
@@ -459,46 +412,66 @@ const shouldRunInlineBrokenRefRepair = (facts, inlineContent, state) => {
   return getReferenceCount(state) > 0
 }
 
-const applyBrokenRefRepairFacts = (facts, repairs) => {
-  if (!facts || !repairs) return
-  facts.hasBracketText = repairs.hasBracketText
-  facts.hasEmphasis = repairs.hasEmphasis
-  facts.hasLinkClose = repairs.hasLinkClose
-}
-
-const createBrokenRefScanState = () => {
-  return { depth: 0, brokenEnd: false, tailOpen: -1 }
-}
-
 const runInlineBrokenRefRepairStage = (children, facts, inlineContent, state) => {
   if (!shouldRunInlineBrokenRefRepair(facts, inlineContent, state)) return false
-  const scanState = createBrokenRefScanState()
-  const maxRepairPass = computeMaxBrokenRefRepairPass(children, scanState)
-  if (maxRepairPass <= 0) return false
+  const scanState = { depth: 0, brokenEnd: false, tailOpen: -1 }
   const repairs = runBrokenRefRepairs(
     children,
-    maxRepairPass,
     scanState,
     getPostprocessMetrics(state),
     facts,
     BROKEN_REF_REPAIR_HOOKS
   )
-  applyBrokenRefRepairFacts(facts, repairs)
+  facts.hasBracketText = repairs.hasBracketText
+  facts.hasEmphasis = repairs.hasEmphasis
+  facts.hasLinkClose = repairs.hasLinkClose
   return repairs.changed
 }
 
-const runInlineEmphasisRepairStage = (children, facts, state, isJapaneseMode) => {
+const runInlineEmphasisRepairStage = (
+  children,
+  facts,
+  state,
+  isJapaneseMode,
+  forceBalanceSanitize = false
+) => {
   if (!facts.hasEmphasis) return false
   let changed = false
   const markChangedFrom = createInlineChangeMarker(facts)
-  if (fixEmOuterStrongSequence(children, markChangedFrom)) changed = true
-  if (facts.hasLinkClose) {
-    const metrics = getPostprocessMetrics(state)
-    if (fixTailAfterLinkStrongClose(children, isJapaneseMode, metrics, markChangedFrom)) changed = true
-    if (fixLeadingAsteriskEm(children, markChangedFrom)) changed = true
+  const metrics = getPostprocessMetrics(state)
+  if (fixEmOuterStrongSequence(children, markChangedFrom)) {
+    changed = true
+    bumpPostprocessMetric(metrics, 'emphasisFixers', 'em-outer-strong-sequence')
   }
-  if (fixTrailingStrong(children, markChangedFrom)) changed = true
-  if (sanitizeEmStrongBalance(children, markChangedFrom)) changed = true
+  if (facts.hasLinkClose) {
+    if (fixTailAfterLinkStrongClose(children, isJapaneseMode, metrics, markChangedFrom)) changed = true
+    if (fixLeadingAsteriskEm(children, markChangedFrom)) {
+      changed = true
+      bumpPostprocessMetric(metrics, 'emphasisFixers', 'leading-asterisk-em')
+    }
+  }
+  if (fixTrailingStrong(children, markChangedFrom)) {
+    changed = true
+    bumpPostprocessMetric(metrics, 'emphasisFixers', 'trailing-strong')
+  }
+  const shouldAttemptSanitize = forceBalanceSanitize || changed || facts.hasAsteriskWrapperImbalance
+  if (!shouldAttemptSanitize) {
+    bumpPostprocessMetric(metrics, 'emphasisSanitize', 'skipped-balanced')
+    return changed
+  }
+  bumpPostprocessMetric(metrics, 'emphasisSanitize', 'attempted')
+  if (forceBalanceSanitize || changed) {
+    bumpPostprocessMetric(metrics, 'emphasisSanitize', 'attempted-after-change')
+  } else {
+    bumpPostprocessMetric(metrics, 'emphasisSanitize', 'attempted-pre-scan-risk')
+  }
+  if (sanitizeEmStrongBalance(children, markChangedFrom)) {
+    changed = true
+    bumpPostprocessMetric(metrics, 'emphasisFixers', 'sanitize-em-strong-balance')
+    bumpPostprocessMetric(metrics, 'emphasisSanitize', 'repaired')
+  } else {
+    bumpPostprocessMetric(metrics, 'emphasisSanitize', 'no-change')
+  }
   return changed
 }
 
@@ -507,28 +480,12 @@ const shouldRunInlineCollapsedRefRepair = (facts, state) => {
   return getReferenceCount(state) > 0
 }
 
-const applyCollapsedRefRepairFacts = (facts) => {
-  if (!facts) return
-  facts.hasLinkOpen = true
-  facts.hasLinkClose = true
-}
-
-const rewriteInlineCollapsedReferences = (children, facts, state, markChangedFrom) => {
-  const changed = convertCollapsedReferenceLinks(
-    children,
-    state,
-    facts,
-    markChangedFrom
-  )
-  if (!changed) return false
-  applyCollapsedRefRepairFacts(facts)
-  return true
-}
-
 const runInlineCollapsedRefStage = (children, facts, state) => {
   if (!shouldRunInlineCollapsedRefRepair(facts, state)) return false
   const markChangedFrom = createInlineChangeMarker(facts)
-  if (!rewriteInlineCollapsedReferences(children, facts, state, markChangedFrom)) return false
+  if (!convertCollapsedReferenceLinks(children, state, facts, markChangedFrom)) return false
+  facts.hasLinkOpen = true
+  facts.hasLinkClose = true
   finalizeInlineLinkRepairStage(children, facts, markChangedFrom)
   return true
 }
@@ -569,7 +526,7 @@ const runInlineCoreRepairStages = (
     return false
   }
   if (runInlineBrokenRefRepairStage(children, facts, inlineContent, state)) changed = true
-  if (runInlineEmphasisRepairStage(children, facts, state, isJapaneseMode)) changed = true
+  if (runInlineEmphasisRepairStage(children, facts, state, isJapaneseMode, changed)) changed = true
   return changed
 }
 
