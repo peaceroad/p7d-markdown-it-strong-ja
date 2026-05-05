@@ -9,6 +9,7 @@ import {
   MODE_FLAG_COMPATIBLE,
   MODE_FLAG_AGGRESSIVE,
   MODE_FLAG_JAPANESE_PLUS,
+  hasRuntimeOverride,
   getRuntimeOpt
 } from './token-utils.js'
 
@@ -763,7 +764,9 @@ const patchScanDelims = (md) => {
     }
     const base = original.call(this, start, canSplitWord)
 
-    const opt = getRuntimeOpt(this, this.md ? this.md.__strongJaTokenOpt : null)
+    const baseOpt = this.md ? this.md.__strongJaTokenOpt : null
+    const overrideOpt = this.env && this.env.__strongJaTokenOpt
+    const opt = hasRuntimeOverride(overrideOpt) ? getRuntimeOpt(this, baseOpt) : baseOpt
     if (!opt) {
       return base
     }
