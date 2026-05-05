@@ -1,6 +1,11 @@
 import { isJapaneseChar } from '../token-utils.js'
 
 const CHAR_ASTERISK = 0x2A // *
+const INLINE_REPAIR_EM_OUTER_STRONG_SEQUENCE = 1 << 0
+const INLINE_REPAIR_TAIL_AFTER_LINK = 1 << 1
+const INLINE_REPAIR_LEADING_ASTERISK_EM = 1 << 2
+const INLINE_REPAIR_TRAILING_STRONG = 1 << 3
+const INLINE_REPAIR_BALANCE_SANITIZE = 1 << 4
 
 const hasMarkerChars = (text) => {
   return !!text && text.indexOf('*') !== -1
@@ -409,19 +414,35 @@ const shouldAttemptBrokenRefRewrite = (
   return shouldAttemptBrokenRefRewriteFromSignals(signals)
 }
 
-const scanInlinePostprocessSignals = (children) => {
+const scanInlinePostprocessSignals = (children, collectJapaneseContext = false) => {
   let hasEmphasis = false
   let hasLinkOpen = false
   let hasLinkClose = false
   let hasCodeInline = false
+  let hasJapaneseContext = false
+  let hasTextStrongMarker = false
+  let strongOpenCount = 0
+  let strongCloseCount = 0
+  let emOpenCount = 0
+  let emCloseCount = 0
   let hasAsteriskWrapperImbalance = false
   const emphasisStack = []
   for (let j = 0; j < children.length; j++) {
     const child = children[j]
     if (!child) continue
+    if (collectJapaneseContext && !hasJapaneseContext && tokenHasJapaneseChars(child)) {
+      hasJapaneseContext = true
+    }
+    if (!hasTextStrongMarker && child.type === 'text' && child.content && child.content.indexOf('**') !== -1) {
+      hasTextStrongMarker = true
+    }
     const isAsteriskEmphasis = isAsteriskEmphasisToken(child)
     if (isAsteriskEmphasis) {
       hasEmphasis = true
+      if (child.type === 'strong_open') strongOpenCount++
+      else if (child.type === 'strong_close') strongCloseCount++
+      else if (child.type === 'em_open') emOpenCount++
+      else if (child.type === 'em_close') emCloseCount++
       if (!hasAsteriskWrapperImbalance) {
         if (child.type === 'strong_open' || child.type === 'em_open') {
           emphasisStack.push(child.type)
@@ -448,11 +469,29 @@ const scanInlinePostprocessSignals = (children) => {
   if (!hasAsteriskWrapperImbalance && emphasisStack.length > 0) {
     hasAsteriskWrapperImbalance = true
   }
+  let repairMask = 0
+  if (emOpenCount >= 2 && emCloseCount >= 2 && strongOpenCount > 0) {
+    repairMask |= INLINE_REPAIR_EM_OUTER_STRONG_SEQUENCE
+  }
+  if (hasLinkClose && strongCloseCount > 0) {
+    repairMask |= INLINE_REPAIR_TAIL_AFTER_LINK
+  }
+  if (hasLinkClose && emCloseCount > 0) {
+    repairMask |= INLINE_REPAIR_LEADING_ASTERISK_EM
+  }
+  if (emOpenCount > 0 && emCloseCount > 0 && hasTextStrongMarker) {
+    repairMask |= INLINE_REPAIR_TRAILING_STRONG
+  }
+  if (hasAsteriskWrapperImbalance) {
+    repairMask |= INLINE_REPAIR_BALANCE_SANITIZE
+  }
   return {
     hasEmphasis,
     hasLinkOpen,
     hasLinkClose,
     hasCodeInline,
+    hasJapaneseContext,
+    repairMask,
     hasAsteriskWrapperImbalance
   }
 }
@@ -465,5 +504,10 @@ export {
   buildAsteriskWrapperPrefixStats,
   buildBrokenRefWrapperRangeSignals,
   shouldAttemptBrokenRefRewrite,
-  scanInlinePostprocessSignals
+  scanInlinePostprocessSignals,
+  INLINE_REPAIR_EM_OUTER_STRONG_SEQUENCE,
+  INLINE_REPAIR_TAIL_AFTER_LINK,
+  INLINE_REPAIR_LEADING_ASTERISK_EM,
+  INLINE_REPAIR_TRAILING_STRONG,
+  INLINE_REPAIR_BALANCE_SANITIZE
 }

@@ -8,7 +8,12 @@ import {
   fixLeadingAsteriskEm
 } from '../src/token-core.js'
 import { sanitizeEmStrongBalance } from '../src/token-postprocess/emphasis-balance.js'
-import { scanInlinePostprocessSignals } from '../src/token-postprocess/guards.js'
+import {
+  scanInlinePostprocessSignals,
+  INLINE_REPAIR_TAIL_AFTER_LINK,
+  INLINE_REPAIR_LEADING_ASTERISK_EM,
+  INLINE_REPAIR_BALANCE_SANITIZE
+} from '../src/token-postprocess/guards.js'
 
 const createTextToken = (content) => {
   const token = new Token('text', '', 0)
@@ -186,6 +191,8 @@ export const runPostprocessEmphasisHelperTests = () => {
       hasLinkOpen: true,
       hasLinkClose: true,
       hasCodeInline: false,
+      hasJapaneseContext: false,
+      repairMask: INLINE_REPAIR_TAIL_AFTER_LINK | INLINE_REPAIR_LEADING_ASTERISK_EM,
       hasAsteriskWrapperImbalance: false
     })
   })
@@ -204,6 +211,8 @@ export const runPostprocessEmphasisHelperTests = () => {
       hasLinkOpen: false,
       hasLinkClose: false,
       hasCodeInline: false,
+      hasJapaneseContext: false,
+      repairMask: INLINE_REPAIR_BALANCE_SANITIZE,
       hasAsteriskWrapperImbalance: true
     })
   })

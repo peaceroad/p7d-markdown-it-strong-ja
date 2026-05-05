@@ -21,13 +21,25 @@ import {
   hasJapaneseContextInRange,
   hasEmphasisSignalInRange,
   buildAsteriskWrapperPrefixStats,
-  scanInlinePostprocessSignals
+  scanInlinePostprocessSignals,
+  INLINE_REPAIR_EM_OUTER_STRONG_SEQUENCE,
+  INLINE_REPAIR_TAIL_AFTER_LINK,
+  INLINE_REPAIR_LEADING_ASTERISK_EM,
+  INLINE_REPAIR_TRAILING_STRONG,
+  INLINE_REPAIR_BALANCE_SANITIZE
 } from './guards.js'
 import {
   tryFixTailPatternTokenOnly,
   tryFixTailDanglingStrongCloseTokenOnly
 } from './fastpaths.js'
 import { sanitizeEmStrongBalance } from './emphasis-balance.js'
+
+const INLINE_REPAIR_ALL_EMPHASIS_FIXERS =
+  INLINE_REPAIR_EM_OUTER_STRONG_SEQUENCE |
+  INLINE_REPAIR_TAIL_AFTER_LINK |
+  INLINE_REPAIR_LEADING_ASTERISK_EM |
+  INLINE_REPAIR_TRAILING_STRONG |
+  INLINE_REPAIR_BALANCE_SANITIZE
 
 const getPostprocessMetrics = (state) => {
   if (!state || !state.env) return null
@@ -36,8 +48,8 @@ const getPostprocessMetrics = (state) => {
   return metrics
 }
 
-const buildInlinePostprocessFacts = (children, inlineContent) => {
-  const preScan = scanInlinePostprocessSignals(children)
+const buildInlinePostprocessFacts = (children, inlineContent, collectJapaneseContext) => {
+  const preScan = scanInlinePostprocessSignals(children, collectJapaneseContext)
   return {
     hasBracketText: inlineContent.indexOf('[') !== -1 || inlineContent.indexOf(']') !== -1,
     hasEmphasis: preScan.hasEmphasis,
@@ -45,6 +57,8 @@ const buildInlinePostprocessFacts = (children, inlineContent) => {
     hasLinkOpen: preScan.hasLinkOpen,
     hasLinkClose: preScan.hasLinkClose,
     hasCodeInline: preScan.hasCodeInline,
+    hasJapaneseContext: preScan.hasJapaneseContext,
+    repairMask: preScan.repairMask,
     linkCloseMap: undefined,
     wrapperPrefixStats: undefined,
     rebuildLevelStart: undefined
@@ -427,22 +441,34 @@ const runInlineEmphasisRepairStage = (
   let changed = false
   const markChangedFrom = createInlineChangeMarker(facts)
   const metrics = getPostprocessMetrics(state)
-  if (fixEmOuterStrongSequence(children, markChangedFrom)) {
+  const repairMask = forceBalanceSanitize
+    ? INLINE_REPAIR_ALL_EMPHASIS_FIXERS
+    : (facts.repairMask || 0)
+  if ((repairMask & INLINE_REPAIR_EM_OUTER_STRONG_SEQUENCE) &&
+      fixEmOuterStrongSequence(children, markChangedFrom)) {
     changed = true
     bumpPostprocessMetric(metrics, 'emphasisFixers', 'em-outer-strong-sequence')
   }
   if (facts.hasLinkClose) {
-    if (fixTailAfterLinkStrongClose(children, isJapaneseMode, metrics, markChangedFrom)) changed = true
-    if (fixLeadingAsteriskEm(children, markChangedFrom)) {
+    if ((repairMask & INLINE_REPAIR_TAIL_AFTER_LINK) &&
+        fixTailAfterLinkStrongClose(children, isJapaneseMode, metrics, markChangedFrom)) {
+      changed = true
+    }
+    if ((repairMask & INLINE_REPAIR_LEADING_ASTERISK_EM) &&
+        fixLeadingAsteriskEm(children, markChangedFrom)) {
       changed = true
       bumpPostprocessMetric(metrics, 'emphasisFixers', 'leading-asterisk-em')
     }
   }
-  if (fixTrailingStrong(children, markChangedFrom)) {
+  if ((repairMask & INLINE_REPAIR_TRAILING_STRONG) &&
+      fixTrailingStrong(children, markChangedFrom)) {
     changed = true
     bumpPostprocessMetric(metrics, 'emphasisFixers', 'trailing-strong')
   }
-  const shouldAttemptSanitize = forceBalanceSanitize || changed || facts.hasAsteriskWrapperImbalance
+  const shouldAttemptSanitize = forceBalanceSanitize ||
+    changed ||
+    facts.hasAsteriskWrapperImbalance ||
+    (repairMask & INLINE_REPAIR_BALANCE_SANITIZE)
   if (!shouldAttemptSanitize) {
     bumpPostprocessMetric(metrics, 'emphasisSanitize', 'skipped-balanced')
     return changed
@@ -478,7 +504,7 @@ const runInlineCollapsedRefStage = (children, facts, state) => {
   return true
 }
 
-const shouldSkipInlinePostprocessToken = (children, facts, isJapaneseMode) => {
+const shouldSkipInlinePostprocessToken = (facts, isJapaneseMode) => {
   if (!facts.hasEmphasis &&
       !facts.hasBracketText &&
       !facts.hasLinkOpen &&
@@ -486,8 +512,7 @@ const shouldSkipInlinePostprocessToken = (children, facts, isJapaneseMode) => {
       !facts.hasCodeInline) {
     return true
   }
-  if (isJapaneseMode &&
-      !hasJapaneseContextInRange(children, 0, children.length - 1)) {
+  if (isJapaneseMode && !facts.hasJapaneseContext) {
     return true
   }
   return false
@@ -528,8 +553,8 @@ const processInlinePostprocessToken = (
 ) => {
   if (!token || token.type !== 'inline' || !token.children || token.children.length === 0) return
   const children = token.children
-  const facts = buildInlinePostprocessFacts(children, inlineContent)
-  if (shouldSkipInlinePostprocessToken(children, facts, isJapaneseMode)) return
+  const facts = buildInlinePostprocessFacts(children, inlineContent, isJapaneseMode)
+  if (shouldSkipInlinePostprocessToken(facts, isJapaneseMode)) return
   const changed = runInlineCoreRepairStages(
     children,
     facts,
