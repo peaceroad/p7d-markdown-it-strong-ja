@@ -1,9 +1,5 @@
 import Token from 'markdown-it/lib/token.mjs'
-
-const cloneMap = (map) => {
-  if (!map || !Array.isArray(map)) return null
-  return [map[0], map[1]]
-}
+import { cloneMap } from '../token-utils.js'
 
 const cloneTextLike = (source, content) => {
   const token = new Token('text', '', 0)

@@ -2,18 +2,13 @@ import Token from 'markdown-it/lib/token.mjs'
 import {
   REG_ATTRS,
   isJapaneseChar,
+  isAsciiWordCode,
   hasCjkBreaksRule,
   isCjkBreaksRuleName,
   getRuntimeOpt,
   hasRuntimeOverride,
   moveRuleAfter
 } from './token-utils.js'
-
-const isAsciiWordCode = (code) => {
-  return (code >= 0x30 && code <= 0x39) ||
-    (code >= 0x41 && code <= 0x5A) ||
-    (code >= 0x61 && code <= 0x7A)
-}
 
 const trimTrailingSpaceTab = (text) => {
   if (!text) return text

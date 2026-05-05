@@ -2,11 +2,10 @@ import { isWhiteSpace } from 'markdown-it/lib/common/utils.mjs'
 import Token from 'markdown-it/lib/token.mjs'
 import {
   CHAR_ASTERISK,
-  CHAR_SPACE,
-  CHAR_TAB,
   CHAR_NEWLINE,
-  CHAR_IDEOGRAPHIC_SPACE,
   isJapaneseChar,
+  isAsciiWordCode,
+  isSoftSpaceCode,
   MODE_FLAG_COMPATIBLE,
   MODE_FLAG_AGGRESSIVE,
   MODE_FLAG_JAPANESE_PLUS,
@@ -18,10 +17,6 @@ const SINGLE_STAR_LOOKAROUND_MAX = 16
 const PREV_STAR_HAS_OPENER = 1
 const PREV_STAR_HAS_JP_BETWEEN = 2
 const SCAN_DELIMS_LOOKUP_KEY = Symbol.for('strongJaTokenScanDelimsLookup')
-
-const isSoftSpaceCode = (code) => {
-  return code === CHAR_SPACE || code === CHAR_TAB || code === CHAR_IDEOGRAPHIC_SPACE
-}
 
 const isPlusQuoteWrapperOpen = (code) => {
   return code === 0x2018 || // ‘
@@ -255,12 +250,6 @@ const isSingleStarClosingBoundary = (code) => {
     isClosingBracketLike(code)
 }
 
-const isAsciiAlphaNum = (code) => {
-  return (code >= 0x30 && code <= 0x39) ||
-    (code >= 0x41 && code <= 0x5A) ||
-    (code >= 0x61 && code <= 0x7A)
-}
-
 const isAsciiGuardOpenWrapper = (code) => {
   return code === 0x22 || // "
     code === 0x27 || // '
@@ -369,7 +358,7 @@ const hasAsciiStartAfterOptionalOpenWrappers = (src, index, max, lookupCache = n
     if (i === -1) return false
   }
   if (i < 0 || i >= max) return false
-  return isAsciiAlphaNum(src.charCodeAt(i))
+  return isAsciiWordCode(src.charCodeAt(i))
 }
 
 const hasAsciiEndBeforeOptionalCloseWrappers = (src, index, lookupCache = null) => {
@@ -382,7 +371,7 @@ const hasAsciiEndBeforeOptionalCloseWrappers = (src, index, lookupCache = null) 
     if (i === -1) return false
   }
   if (i < 0) return false
-  return isAsciiAlphaNum(src.charCodeAt(i))
+  return isAsciiWordCode(src.charCodeAt(i))
 }
 
 const isMarkdownStructuralOpenWrapper = (code) => {

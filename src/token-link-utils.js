@@ -1,6 +1,6 @@
 import Token from 'markdown-it/lib/token.mjs'
 import { isWhiteSpace } from 'markdown-it/lib/common/utils.mjs'
-import { getReferenceCount } from './token-utils.js'
+import { cloneMap, getReferenceCount } from './token-utils.js'
 
 const CHAR_OPEN_BRACKET = 0x5B // [
 const CHAR_CLOSE_BRACKET = 0x5D // ]
@@ -79,11 +79,6 @@ const getNormalizeRef = (state) => {
   return normalize
 }
 
-
-const cloneMap = (map) => {
-  if (!map || !Array.isArray(map)) return null
-  return [map[0], map[1]]
-}
 
 const getMapFromTokenRange = (tokens, startIdx, endIdx) => {
   if (!tokens || startIdx > endIdx) return null

@@ -35,6 +35,21 @@ const isJapaneseChar = (ch) => {
   return REG_JAPANESE.test(String.fromCharCode(code))
 }
 
+const isAsciiWordCode = (code) => {
+  return (code >= 0x30 && code <= 0x39) ||
+    (code >= 0x41 && code <= 0x5A) ||
+    (code >= 0x61 && code <= 0x7A)
+}
+
+const isSoftSpaceCode = (code) => {
+  return code === CHAR_SPACE || code === CHAR_TAB || code === CHAR_IDEOGRAPHIC_SPACE
+}
+
+const cloneMap = (map) => {
+  if (!map || !Array.isArray(map)) return null
+  return [map[0], map[1]]
+}
+
 const hasCjkBreaksRule = (md) => {
   if (!md || !md.core || !md.core.ruler || !Array.isArray(md.core.ruler.__rules__)) return false
   if (md.__strongJaHasCjkBreaks === true) return true
@@ -243,6 +258,9 @@ export {
   CHAR_IDEOGRAPHIC_SPACE,
   REG_ATTRS,
   isJapaneseChar,
+  isAsciiWordCode,
+  isSoftSpaceCode,
+  cloneMap,
   hasCjkBreaksRule,
   isCjkBreaksRuleName,
   resolveMode,

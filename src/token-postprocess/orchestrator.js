@@ -11,7 +11,10 @@ import {
 import {
   getRuntimeOpt,
   hasRuntimeOverride,
-  getReferenceCount
+  getReferenceCount,
+  isAsciiWordCode,
+  isSoftSpaceCode,
+  cloneMap
 } from '../token-utils.js'
 import {
   hasMarkerChars,
@@ -185,11 +188,6 @@ const fixTailAfterLinkStrongClose = (tokens, isJapaneseMode, metrics = null, onC
   return false
 }
 
-const cloneMap = (map) => {
-  if (!map || !Array.isArray(map)) return null
-  return [map[0], map[1]]
-}
-
 const cloneTextToken = (source, content) => {
   const token = new Token('text', '', 0)
   Object.assign(token, source)
@@ -198,18 +196,8 @@ const cloneTextToken = (source, content) => {
   return token
 }
 
-const isSoftSpaceCode = (code) => {
-  return code === 0x20 || code === 0x09 || code === 0x3000
-}
-
 const CHAR_ASTERISK = 0x2A // *
 const CHAR_BACKSLASH = 0x5C // \
-
-const isAsciiWordCode = (code) => {
-  return (code >= 0x30 && code <= 0x39) ||
-    (code >= 0x41 && code <= 0x5A) ||
-    (code >= 0x61 && code <= 0x7A)
-}
 
 const textEndsAsciiWord = (text) => {
   if (!text || text.length === 0) return false
