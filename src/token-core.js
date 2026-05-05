@@ -856,8 +856,10 @@ const patchScanDelims = (md) => {
     if (!aggressiveMode && count === 1) {
       // Keep local directionality to avoid degrading markdown-it-valid runs,
       // e.g. `[。*a**](u)` where the first `*` should remain opener-only.
-      const rightIsBoundary = isSingleStarClosingBoundary(nextChar) || isWrapperOpenLike(nextChar)
-      const leftIsBoundary = isSingleStarBoundary(lastChar) || isWrapperCloseLike(lastChar)
+      const rightIsOpenWrapper = isWrapperOpenLike(nextChar)
+      const leftIsCloseWrapper = isWrapperCloseLike(lastChar)
+      const rightIsBoundary = isSingleStarClosingBoundary(nextChar) || rightIsOpenWrapper
+      const leftIsBoundary = isSingleStarBoundary(lastChar) || leftIsCloseWrapper
       if (leftJapanese && !rightJapanese && !rightIsBoundary) {
         prevStarFlags = ensurePrevStarFlags(src, start, prevStarFlags)
         if ((prevStarFlags & PREV_STAR_HAS_OPENER) === 0) {
@@ -866,28 +868,30 @@ const patchScanDelims = (md) => {
       } else if (!leftJapanese && rightJapanese && !leftIsBoundary) {
         relaxedOpen = false
       }
-      const rightIsOpenWrapper = isWrapperOpenLike(nextChar)
-      const leftIsCloseWrapper = isWrapperCloseLike(lastChar)
-      prevStarFlags = ensurePrevStarFlags(src, start, prevStarFlags)
-      const hasPrevJapaneseOpener = (prevStarFlags & PREV_STAR_HAS_OPENER) !== 0
-      const hasJapaneseSincePrevStar = (prevStarFlags & PREV_STAR_HAS_JP_BETWEEN) !== 0
       const leftIsExtraClosePunct = isExtraSingleStarClosePunct(lastChar)
-      const canForceCloseByPunct = leftIsExtraClosePunct && hasJapaneseSincePrevStar
-      if (leftJapanese &&
-          rightIsOpenWrapper &&
-          !hasPrevJapaneseOpener &&
-          !isMarkdownStructuralOpenWrapper(nextChar)) {
-        forceOpen = true
-        forceClose = false
-      } else if (leftIsCloseWrapper && rightJapanese && hasPrevJapaneseOpener) {
-        forceOpen = false
-        forceClose = true
-      } else if ((leftIsCloseWrapper || canForceCloseByPunct) &&
-          !rightJapanese &&
-          !rightIsBoundary &&
-          hasPrevJapaneseOpener) {
-        forceOpen = false
-        forceClose = true
+      const canCheckForceOpen =
+        leftJapanese && rightIsOpenWrapper && !isMarkdownStructuralOpenWrapper(nextChar)
+      const canCheckForceClose =
+        (leftIsCloseWrapper && rightJapanese) ||
+        ((leftIsCloseWrapper || leftIsExtraClosePunct) && !rightJapanese && !rightIsBoundary)
+      if (canCheckForceOpen || canCheckForceClose) {
+        prevStarFlags = ensurePrevStarFlags(src, start, prevStarFlags)
+        const hasPrevJapaneseOpener = (prevStarFlags & PREV_STAR_HAS_OPENER) !== 0
+        const hasJapaneseSincePrevStar = (prevStarFlags & PREV_STAR_HAS_JP_BETWEEN) !== 0
+        const canForceCloseByPunct = leftIsExtraClosePunct && hasJapaneseSincePrevStar
+        if (canCheckForceOpen && !hasPrevJapaneseOpener) {
+          forceOpen = true
+          forceClose = false
+        } else if (leftIsCloseWrapper && rightJapanese && hasPrevJapaneseOpener) {
+          forceOpen = false
+          forceClose = true
+        } else if ((leftIsCloseWrapper || canForceCloseByPunct) &&
+            !rightJapanese &&
+            !rightIsBoundary &&
+            hasPrevJapaneseOpener) {
+          forceOpen = false
+          forceClose = true
+        }
       }
     }
     const finalOpen = forceOpen === null ? ((base && base.can_open) || relaxedOpen) : forceOpen
