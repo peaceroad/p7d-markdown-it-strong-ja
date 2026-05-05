@@ -6,43 +6,57 @@
   <title>Author Intent Cases</title>
   <style>
     :root {
-      --bg: #f5f3ee;
-      --card: #fffdf8;
-      --line: #d9d2c7;
-      --text: #1f2937;
-      --muted: #5b6470;
-      --preferred-bg: #e8f7ed;
-      --preferred-line: #7cc08f;
-      --acceptable-bg: #fff5d8;
-      --acceptable-line: #d8b24c;
-      --neutral-bg: #eef2f7;
-      --neutral-line: #b7c4d6;
-      --same-bg: #edfdf5;
-      --same-fg: #166534;
-      --diff-bg: #fff7ed;
-      --diff-fg: #9a3412;
+      --bg: #f7f7f5;
+      --card: #ffffff;
+      --line: #d8d8d4;
+      --text: #20242a;
+      --muted: #68707a;
+      --preferred-bg: #f3fbf5;
+      --preferred-line: #86b894;
+      --acceptable-bg: #fffaf0;
+      --acceptable-line: #d8bd72;
+      --neutral-bg: #fafafa;
+      --neutral-line: #d7dde5;
+      --same-bg: #f2faf5;
+      --same-fg: #276749;
+      --diff-bg: #fff7f0;
+      --diff-fg: #9a4d16;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      background:
-        radial-gradient(1100px 460px at 100% -10%, #d8ece7 0%, transparent 60%),
-        radial-gradient(900px 420px at -10% 0%, #fbe7d7 0%, transparent 60%),
-        linear-gradient(180deg, #f3efe8, var(--bg));
+      background: var(--bg);
       color: var(--text);
       font-family: "Yu Gothic UI", "Hiragino Kaku Gothic ProN", "Segoe UI", sans-serif;
       line-height: 1.75;
     }
-    main { max-width: 1080px; margin: 0 auto; padding: 18px; }
-    h1 { margin: 0 0 8px; font-size: 30px; }
+    main { max-width: 1280px; margin: 0 auto; padding: 18px; }
+    h1 { margin: 0 0 8px; font-size: 30px; letter-spacing: -0.02em; }
+    h2, h3 { line-height: 1.35; }
     .lead { margin: 0 0 8px; color: var(--muted); font-size: 14px; }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .toolbar button {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: #374151;
+      padding: 6px 12px;
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+    }
+    .toolbar button:hover { background: #f3f4f6; border-color: #a8a8a2; }
     .panel, .case {
-      background: rgba(255, 253, 248, 0.92);
+      background: var(--card);
       border: 1px solid var(--line);
       border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 12px;
-      backdrop-filter: blur(2px);
+      padding: 14px;
+      margin-bottom: 14px;
     }
     .summary-table {
       width: 100%;
@@ -58,56 +72,152 @@
     .summary-table thead th { background: #f7f2e8; }
     .notes { margin: 8px 0 0; padding-left: 18px; color: var(--muted); }
     .notes li { margin: 4px 0; }
-    .case h2 { margin: 0 0 8px; font-size: 18px; }
-    .meta {
+    .case-index {
+      list-style: none;
+      padding: 0;
+      margin: 12px 0 0;
       display: grid;
-      grid-template-columns: 120px 1fr;
-      gap: 4px 8px;
-      margin: 0 0 8px;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 8px;
+    }
+    .case-index li { margin: 0; }
+    .case-index a {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+      min-height: 100%;
+      color: inherit;
+      text-decoration: none;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      padding: 8px 10px;
+    }
+    .case-index a:hover {
+      border-color: #9ca3af;
+      background: #fff;
+    }
+    .case-index-no {
+      display: inline-grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      background: #4b5563;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .case-index-main {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+    .case-index-title {
+      overflow-wrap: anywhere;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+    .case-index-meta {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+    .case-header {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+    }
+    .case h2 { margin: 0; font-size: 20px; }
+    .eyebrow {
+      margin: 0 0 2px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .top-link {
+      color: var(--muted);
+      font-size: 12px;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .top-link:hover { color: #111827; text-decoration: underline; }
+    .intent-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(180px, 0.7fr) minmax(180px, 0.7fr);
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .intent-card {
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 10px;
+      background: #fff;
+      padding: 8px 10px;
+      min-width: 0;
+    }
+    .intent-card.intent-main { grid-column: span 1; }
+    .intent-card.intent-focus { grid-column: 1 / -1; }
+    .intent-card h3 {
+      margin: 0 0 4px;
+      color: #374151;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .intent-card p {
+      margin: 0;
+      color: var(--muted);
       font-size: 13px;
     }
-    .meta dt { font-weight: 700; color: #374151; }
-    .meta dd { margin: 0; color: var(--muted); }
     details { margin-bottom: 8px; }
     summary { cursor: pointer; color: #374151; font-size: 12px; }
-    .markdown-toggle summary {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 8px;
-      border: 1px solid rgba(0, 0, 0, 0.12);
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.7);
+    .markdown-block {
+      margin-bottom: 10px;
+    }
+    .block-label {
+      margin: 0 0 4px;
+      color: #374151;
+      font-size: 12px;
+      font-weight: 700;
     }
     .grid {
       display: grid;
-      grid-template-columns: 1fr;
-      gap: 8px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 10px;
+      align-items: stretch;
     }
     .mode-card {
       border: 1px solid var(--neutral-line);
       background: var(--neutral-bg);
       border-radius: 10px;
       padding: 10px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 6px;
     }
     .mode-card.role-preferred {
       border-color: var(--preferred-line);
       background: var(--preferred-bg);
+      border-left-width: 4px;
     }
     .mode-card.role-acceptable {
       border-color: var(--acceptable-line);
       background: var(--acceptable-bg);
+      border-left-width: 4px;
     }
     .mode-card header {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      grid-template-areas: "title html";
-      gap: 4px 10px;
-      align-items: center;
+      display: block;
       margin-bottom: 6px;
     }
     .title-row {
-      grid-area: title;
       display: flex;
       flex-wrap: wrap;
       align-items: center;
@@ -116,9 +226,7 @@
     }
     .mode-card h3 { margin: 0; font-size: 14px; line-height: 1.35; }
     .html-toggle {
-      grid-area: html;
-      margin: 0;
-      justify-self: end;
+      margin: 6px 0 0;
     }
     .html-toggle summary {
       display: inline-flex;
@@ -127,13 +235,29 @@
       padding: 2px 8px;
       border: 1px solid rgba(0, 0, 0, 0.14);
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.82);
+      background: #fff;
       white-space: nowrap;
     }
     .html-toggle pre {
       margin-top: 8px;
     }
     .badges { display: flex; flex-wrap: wrap; gap: 6px; }
+    .mode-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    .mode-chip {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      background: #fff;
+      color: #334155;
+      padding: 2px 7px;
+      font-size: 11px;
+      line-height: 1.4;
+    }
     .badge {
       border-radius: 999px;
       padding: 2px 8px;
@@ -169,47 +293,78 @@
     .rendered {
       border: 1px dashed rgba(0, 0, 0, 0.12);
       border-radius: 8px;
-      background: rgba(255, 255, 255, 0.85);
-      padding: 7px 12px;
+      background: #fff;
+      padding: 9px 12px;
       min-height: 0;
-      line-height: 1.55;
+      line-height: 1.75;
       font-size: 16px;
+    }
+    .rendered p { margin: 0; }
+    .rendered em {
+      color: #9a3412;
+      background: #fff7ed;
+      border-radius: 4px;
+      padding: 0 2px;
+    }
+    .rendered strong {
+      color: #991b1b;
+      background: #fef2f2;
+      border-radius: 4px;
+      padding: 0 2px;
+    }
+    .rendered code {
+      color: #334155;
+      background: #eef2f7;
+      border-radius: 4px;
+      padding: 0 3px;
+      font-size: 0.92em;
+    }
+    .literal-star {
+      color: #166534;
+      background: #e7f8ec;
+      border-radius: 3px;
+      padding: 0 1px;
+      font-weight: 700;
     }
     pre.source {
       margin: 0;
       padding: 8px 10px;
       border: 1px solid rgba(0, 0, 0, 0.12);
       border-radius: 8px;
-      background: rgba(255, 255, 255, 0.88);
+      background: #fff;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
       font-family: "Cascadia Code", "Consolas", monospace;
       font-size: 12px;
       line-height: 1.55;
     }
+    .markdown-source {
+      background: #f4f4f5;
+      color: #111827;
+      border-color: #d4d4d8;
+    }
     @media (max-width: 720px) {
       main { padding: 12px; }
       h1 { font-size: 24px; }
-      .meta { grid-template-columns: 1fr; }
-      .mode-card header {
+      .intent-grid { grid-template-columns: 1fr; }
+      .grid { grid-template-columns: 1fr; }
+      .case-header {
+        display: grid;
         grid-template-columns: 1fr;
-        grid-template-areas:
-          "title"
-          "html";
-        align-items: start;
-      }
-      .html-toggle {
-        justify-self: start;
       }
     }
   </style>
 </head>
 <body>
-  <main>
+  <main id="top">
     <h1>Author-Intent Naturalness Cases</h1>
     <p class="lead">タグ数や markdown-it 差分だけではなく、「この入力で書き手がどこを強調したかったか」を明示したケースを並べて見るための example です。</p>
     <p class="lead">このページは自動採点ページではありません。Preferred / Acceptable は、mode を見比べるための review hint です。</p>
     <p class="lead">single-sentence だけでなく、同一段落内の multi-sentence case も含めています。sentence-boundary stop や local repair が後続文に spillover しないかを見るためです。</p>
+    <div class="toolbar" aria-label="Display controls">
+      <button type="button" data-toggle-html="open">Open all HTML source</button>
+      <button type="button" data-toggle-html="close">Close all HTML source</button>
+    </div>
 
     <section class="panel">
       <h2>How to use</h2>
@@ -225,19 +380,179 @@
       </table>
     </section>
 
+    <section class="panel">
+      <h2>Case index</h2>
+      <p class="lead">各ケースへ直接移動できます。まずケース名と Preferred を見て、気になる入力だけ開いて確認してください。</p>
+      <ol class="case-index">
+        <li>
+          <a href="#case-1-jp-quoted-strong-should-recover">
+            <span class="case-index-no">1</span>
+            <span class="case-index-main">
+              <span class="case-index-title">jp-quoted-strong-should-recover</span>
+              <span class="case-index-meta">Preferred: japanese-boundary-guard (default alias: japanese)</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="#case-2-mixed-space-leading-english-should-stay-literal">
+            <span class="case-index-no">2</span>
+            <span class="case-index-main">
+              <span class="case-index-title">mixed-space-leading-english-should-stay-literal</span>
+              <span class="case-index-meta">Preferred: japanese-boundary-guard (default alias: japanese)</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="#case-3-mixed-no-space-english-should-emphasize">
+            <span class="case-index-no">3</span>
+            <span class="case-index-main">
+              <span class="case-index-title">mixed-no-space-english-should-emphasize</span>
+              <span class="case-index-meta">Preferred: japanese-boundary-guard (default alias: japanese)</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="#case-4-fullwidth-space-leading-english-should-stay-literal">
+            <span class="case-index-no">4</span>
+            <span class="case-index-main">
+              <span class="case-index-title">fullwidth-space-leading-english-should-stay-literal</span>
+              <span class="case-index-meta">Preferred: japanese-boundary-guard (default alias: japanese)</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="#case-5-jp-link-outer-strong-should-repair">
+            <span class="case-index-no">5</span>
+            <span class="case-index-main">
+              <span class="case-index-title">jp-link-outer-strong-should-repair</span>
+              <span class="case-index-meta">Preferred: japanese-boundary-guard (default alias: japanese)</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="#case-6-single-star-spillover-should-close-jp-side">
+            <span class="case-index-no">6</span>
+            <span class="case-index-main">
+              <span class="case-index-title">single-star-spillover-should-close-jp-side</span>
+              <span class="case-index-meta">Preferred: japanese-boundary-guard (default alias: japanese)</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="#case-7-writer-intends-space-leading-code-emphasis">
+            <span class="case-index-no">7</span>
+            <span class="case-index-main">
+              <span class="case-index-title">writer-intends-space-leading-code-emphasis</span>
+              <span class="case-index-meta">Preferred: japanese-boundary</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="#case-8-writer-intends-space-leading-english-emphasis">
+            <span class="case-index-no">8</span>
+            <span class="case-index-main">
+              <span class="case-index-title">writer-intends-space-leading-english-emphasis</span>
+              <span class="case-index-meta">Preferred: japanese-boundary</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="#case-9-triple-star-space-leading-english-should-stay-literal">
+            <span class="case-index-no">9</span>
+            <span class="case-index-main">
+              <span class="case-index-title">triple-star-space-leading-english-should-stay-literal</span>
+              <span class="case-index-meta">Preferred: japanese-boundary-guard (default alias: japanese)</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="#case-10-triple-star-no-space-english-can-convert">
+            <span class="case-index-no">10</span>
+            <span class="case-index-main">
+              <span class="case-index-title">triple-star-no-space-english-can-convert</span>
+              <span class="case-index-meta">Preferred: japanese-boundary-guard (default alias: japanese)</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="#case-11-multi-sentence-guard-should-stay-local">
+            <span class="case-index-no">11</span>
+            <span class="case-index-main">
+              <span class="case-index-title">multi-sentence-guard-should-stay-local</span>
+              <span class="case-index-meta">Preferred: japanese-boundary-guard (default alias: japanese)</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="#case-12-multi-sentence-link-repair-should-not-bleed">
+            <span class="case-index-no">12</span>
+            <span class="case-index-main">
+              <span class="case-index-title">multi-sentence-link-repair-should-not-bleed</span>
+              <span class="case-index-meta">Preferred: japanese-boundary-guard (default alias: japanese)</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="#case-13-multi-sentence-single-star-boundary-stop">
+            <span class="case-index-no">13</span>
+            <span class="case-index-main">
+              <span class="case-index-title">multi-sentence-single-star-boundary-stop</span>
+              <span class="case-index-meta">Preferred: japanese-boundary-guard (default alias: japanese)</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="#case-14-pure-english-malformed-tail-should-stay-baseline">
+            <span class="case-index-no">14</span>
+            <span class="case-index-main">
+              <span class="case-index-title">pure-english-malformed-tail-should-stay-baseline</span>
+              <span class="case-index-meta">Preferred: compatible / markdown-it</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="#case-15-low-confidence-tail-should-stay-safe">
+            <span class="case-index-no">15</span>
+            <span class="case-index-main">
+              <span class="case-index-title">low-confidence-tail-should-stay-safe</span>
+              <span class="case-index-meta">Preferred: japanese-boundary-guard (default alias: japanese)</span>
+            </span>
+          </a>
+        </li>
+      </ol>
+    </section>
+
     
-  <section class="case">
-    <h2>1. jp-quoted-strong-should-recover</h2>
-    <dl class="meta">
-      <dt>Intent</dt><dd>日本語の語句「だし」を strong として読み取りたい。literal ** のまま残すより、自然な強調を優先したい。</dd>
-      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
-      <dt>Acceptable</dt><dd>japanese-boundary, aggressive</dd>
-      <dt>Focus</dt><dd>日本語引用符 + strong の基本回復。default が markdown-it 互換より自然に見えるか。</dd>
-    </dl>
-    <details class="markdown-toggle">
-      <summary>Markdown Source</summary>
-      <pre class="source">和食の基本は**「だし」**です。</pre>
-    </details>
+  <section class="case" id="case-1-jp-quoted-strong-should-recover">
+    <header class="case-header">
+      <div>
+        <p class="eyebrow">Case 1</p>
+        <h2>jp-quoted-strong-should-recover</h2>
+      </div>
+      <a class="top-link" href="#top">Back to top</a>
+    </header>
+    <div class="intent-grid">
+      <section class="intent-card intent-main">
+        <h3>Author intent</h3>
+        <p>日本語の語句「だし」を strong として読み取りたい。literal ** のまま残すより、自然な強調を優先したい。</p>
+      </section>
+      <section class="intent-card">
+        <h3>Preferred</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary-guard (default alias: japanese)</span></div>
+      </section>
+      <section class="intent-card">
+        <h3>Acceptable</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary</span><span class="mode-chip">aggressive</span></div>
+      </section>
+      <section class="intent-card intent-focus">
+        <h3>Focus</h3>
+        <p>日本語引用符 + strong の基本回復。default が markdown-it 互換より自然に見えるか。</p>
+      </section>
+    </div>
+    <div class="markdown-block">
+      <div class="block-label">Markdown source</div>
+      <pre class="source markdown-source">和食の基本は**「だし」**です。</pre>
+    </div>
     <div class="grid">
       
       <article class="mode-card role-preferred">
@@ -309,23 +624,41 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>和食の基本は**「だし」**です。</p>
+        <div class="rendered"><p>和食の基本は<span class="literal-star">*</span><span class="literal-star">*</span>「だし」<span class="literal-star">*</span><span class="literal-star">*</span>です。</p>
 </div>
       </article>
     </div>
   </section>
-  <section class="case">
-    <h2>2. mixed-space-leading-english-should-stay-literal</h2>
-    <dl class="meta">
-      <dt>Intent</dt><dd>日本語文中の `* English*` は、不自然な English 側の過変換を避けたい。default では literal のままの方が自然。</dd>
-      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
-      <dt>Acceptable</dt><dd>compatible</dd>
-      <dt>Focus</dt><dd>半角スペース隣接 + ASCII 開始の mixed JA/EN guard が、default の性格として妥当か。</dd>
-    </dl>
-    <details class="markdown-toggle">
-      <summary>Markdown Source</summary>
-      <pre class="source">日本語です。* English* です。</pre>
-    </details>
+  <section class="case" id="case-2-mixed-space-leading-english-should-stay-literal">
+    <header class="case-header">
+      <div>
+        <p class="eyebrow">Case 2</p>
+        <h2>mixed-space-leading-english-should-stay-literal</h2>
+      </div>
+      <a class="top-link" href="#top">Back to top</a>
+    </header>
+    <div class="intent-grid">
+      <section class="intent-card intent-main">
+        <h3>Author intent</h3>
+        <p>日本語文中の `* English*` は、不自然な English 側の過変換を避けたい。default では literal のままの方が自然。</p>
+      </section>
+      <section class="intent-card">
+        <h3>Preferred</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary-guard (default alias: japanese)</span></div>
+      </section>
+      <section class="intent-card">
+        <h3>Acceptable</h3>
+        <div class="mode-chip-row"><span class="mode-chip">compatible / markdown-it</span></div>
+      </section>
+      <section class="intent-card intent-focus">
+        <h3>Focus</h3>
+        <p>半角スペース隣接 + ASCII 開始の mixed JA/EN guard が、default の性格として妥当か。</p>
+      </section>
+    </div>
+    <div class="markdown-block">
+      <div class="block-label">Markdown source</div>
+      <pre class="source markdown-source">日本語です。* English* です。</pre>
+    </div>
     <div class="grid">
       
       <article class="mode-card role-preferred">
@@ -343,7 +676,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>日本語です。* English* です。</p>
+        <div class="rendered"><p>日本語です。<span class="literal-star">*</span> English<span class="literal-star">*</span> です。</p>
 </div>
       </article>
       <article class="mode-card role-acceptable">
@@ -361,7 +694,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>日本語です。* English* です。</p>
+        <div class="rendered"><p>日本語です。<span class="literal-star">*</span> English<span class="literal-star">*</span> です。</p>
 </div>
       </article>
       <article class="mode-card role-neutral">
@@ -402,18 +735,36 @@
       </article>
     </div>
   </section>
-  <section class="case">
-    <h2>3. mixed-no-space-english-should-emphasize</h2>
-    <dl class="meta">
-      <dt>Intent</dt><dd>英語語句そのものを普通に emphasis したい。ここでは suppress しすぎない方が自然。</dd>
-      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
-      <dt>Acceptable</dt><dd>japanese-boundary, aggressive, compatible</dd>
-      <dt>Focus</dt><dd>space-adjacent ではない英語強調を default が殺していないか。</dd>
-    </dl>
-    <details class="markdown-toggle">
-      <summary>Markdown Source</summary>
-      <pre class="source">日本語でも*English term*はそのまま強調したい。</pre>
-    </details>
+  <section class="case" id="case-3-mixed-no-space-english-should-emphasize">
+    <header class="case-header">
+      <div>
+        <p class="eyebrow">Case 3</p>
+        <h2>mixed-no-space-english-should-emphasize</h2>
+      </div>
+      <a class="top-link" href="#top">Back to top</a>
+    </header>
+    <div class="intent-grid">
+      <section class="intent-card intent-main">
+        <h3>Author intent</h3>
+        <p>英語語句そのものを普通に emphasis したい。ここでは suppress しすぎない方が自然。</p>
+      </section>
+      <section class="intent-card">
+        <h3>Preferred</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary-guard (default alias: japanese)</span></div>
+      </section>
+      <section class="intent-card">
+        <h3>Acceptable</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary</span><span class="mode-chip">aggressive</span><span class="mode-chip">compatible / markdown-it</span></div>
+      </section>
+      <section class="intent-card intent-focus">
+        <h3>Focus</h3>
+        <p>space-adjacent ではない英語強調を default が殺していないか。</p>
+      </section>
+    </div>
+    <div class="markdown-block">
+      <div class="block-label">Markdown source</div>
+      <pre class="source markdown-source">日本語でも*English term*はそのまま強調したい。</pre>
+    </div>
     <div class="grid">
       
       <article class="mode-card role-preferred">
@@ -490,18 +841,36 @@
       </article>
     </div>
   </section>
-  <section class="case">
-    <h2>4. fullwidth-space-leading-english-should-stay-literal</h2>
-    <dl class="meta">
-      <dt>Intent</dt><dd>和文句読点 + 全角空白の直後にある `* English term*` は、default では無理に強調しない方が自然。</dd>
-      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
-      <dt>Acceptable</dt><dd>compatible</dd>
-      <dt>Focus</dt><dd>全角空白境界でも mixed JA/EN guard が破綻せず、space-leading English suppress を維持できるか。</dd>
-    </dl>
-    <details class="markdown-toggle">
-      <summary>Markdown Source</summary>
-      <pre class="source">和食です！　* English term* はここでは literal のままにしたい。</pre>
-    </details>
+  <section class="case" id="case-4-fullwidth-space-leading-english-should-stay-literal">
+    <header class="case-header">
+      <div>
+        <p class="eyebrow">Case 4</p>
+        <h2>fullwidth-space-leading-english-should-stay-literal</h2>
+      </div>
+      <a class="top-link" href="#top">Back to top</a>
+    </header>
+    <div class="intent-grid">
+      <section class="intent-card intent-main">
+        <h3>Author intent</h3>
+        <p>和文句読点 + 全角空白の直後にある `* English term*` は、default では無理に強調しない方が自然。</p>
+      </section>
+      <section class="intent-card">
+        <h3>Preferred</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary-guard (default alias: japanese)</span></div>
+      </section>
+      <section class="intent-card">
+        <h3>Acceptable</h3>
+        <div class="mode-chip-row"><span class="mode-chip">compatible / markdown-it</span></div>
+      </section>
+      <section class="intent-card intent-focus">
+        <h3>Focus</h3>
+        <p>全角空白境界でも mixed JA/EN guard が破綻せず、space-leading English suppress を維持できるか。</p>
+      </section>
+    </div>
+    <div class="markdown-block">
+      <div class="block-label">Markdown source</div>
+      <pre class="source markdown-source">和食です！　* English term* はここでは literal のままにしたい。</pre>
+    </div>
     <div class="grid">
       
       <article class="mode-card role-preferred">
@@ -519,7 +888,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>和食です！　* English term* はここでは literal のままにしたい。</p>
+        <div class="rendered"><p>和食です！　<span class="literal-star">*</span> English term<span class="literal-star">*</span> はここでは literal のままにしたい。</p>
 </div>
       </article>
       <article class="mode-card role-acceptable">
@@ -537,7 +906,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>和食です！　* English term* はここでは literal のままにしたい。</p>
+        <div class="rendered"><p>和食です！　<span class="literal-star">*</span> English term<span class="literal-star">*</span> はここでは literal のままにしたい。</p>
 </div>
       </article>
       <article class="mode-card role-neutral">
@@ -578,18 +947,36 @@
       </article>
     </div>
   </section>
-  <section class="case">
-    <h2>5. jp-link-outer-strong-should-repair</h2>
-    <dl class="meta">
-      <dt>Intent</dt><dd>リンク全体を strong にしたい。リンクの外側にある ** は回復されてほしい。</dd>
-      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
-      <dt>Acceptable</dt><dd>japanese-boundary, aggressive</dd>
-      <dt>Focus</dt><dd>link outer markers の補修が user-facing prose として自然か。</dd>
-    </dl>
-    <details class="markdown-toggle">
-      <summary>Markdown Source</summary>
-      <pre class="source">説明文ではこれは**[寿司](https://example.com/sushi)**です。</pre>
-    </details>
+  <section class="case" id="case-5-jp-link-outer-strong-should-repair">
+    <header class="case-header">
+      <div>
+        <p class="eyebrow">Case 5</p>
+        <h2>jp-link-outer-strong-should-repair</h2>
+      </div>
+      <a class="top-link" href="#top">Back to top</a>
+    </header>
+    <div class="intent-grid">
+      <section class="intent-card intent-main">
+        <h3>Author intent</h3>
+        <p>リンク全体を strong にしたい。リンクの外側にある ** は回復されてほしい。</p>
+      </section>
+      <section class="intent-card">
+        <h3>Preferred</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary-guard (default alias: japanese)</span></div>
+      </section>
+      <section class="intent-card">
+        <h3>Acceptable</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary</span><span class="mode-chip">aggressive</span></div>
+      </section>
+      <section class="intent-card intent-focus">
+        <h3>Focus</h3>
+        <p>link outer markers の補修が user-facing prose として自然か。</p>
+      </section>
+    </div>
+    <div class="markdown-block">
+      <div class="block-label">Markdown source</div>
+      <pre class="source markdown-source">説明文ではこれは**[寿司](https://example.com/sushi)**です。</pre>
+    </div>
     <div class="grid">
       
       <article class="mode-card role-preferred">
@@ -661,23 +1048,41 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>説明文ではこれは**<a href="https://example.com/sushi">寿司</a>**です。</p>
+        <div class="rendered"><p>説明文ではこれは<span class="literal-star">*</span><span class="literal-star">*</span><a href="https://example.com/sushi">寿司</a><span class="literal-star">*</span><span class="literal-star">*</span>です。</p>
 </div>
       </article>
     </div>
   </section>
-  <section class="case">
-    <h2>6. single-star-spillover-should-close-jp-side</h2>
-    <dl class="meta">
-      <dt>Intent</dt><dd>前半の日本語側だけを emphasis したい。後ろの英語側に spillover してほしくない。</dd>
-      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
-      <dt>Acceptable</dt><dd>japanese-boundary, aggressive</dd>
-      <dt>Focus</dt><dd>単一 * の方向補正が、文境界またぎの違和感を減らせているか。</dd>
-    </dl>
-    <details class="markdown-toggle">
-      <summary>Markdown Source</summary>
-      <pre class="source">*味噌汁。*umai*</pre>
-    </details>
+  <section class="case" id="case-6-single-star-spillover-should-close-jp-side">
+    <header class="case-header">
+      <div>
+        <p class="eyebrow">Case 6</p>
+        <h2>single-star-spillover-should-close-jp-side</h2>
+      </div>
+      <a class="top-link" href="#top">Back to top</a>
+    </header>
+    <div class="intent-grid">
+      <section class="intent-card intent-main">
+        <h3>Author intent</h3>
+        <p>前半の日本語側だけを emphasis したい。後ろの英語側に spillover してほしくない。</p>
+      </section>
+      <section class="intent-card">
+        <h3>Preferred</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary-guard (default alias: japanese)</span></div>
+      </section>
+      <section class="intent-card">
+        <h3>Acceptable</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary</span><span class="mode-chip">aggressive</span></div>
+      </section>
+      <section class="intent-card intent-focus">
+        <h3>Focus</h3>
+        <p>単一 * の方向補正が、文境界またぎの違和感を減らせているか。</p>
+      </section>
+    </div>
+    <div class="markdown-block">
+      <div class="block-label">Markdown source</div>
+      <pre class="source markdown-source">*味噌汁。*umai*</pre>
+    </div>
     <div class="grid">
       
       <article class="mode-card role-preferred">
@@ -695,7 +1100,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p><em>味噌汁。</em>umai*</p>
+        <div class="rendered"><p><em>味噌汁。</em>umai<span class="literal-star">*</span></p>
 </div>
       </article>
       <article class="mode-card role-acceptable">
@@ -713,7 +1118,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p><em>味噌汁。</em>umai*</p>
+        <div class="rendered"><p><em>味噌汁。</em>umai<span class="literal-star">*</span></p>
 </div>
       </article>
       <article class="mode-card role-acceptable">
@@ -731,7 +1136,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p><em>味噌汁。</em>umai*</p>
+        <div class="rendered"><p><em>味噌汁。</em>umai<span class="literal-star">*</span></p>
 </div>
       </article>
       <article class="mode-card role-neutral">
@@ -749,23 +1154,41 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>*味噌汁。<em>umai</em></p>
+        <div class="rendered"><p><span class="literal-star">*</span>味噌汁。<em>umai</em></p>
 </div>
       </article>
     </div>
   </section>
-  <section class="case">
-    <h2>7. writer-intends-space-leading-code-emphasis</h2>
-    <dl class="meta">
-      <dt>Intent</dt><dd>入力は `* \`umami\`*` だが、執筆者意図としては code を含む英語語句全体を emphasis したかったケースとして扱う。</dd>
-      <dt>Preferred</dt><dd>japanese-boundary</dd>
-      <dt>Acceptable</dt><dd>aggressive</dd>
-      <dt>Focus</dt><dd>default guard が保守的すぎると感じる代表例。guard の限界を確認する。</dd>
-    </dl>
-    <details class="markdown-toggle">
-      <summary>Markdown Source</summary>
-      <pre class="source">和食では* `umami`*を使う。</pre>
-    </details>
+  <section class="case" id="case-7-writer-intends-space-leading-code-emphasis">
+    <header class="case-header">
+      <div>
+        <p class="eyebrow">Case 7</p>
+        <h2>writer-intends-space-leading-code-emphasis</h2>
+      </div>
+      <a class="top-link" href="#top">Back to top</a>
+    </header>
+    <div class="intent-grid">
+      <section class="intent-card intent-main">
+        <h3>Author intent</h3>
+        <p>入力は `* \`umami\`*` だが、執筆者意図としては code を含む英語語句全体を emphasis したかったケースとして扱う。</p>
+      </section>
+      <section class="intent-card">
+        <h3>Preferred</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary</span></div>
+      </section>
+      <section class="intent-card">
+        <h3>Acceptable</h3>
+        <div class="mode-chip-row"><span class="mode-chip">aggressive</span></div>
+      </section>
+      <section class="intent-card intent-focus">
+        <h3>Focus</h3>
+        <p>default guard が保守的すぎると感じる代表例。guard の限界を確認する。</p>
+      </section>
+    </div>
+    <div class="markdown-block">
+      <div class="block-label">Markdown source</div>
+      <pre class="source markdown-source">和食では* `umami`*を使う。</pre>
+    </div>
     <div class="grid">
       
       <article class="mode-card role-preferred">
@@ -819,7 +1242,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>和食では* <code>umami</code>*を使う。</p>
+        <div class="rendered"><p>和食では<span class="literal-star">*</span> <code>umami</code><span class="literal-star">*</span>を使う。</p>
 </div>
       </article>
       <article class="mode-card role-neutral">
@@ -837,23 +1260,41 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>和食では* <code>umami</code>*を使う。</p>
+        <div class="rendered"><p>和食では<span class="literal-star">*</span> <code>umami</code><span class="literal-star">*</span>を使う。</p>
 </div>
       </article>
     </div>
   </section>
-  <section class="case">
-    <h2>8. writer-intends-space-leading-english-emphasis</h2>
-    <dl class="meta">
-      <dt>Intent</dt><dd>入力は `* English craft*` だが、書き手は英語語句を強調したかったと解釈する。default より積極回復を好むケース。</dd>
-      <dt>Preferred</dt><dd>japanese-boundary</dd>
-      <dt>Acceptable</dt><dd>aggressive</dd>
-      <dt>Focus</dt><dd>mixed JA/EN suppress が author intent と衝突するケースを明示する。</dd>
-    </dl>
-    <details class="markdown-toggle">
-      <summary>Markdown Source</summary>
-      <pre class="source">料理メモでは* English craft*という表現をそのまま強調したい。</pre>
-    </details>
+  <section class="case" id="case-8-writer-intends-space-leading-english-emphasis">
+    <header class="case-header">
+      <div>
+        <p class="eyebrow">Case 8</p>
+        <h2>writer-intends-space-leading-english-emphasis</h2>
+      </div>
+      <a class="top-link" href="#top">Back to top</a>
+    </header>
+    <div class="intent-grid">
+      <section class="intent-card intent-main">
+        <h3>Author intent</h3>
+        <p>入力は `* English craft*` だが、書き手は英語語句を強調したかったと解釈する。default より積極回復を好むケース。</p>
+      </section>
+      <section class="intent-card">
+        <h3>Preferred</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary</span></div>
+      </section>
+      <section class="intent-card">
+        <h3>Acceptable</h3>
+        <div class="mode-chip-row"><span class="mode-chip">aggressive</span></div>
+      </section>
+      <section class="intent-card intent-focus">
+        <h3>Focus</h3>
+        <p>mixed JA/EN suppress が author intent と衝突するケースを明示する。</p>
+      </section>
+    </div>
+    <div class="markdown-block">
+      <div class="block-label">Markdown source</div>
+      <pre class="source markdown-source">料理メモでは* English craft*という表現をそのまま強調したい。</pre>
+    </div>
     <div class="grid">
       
       <article class="mode-card role-preferred">
@@ -907,7 +1348,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>料理メモでは* English craft*という表現をそのまま強調したい。</p>
+        <div class="rendered"><p>料理メモでは<span class="literal-star">*</span> English craft<span class="literal-star">*</span>という表現をそのまま強調したい。</p>
 </div>
       </article>
       <article class="mode-card role-neutral">
@@ -925,23 +1366,41 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>料理メモでは* English craft*という表現をそのまま強調したい。</p>
+        <div class="rendered"><p>料理メモでは<span class="literal-star">*</span> English craft<span class="literal-star">*</span>という表現をそのまま強調したい。</p>
 </div>
       </article>
     </div>
   </section>
-  <section class="case">
-    <h2>9. triple-star-space-leading-english-should-stay-literal</h2>
-    <dl class="meta">
-      <dt>Intent</dt><dd>`*** English rhythm***` のような多重 `*` でも、space-leading English は default では suppress したい。</dd>
-      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
-      <dt>Acceptable</dt><dd>compatible</dd>
-      <dt>Focus</dt><dd>guard が単一 `*` だけでなく `***` にも一貫して効いているか。</dd>
-    </dl>
-    <details class="markdown-toggle">
-      <summary>Markdown Source</summary>
-      <pre class="source">和食の説明では*** English rhythm***より和文の自然さを優先したい。</pre>
-    </details>
+  <section class="case" id="case-9-triple-star-space-leading-english-should-stay-literal">
+    <header class="case-header">
+      <div>
+        <p class="eyebrow">Case 9</p>
+        <h2>triple-star-space-leading-english-should-stay-literal</h2>
+      </div>
+      <a class="top-link" href="#top">Back to top</a>
+    </header>
+    <div class="intent-grid">
+      <section class="intent-card intent-main">
+        <h3>Author intent</h3>
+        <p>`*** English rhythm***` のような多重 `*` でも、space-leading English は default では suppress したい。</p>
+      </section>
+      <section class="intent-card">
+        <h3>Preferred</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary-guard (default alias: japanese)</span></div>
+      </section>
+      <section class="intent-card">
+        <h3>Acceptable</h3>
+        <div class="mode-chip-row"><span class="mode-chip">compatible / markdown-it</span></div>
+      </section>
+      <section class="intent-card intent-focus">
+        <h3>Focus</h3>
+        <p>guard が単一 `*` だけでなく `***` にも一貫して効いているか。</p>
+      </section>
+    </div>
+    <div class="markdown-block">
+      <div class="block-label">Markdown source</div>
+      <pre class="source markdown-source">和食の説明では*** English rhythm***より和文の自然さを優先したい。</pre>
+    </div>
     <div class="grid">
       
       <article class="mode-card role-preferred">
@@ -959,7 +1418,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>和食の説明では*** English rhythm***より和文の自然さを優先したい。</p>
+        <div class="rendered"><p>和食の説明では<span class="literal-star">*</span><span class="literal-star">*</span><span class="literal-star">*</span> English rhythm<span class="literal-star">*</span><span class="literal-star">*</span><span class="literal-star">*</span>より和文の自然さを優先したい。</p>
 </div>
       </article>
       <article class="mode-card role-acceptable">
@@ -977,7 +1436,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>和食の説明では*** English rhythm***より和文の自然さを優先したい。</p>
+        <div class="rendered"><p>和食の説明では<span class="literal-star">*</span><span class="literal-star">*</span><span class="literal-star">*</span> English rhythm<span class="literal-star">*</span><span class="literal-star">*</span><span class="literal-star">*</span>より和文の自然さを優先したい。</p>
 </div>
       </article>
       <article class="mode-card role-neutral">
@@ -1018,18 +1477,36 @@
       </article>
     </div>
   </section>
-  <section class="case">
-    <h2>10. triple-star-no-space-english-can-convert</h2>
-    <dl class="meta">
-      <dt>Intent</dt><dd>`***English rhythm***` は space-leading ではないので、default でも過剰 suppress せず変換される方が自然。</dd>
-      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
-      <dt>Acceptable</dt><dd>japanese-boundary, aggressive, compatible</dd>
-      <dt>Focus</dt><dd>guard が「英語を全部殺す」のではなく、「space-leading English だけを抑える」振る舞いになっているか。</dd>
-    </dl>
-    <details class="markdown-toggle">
-      <summary>Markdown Source</summary>
-      <pre class="source">日本語でも***English rhythm***はそのまま強調したい。</pre>
-    </details>
+  <section class="case" id="case-10-triple-star-no-space-english-can-convert">
+    <header class="case-header">
+      <div>
+        <p class="eyebrow">Case 10</p>
+        <h2>triple-star-no-space-english-can-convert</h2>
+      </div>
+      <a class="top-link" href="#top">Back to top</a>
+    </header>
+    <div class="intent-grid">
+      <section class="intent-card intent-main">
+        <h3>Author intent</h3>
+        <p>`***English rhythm***` は space-leading ではないので、default でも過剰 suppress せず変換される方が自然。</p>
+      </section>
+      <section class="intent-card">
+        <h3>Preferred</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary-guard (default alias: japanese)</span></div>
+      </section>
+      <section class="intent-card">
+        <h3>Acceptable</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary</span><span class="mode-chip">aggressive</span><span class="mode-chip">compatible / markdown-it</span></div>
+      </section>
+      <section class="intent-card intent-focus">
+        <h3>Focus</h3>
+        <p>guard が「英語を全部殺す」のではなく、「space-leading English だけを抑える」振る舞いになっているか。</p>
+      </section>
+    </div>
+    <div class="markdown-block">
+      <div class="block-label">Markdown source</div>
+      <pre class="source markdown-source">日本語でも***English rhythm***はそのまま強調したい。</pre>
+    </div>
     <div class="grid">
       
       <article class="mode-card role-preferred">
@@ -1106,18 +1583,36 @@
       </article>
     </div>
   </section>
-  <section class="case">
-    <h2>11. multi-sentence-guard-should-stay-local</h2>
-    <dl class="meta">
-      <dt>Intent</dt><dd>1文目の `* English term*` は literal のままにしたいが、2文目の日本語 emphasis は普通に効いてほしい。前の文の suppress が後続文に波及しない方が自然。</dd>
-      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
-      <dt>Acceptable</dt><dd>compatible</dd>
-      <dt>Focus</dt><dd>同一段落・複数文で、space-leading English suppress と通常の日本語 emphasis が共存できるか。</dd>
-    </dl>
-    <details class="markdown-toggle">
-      <summary>Markdown Source</summary>
-      <pre class="source">日本語です。* English term* はそのままにしたい。次の文では*寿司*を普通に強調したい。</pre>
-    </details>
+  <section class="case" id="case-11-multi-sentence-guard-should-stay-local">
+    <header class="case-header">
+      <div>
+        <p class="eyebrow">Case 11</p>
+        <h2>multi-sentence-guard-should-stay-local</h2>
+      </div>
+      <a class="top-link" href="#top">Back to top</a>
+    </header>
+    <div class="intent-grid">
+      <section class="intent-card intent-main">
+        <h3>Author intent</h3>
+        <p>1文目の `* English term*` は literal のままにしたいが、2文目の日本語 emphasis は普通に効いてほしい。前の文の suppress が後続文に波及しない方が自然。</p>
+      </section>
+      <section class="intent-card">
+        <h3>Preferred</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary-guard (default alias: japanese)</span></div>
+      </section>
+      <section class="intent-card">
+        <h3>Acceptable</h3>
+        <div class="mode-chip-row"><span class="mode-chip">compatible / markdown-it</span></div>
+      </section>
+      <section class="intent-card intent-focus">
+        <h3>Focus</h3>
+        <p>同一段落・複数文で、space-leading English suppress と通常の日本語 emphasis が共存できるか。</p>
+      </section>
+    </div>
+    <div class="markdown-block">
+      <div class="block-label">Markdown source</div>
+      <pre class="source markdown-source">日本語です。* English term* はそのままにしたい。次の文では*寿司*を普通に強調したい。</pre>
+    </div>
     <div class="grid">
       
       <article class="mode-card role-preferred">
@@ -1135,7 +1630,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>日本語です。* English term* はそのままにしたい。次の文では<em>寿司</em>を普通に強調したい。</p>
+        <div class="rendered"><p>日本語です。<span class="literal-star">*</span> English term<span class="literal-star">*</span> はそのままにしたい。次の文では<em>寿司</em>を普通に強調したい。</p>
 </div>
       </article>
       <article class="mode-card role-acceptable">
@@ -1153,7 +1648,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>日本語です。* English term* はそのままにしたい。次の文では<em>寿司</em>を普通に強調したい。</p>
+        <div class="rendered"><p>日本語です。<span class="literal-star">*</span> English term<span class="literal-star">*</span> はそのままにしたい。次の文では<em>寿司</em>を普通に強調したい。</p>
 </div>
       </article>
       <article class="mode-card role-neutral">
@@ -1194,18 +1689,36 @@
       </article>
     </div>
   </section>
-  <section class="case">
-    <h2>12. multi-sentence-link-repair-should-not-bleed</h2>
-    <dl class="meta">
-      <dt>Intent</dt><dd>1文目のリンク全体 strong は回復してほしいが、2文目の通常 emphasis まで巻き込んでほしくない。repair は局所的である方が自然。</dd>
-      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
-      <dt>Acceptable</dt><dd>japanese-boundary, aggressive</dd>
-      <dt>Focus</dt><dd>同一段落・複数文で、postprocess repair が後続の正常な emphasis に影響しないか。</dd>
-    </dl>
-    <details class="markdown-toggle">
-      <summary>Markdown Source</summary>
-      <pre class="source">説明文ではこれは**[寿司](https://example.com/sushi)**です。次の文では*だし*の香りも強調したい。</pre>
-    </details>
+  <section class="case" id="case-12-multi-sentence-link-repair-should-not-bleed">
+    <header class="case-header">
+      <div>
+        <p class="eyebrow">Case 12</p>
+        <h2>multi-sentence-link-repair-should-not-bleed</h2>
+      </div>
+      <a class="top-link" href="#top">Back to top</a>
+    </header>
+    <div class="intent-grid">
+      <section class="intent-card intent-main">
+        <h3>Author intent</h3>
+        <p>1文目のリンク全体 strong は回復してほしいが、2文目の通常 emphasis まで巻き込んでほしくない。repair は局所的である方が自然。</p>
+      </section>
+      <section class="intent-card">
+        <h3>Preferred</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary-guard (default alias: japanese)</span></div>
+      </section>
+      <section class="intent-card">
+        <h3>Acceptable</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary</span><span class="mode-chip">aggressive</span></div>
+      </section>
+      <section class="intent-card intent-focus">
+        <h3>Focus</h3>
+        <p>同一段落・複数文で、postprocess repair が後続の正常な emphasis に影響しないか。</p>
+      </section>
+    </div>
+    <div class="markdown-block">
+      <div class="block-label">Markdown source</div>
+      <pre class="source markdown-source">説明文ではこれは**[寿司](https://example.com/sushi)**です。次の文では*だし*の香りも強調したい。</pre>
+    </div>
     <div class="grid">
       
       <article class="mode-card role-preferred">
@@ -1277,23 +1790,41 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>説明文ではこれは**<a href="https://example.com/sushi">寿司</a>**です。次の文では<em>だし</em>の香りも強調したい。</p>
+        <div class="rendered"><p>説明文ではこれは<span class="literal-star">*</span><span class="literal-star">*</span><a href="https://example.com/sushi">寿司</a><span class="literal-star">*</span><span class="literal-star">*</span>です。次の文では<em>だし</em>の香りも強調したい。</p>
 </div>
       </article>
     </div>
   </section>
-  <section class="case">
-    <h2>13. multi-sentence-single-star-boundary-stop</h2>
-    <dl class="meta">
-      <dt>Intent</dt><dd>最初の壊れた single `*` は日本語側で閉じたいが、その判断が文境界を越えて後続文の `*だし*` まで不自然に巻き込まない方が自然。</dd>
-      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
-      <dt>Acceptable</dt><dd>japanese-boundary, aggressive</dd>
-      <dt>Focus</dt><dd>sentence-boundary stop が、同一段落の複数文で spillover を抑えられているか。</dd>
-    </dl>
-    <details class="markdown-toggle">
-      <summary>Markdown Source</summary>
-      <pre class="source">*味噌汁。*umai* と書いてしまった。次の文では*だし*も強調したい。</pre>
-    </details>
+  <section class="case" id="case-13-multi-sentence-single-star-boundary-stop">
+    <header class="case-header">
+      <div>
+        <p class="eyebrow">Case 13</p>
+        <h2>multi-sentence-single-star-boundary-stop</h2>
+      </div>
+      <a class="top-link" href="#top">Back to top</a>
+    </header>
+    <div class="intent-grid">
+      <section class="intent-card intent-main">
+        <h3>Author intent</h3>
+        <p>最初の壊れた single `*` は日本語側で閉じたいが、その判断が文境界を越えて後続文の `*だし*` まで不自然に巻き込まない方が自然。</p>
+      </section>
+      <section class="intent-card">
+        <h3>Preferred</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary-guard (default alias: japanese)</span></div>
+      </section>
+      <section class="intent-card">
+        <h3>Acceptable</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary</span><span class="mode-chip">aggressive</span></div>
+      </section>
+      <section class="intent-card intent-focus">
+        <h3>Focus</h3>
+        <p>sentence-boundary stop が、同一段落の複数文で spillover を抑えられているか。</p>
+      </section>
+    </div>
+    <div class="markdown-block">
+      <div class="block-label">Markdown source</div>
+      <pre class="source markdown-source">*味噌汁。*umai* と書いてしまった。次の文では*だし*も強調したい。</pre>
+    </div>
     <div class="grid">
       
       <article class="mode-card role-preferred">
@@ -1311,7 +1842,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p><em>味噌汁。</em>umai* と書いてしまった。次の文では<em>だし</em>も強調したい。</p>
+        <div class="rendered"><p><em>味噌汁。</em>umai<span class="literal-star">*</span> と書いてしまった。次の文では<em>だし</em>も強調したい。</p>
 </div>
       </article>
       <article class="mode-card role-acceptable">
@@ -1329,7 +1860,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p><em>味噌汁。</em>umai* と書いてしまった。次の文では<em>だし</em>も強調したい。</p>
+        <div class="rendered"><p><em>味噌汁。</em>umai<span class="literal-star">*</span> と書いてしまった。次の文では<em>だし</em>も強調したい。</p>
 </div>
       </article>
       <article class="mode-card role-acceptable">
@@ -1347,7 +1878,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p><em>味噌汁。</em>umai<em> と書いてしまった。次の文では</em>だし*も強調したい。</p>
+        <div class="rendered"><p><em>味噌汁。</em>umai<em> と書いてしまった。次の文では</em>だし<span class="literal-star">*</span>も強調したい。</p>
 </div>
       </article>
       <article class="mode-card role-neutral">
@@ -1365,23 +1896,41 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p><em>味噌汁。<em>umai</em> と書いてしまった。次の文では</em>だし*も強調したい。</p>
+        <div class="rendered"><p><em>味噌汁。<em>umai</em> と書いてしまった。次の文では</em>だし<span class="literal-star">*</span>も強調したい。</p>
 </div>
       </article>
     </div>
   </section>
-  <section class="case">
-    <h2>14. pure-english-malformed-tail-should-stay-baseline</h2>
-    <dl class="meta">
-      <dt>Intent</dt><dd>純英語の malformed tail は、この plugin の日本語補助対象外として baseline 寄りに留まる方が自然。</dd>
-      <dt>Preferred</dt><dd>compatible</dd>
-      <dt>Acceptable</dt><dd>japanese-boundary-guard, japanese-boundary</dd>
-      <dt>Focus</dt><dd>pure-English malformed span に対して default が過剰介入していないか。aggressive との差を意図的なものとして確認する。</dd>
-    </dl>
-    <details class="markdown-toggle">
-      <summary>Markdown Source</summary>
-      <pre class="source">broken **tail [aa**aa***Text***and*More*bb**bb](https://x.test) after</pre>
-    </details>
+  <section class="case" id="case-14-pure-english-malformed-tail-should-stay-baseline">
+    <header class="case-header">
+      <div>
+        <p class="eyebrow">Case 14</p>
+        <h2>pure-english-malformed-tail-should-stay-baseline</h2>
+      </div>
+      <a class="top-link" href="#top">Back to top</a>
+    </header>
+    <div class="intent-grid">
+      <section class="intent-card intent-main">
+        <h3>Author intent</h3>
+        <p>純英語の malformed tail は、この plugin の日本語補助対象外として baseline 寄りに留まる方が自然。</p>
+      </section>
+      <section class="intent-card">
+        <h3>Preferred</h3>
+        <div class="mode-chip-row"><span class="mode-chip">compatible / markdown-it</span></div>
+      </section>
+      <section class="intent-card">
+        <h3>Acceptable</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary-guard (default alias: japanese)</span><span class="mode-chip">japanese-boundary</span></div>
+      </section>
+      <section class="intent-card intent-focus">
+        <h3>Focus</h3>
+        <p>pure-English malformed span に対して default が過剰介入していないか。aggressive との差を意図的なものとして確認する。</p>
+      </section>
+    </div>
+    <div class="markdown-block">
+      <div class="block-label">Markdown source</div>
+      <pre class="source markdown-source">broken **tail [aa**aa***Text***and*More*bb**bb](https://x.test) after</pre>
+    </div>
     <div class="grid">
       
       <article class="mode-card role-preferred">
@@ -1399,7 +1948,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>broken **tail <a href="https://x.test">aa<strong>aa</strong><em>Text</em><em><em>and</em>More</em>bb**bb</a> after</p>
+        <div class="rendered"><p>broken <span class="literal-star">*</span><span class="literal-star">*</span>tail <a href="https://x.test">aa<strong>aa</strong><em>Text</em><em><em>and</em>More</em>bb<span class="literal-star">*</span><span class="literal-star">*</span>bb</a> after</p>
 </div>
       </article>
       <article class="mode-card role-acceptable">
@@ -1417,7 +1966,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>broken **tail <a href="https://x.test">aa<strong>aa</strong><em>Text</em><em><em>and</em>More</em>bb**bb</a> after</p>
+        <div class="rendered"><p>broken <span class="literal-star">*</span><span class="literal-star">*</span>tail <a href="https://x.test">aa<strong>aa</strong><em>Text</em><em><em>and</em>More</em>bb<span class="literal-star">*</span><span class="literal-star">*</span>bb</a> after</p>
 </div>
       </article>
       <article class="mode-card role-acceptable">
@@ -1435,7 +1984,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>broken **tail <a href="https://x.test">aa<strong>aa</strong><em>Text</em><em><em>and</em>More</em>bb**bb</a> after</p>
+        <div class="rendered"><p>broken <span class="literal-star">*</span><span class="literal-star">*</span>tail <a href="https://x.test">aa<strong>aa</strong><em>Text</em><em><em>and</em>More</em>bb<span class="literal-star">*</span><span class="literal-star">*</span>bb</a> after</p>
 </div>
       </article>
       <article class="mode-card role-neutral">
@@ -1453,23 +2002,41 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>broken **tail <a href="https://x.test">aa<strong>aa</strong><em>Text</em><strong>and<em>More</em>bb</strong>bb</a> after</p>
+        <div class="rendered"><p>broken <span class="literal-star">*</span><span class="literal-star">*</span>tail <a href="https://x.test">aa<strong>aa</strong><em>Text</em><strong>and<em>More</em>bb</strong>bb</a> after</p>
 </div>
       </article>
     </div>
   </section>
-  <section class="case">
-    <h2>15. low-confidence-tail-should-stay-safe</h2>
-    <dl class="meta">
-      <dt>Intent</dt><dd>この malformed span では、無理に strong 化するより fail-safe で literal ** を残した方が自然。</dd>
-      <dt>Preferred</dt><dd>japanese-boundary-guard</dd>
-      <dt>Acceptable</dt><dd>japanese-boundary, compatible</dd>
-      <dt>Focus</dt><dd>回復量より安全性を優先したいケース。aggressive が過剰にならないかを見る。</dd>
-    </dl>
-    <details class="markdown-toggle">
-      <summary>Markdown Source</summary>
-      <pre class="source">注記では**aa`stock`***tail*です。</pre>
-    </details>
+  <section class="case" id="case-15-low-confidence-tail-should-stay-safe">
+    <header class="case-header">
+      <div>
+        <p class="eyebrow">Case 15</p>
+        <h2>low-confidence-tail-should-stay-safe</h2>
+      </div>
+      <a class="top-link" href="#top">Back to top</a>
+    </header>
+    <div class="intent-grid">
+      <section class="intent-card intent-main">
+        <h3>Author intent</h3>
+        <p>この malformed span では、無理に strong 化するより fail-safe で literal ** を残した方が自然。</p>
+      </section>
+      <section class="intent-card">
+        <h3>Preferred</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary-guard (default alias: japanese)</span></div>
+      </section>
+      <section class="intent-card">
+        <h3>Acceptable</h3>
+        <div class="mode-chip-row"><span class="mode-chip">japanese-boundary</span><span class="mode-chip">compatible / markdown-it</span></div>
+      </section>
+      <section class="intent-card intent-focus">
+        <h3>Focus</h3>
+        <p>回復量より安全性を優先したいケース。aggressive が過剰にならないかを見る。</p>
+      </section>
+    </div>
+    <div class="markdown-block">
+      <div class="block-label">Markdown source</div>
+      <pre class="source markdown-source">注記では**aa`stock`***tail*です。</pre>
+    </div>
     <div class="grid">
       
       <article class="mode-card role-preferred">
@@ -1487,7 +2054,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>注記では**aa<code>stock</code>**<em>tail</em>です。</p>
+        <div class="rendered"><p>注記では<span class="literal-star">*</span><span class="literal-star">*</span>aa<code>stock</code><span class="literal-star">*</span><span class="literal-star">*</span><em>tail</em>です。</p>
 </div>
       </article>
       <article class="mode-card role-acceptable">
@@ -1505,7 +2072,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>注記では**aa<code>stock</code>**<em>tail</em>です。</p>
+        <div class="rendered"><p>注記では<span class="literal-star">*</span><span class="literal-star">*</span>aa<code>stock</code><span class="literal-star">*</span><span class="literal-star">*</span><em>tail</em>です。</p>
 </div>
       </article>
       <article class="mode-card role-acceptable">
@@ -1523,7 +2090,7 @@
 </pre>
           </details>
         </header>
-        <div class="rendered"><p>注記では**aa<code>stock</code>**<em>tail</em>です。</p>
+        <div class="rendered"><p>注記では<span class="literal-star">*</span><span class="literal-star">*</span>aa<code>stock</code><span class="literal-star">*</span><span class="literal-star">*</span><em>tail</em>です。</p>
 </div>
       </article>
       <article class="mode-card role-neutral">
@@ -1547,5 +2114,15 @@
     </div>
   </section>
   </main>
+  <script>
+    document.querySelectorAll('[data-toggle-html]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const open = button.getAttribute('data-toggle-html') === 'open'
+        document.querySelectorAll('.html-toggle').forEach((details) => {
+          details.open = open
+        })
+      })
+    })
+  </script>
 </body>
 </html>

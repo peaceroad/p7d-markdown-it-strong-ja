@@ -16,6 +16,16 @@ const escapeHtml = (value) => String(value)
   .replace(/</g, '&lt;')
   .replace(/>/g, '&gt;')
 
+const escapeAttr = (value) => escapeHtml(value).replace(/"/g, '&quot;')
+
+const slugify = (value, index) => {
+  const slug = String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return `case-${index + 1}${slug ? `-${slug}` : ''}`
+}
+
 const normalizeCsv = (value) => {
   if (!value) return []
   return value
@@ -119,6 +129,25 @@ const buildModeBadge = (role) => {
   return '<span class="badge neutral">Compare</span>'
 }
 
+const buildModeChips = (modeKeys, fallback = '-') => {
+  if (!modeKeys || modeKeys.length === 0) return escapeHtml(fallback)
+  return modeKeys.map((key) => {
+    const mode = MODES.find((candidate) => candidate.key === key)
+    const label = mode ? mode.label : key
+    return `<span class="mode-chip">${escapeHtml(label)}</span>`
+  }).join('')
+}
+
+const decorateRenderedHtml = (html) => {
+  return html
+    .split(/(<[^>]+>)/g)
+    .map((part) => {
+      if (!part || part.charAt(0) === '<') return part
+      return part.replace(/\*/g, '<span class="literal-star">*</span>')
+    })
+    .join('')
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const inputArg = process.argv[2] || 'author-intent-cases.txt'
 const outArg = process.argv[3] || 'author-intent-cases.html'
@@ -131,8 +160,10 @@ const modeRenderers = Object.fromEntries(MODES.map((mode) => [mode.key, new Mark
 const preferredTotals = countPreferredTotals(cases)
 
 let caseHtml = ''
+let caseIndexHtml = ''
 for (let i = 0; i < cases.length; i++) {
   const testCase = cases[i]
+  const caseId = slugify(testCase.name, i)
   const rendered = sortRenderedModes(MODES.map((mode) => {
     const html = modeRenderers[mode.key].render(testCase.markdown)
     const sameAsMarkdownIt = html === markdownIt.render(testCase.markdown)
@@ -144,19 +175,53 @@ for (let i = 0; i < cases.length; i++) {
     }
   }))
 
+  const preferredLabels = testCase.preferred.map((key) => {
+    const mode = MODES.find((candidate) => candidate.key === key)
+    return mode ? mode.label : key
+  }).join(', ') || '-'
+
+  caseIndexHtml += `
+        <li>
+          <a href="#${escapeAttr(caseId)}">
+            <span class="case-index-no">${i + 1}</span>
+            <span class="case-index-main">
+              <span class="case-index-title">${escapeHtml(testCase.name)}</span>
+              <span class="case-index-meta">Preferred: ${escapeHtml(preferredLabels)}</span>
+            </span>
+          </a>
+        </li>`
+
   caseHtml += `
-  <section class="case">
-    <h2>${i + 1}. ${escapeHtml(testCase.name)}</h2>
-    <dl class="meta">
-      <dt>Intent</dt><dd>${escapeHtml(testCase.intent)}</dd>
-      <dt>Preferred</dt><dd>${escapeHtml(testCase.preferred.join(', ') || '-')}</dd>
-      <dt>Acceptable</dt><dd>${escapeHtml(testCase.acceptable.join(', ') || '-')}</dd>
-      <dt>Focus</dt><dd>${escapeHtml(testCase.focus)}</dd>
-    </dl>
-    <details class="markdown-toggle">
-      <summary>Markdown Source</summary>
-      <pre class="source">${escapeHtml(testCase.markdown)}</pre>
-    </details>
+  <section class="case" id="${escapeAttr(caseId)}">
+    <header class="case-header">
+      <div>
+        <p class="eyebrow">Case ${i + 1}</p>
+        <h2>${escapeHtml(testCase.name)}</h2>
+      </div>
+      <a class="top-link" href="#top">Back to top</a>
+    </header>
+    <div class="intent-grid">
+      <section class="intent-card intent-main">
+        <h3>Author intent</h3>
+        <p>${escapeHtml(testCase.intent)}</p>
+      </section>
+      <section class="intent-card">
+        <h3>Preferred</h3>
+        <div class="mode-chip-row">${buildModeChips(testCase.preferred)}</div>
+      </section>
+      <section class="intent-card">
+        <h3>Acceptable</h3>
+        <div class="mode-chip-row">${buildModeChips(testCase.acceptable)}</div>
+      </section>
+      <section class="intent-card intent-focus">
+        <h3>Focus</h3>
+        <p>${escapeHtml(testCase.focus)}</p>
+      </section>
+    </div>
+    <div class="markdown-block">
+      <div class="block-label">Markdown source</div>
+      <pre class="source markdown-source">${escapeHtml(testCase.markdown)}</pre>
+    </div>
     <div class="grid">
       ${rendered.map((mode) => `
       <article class="mode-card role-${mode.role}">
@@ -173,7 +238,7 @@ for (let i = 0; i < cases.length; i++) {
             <pre class="source html-source">${escapeHtml(mode.html)}</pre>
           </details>
         </header>
-        <div class="rendered">${mode.html}</div>
+        <div class="rendered">${decorateRenderedHtml(mode.html)}</div>
       </article>`).join('')}
     </div>
   </section>`
@@ -191,43 +256,57 @@ const html = `<!doctype html>
   <title>Author Intent Cases</title>
   <style>
     :root {
-      --bg: #f5f3ee;
-      --card: #fffdf8;
-      --line: #d9d2c7;
-      --text: #1f2937;
-      --muted: #5b6470;
-      --preferred-bg: #e8f7ed;
-      --preferred-line: #7cc08f;
-      --acceptable-bg: #fff5d8;
-      --acceptable-line: #d8b24c;
-      --neutral-bg: #eef2f7;
-      --neutral-line: #b7c4d6;
-      --same-bg: #edfdf5;
-      --same-fg: #166534;
-      --diff-bg: #fff7ed;
-      --diff-fg: #9a3412;
+      --bg: #f7f7f5;
+      --card: #ffffff;
+      --line: #d8d8d4;
+      --text: #20242a;
+      --muted: #68707a;
+      --preferred-bg: #f3fbf5;
+      --preferred-line: #86b894;
+      --acceptable-bg: #fffaf0;
+      --acceptable-line: #d8bd72;
+      --neutral-bg: #fafafa;
+      --neutral-line: #d7dde5;
+      --same-bg: #f2faf5;
+      --same-fg: #276749;
+      --diff-bg: #fff7f0;
+      --diff-fg: #9a4d16;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      background:
-        radial-gradient(1100px 460px at 100% -10%, #d8ece7 0%, transparent 60%),
-        radial-gradient(900px 420px at -10% 0%, #fbe7d7 0%, transparent 60%),
-        linear-gradient(180deg, #f3efe8, var(--bg));
+      background: var(--bg);
       color: var(--text);
       font-family: "Yu Gothic UI", "Hiragino Kaku Gothic ProN", "Segoe UI", sans-serif;
       line-height: 1.75;
     }
-    main { max-width: 1080px; margin: 0 auto; padding: 18px; }
-    h1 { margin: 0 0 8px; font-size: 30px; }
+    main { max-width: 1280px; margin: 0 auto; padding: 18px; }
+    h1 { margin: 0 0 8px; font-size: 30px; letter-spacing: -0.02em; }
+    h2, h3 { line-height: 1.35; }
     .lead { margin: 0 0 8px; color: var(--muted); font-size: 14px; }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .toolbar button {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: #374151;
+      padding: 6px 12px;
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+    }
+    .toolbar button:hover { background: #f3f4f6; border-color: #a8a8a2; }
     .panel, .case {
-      background: rgba(255, 253, 248, 0.92);
+      background: var(--card);
       border: 1px solid var(--line);
       border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 12px;
-      backdrop-filter: blur(2px);
+      padding: 14px;
+      margin-bottom: 14px;
     }
     .summary-table {
       width: 100%;
@@ -243,56 +322,152 @@ const html = `<!doctype html>
     .summary-table thead th { background: #f7f2e8; }
     .notes { margin: 8px 0 0; padding-left: 18px; color: var(--muted); }
     .notes li { margin: 4px 0; }
-    .case h2 { margin: 0 0 8px; font-size: 18px; }
-    .meta {
+    .case-index {
+      list-style: none;
+      padding: 0;
+      margin: 12px 0 0;
       display: grid;
-      grid-template-columns: 120px 1fr;
-      gap: 4px 8px;
-      margin: 0 0 8px;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 8px;
+    }
+    .case-index li { margin: 0; }
+    .case-index a {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+      min-height: 100%;
+      color: inherit;
+      text-decoration: none;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      padding: 8px 10px;
+    }
+    .case-index a:hover {
+      border-color: #9ca3af;
+      background: #fff;
+    }
+    .case-index-no {
+      display: inline-grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      background: #4b5563;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .case-index-main {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+    .case-index-title {
+      overflow-wrap: anywhere;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+    .case-index-meta {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+    .case-header {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+    }
+    .case h2 { margin: 0; font-size: 20px; }
+    .eyebrow {
+      margin: 0 0 2px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .top-link {
+      color: var(--muted);
+      font-size: 12px;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .top-link:hover { color: #111827; text-decoration: underline; }
+    .intent-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(180px, 0.7fr) minmax(180px, 0.7fr);
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .intent-card {
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 10px;
+      background: #fff;
+      padding: 8px 10px;
+      min-width: 0;
+    }
+    .intent-card.intent-main { grid-column: span 1; }
+    .intent-card.intent-focus { grid-column: 1 / -1; }
+    .intent-card h3 {
+      margin: 0 0 4px;
+      color: #374151;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .intent-card p {
+      margin: 0;
+      color: var(--muted);
       font-size: 13px;
     }
-    .meta dt { font-weight: 700; color: #374151; }
-    .meta dd { margin: 0; color: var(--muted); }
     details { margin-bottom: 8px; }
     summary { cursor: pointer; color: #374151; font-size: 12px; }
-    .markdown-toggle summary {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 8px;
-      border: 1px solid rgba(0, 0, 0, 0.12);
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.7);
+    .markdown-block {
+      margin-bottom: 10px;
+    }
+    .block-label {
+      margin: 0 0 4px;
+      color: #374151;
+      font-size: 12px;
+      font-weight: 700;
     }
     .grid {
       display: grid;
-      grid-template-columns: 1fr;
-      gap: 8px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 10px;
+      align-items: stretch;
     }
     .mode-card {
       border: 1px solid var(--neutral-line);
       background: var(--neutral-bg);
       border-radius: 10px;
       padding: 10px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 6px;
     }
     .mode-card.role-preferred {
       border-color: var(--preferred-line);
       background: var(--preferred-bg);
+      border-left-width: 4px;
     }
     .mode-card.role-acceptable {
       border-color: var(--acceptable-line);
       background: var(--acceptable-bg);
+      border-left-width: 4px;
     }
     .mode-card header {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      grid-template-areas: "title html";
-      gap: 4px 10px;
-      align-items: center;
+      display: block;
       margin-bottom: 6px;
     }
     .title-row {
-      grid-area: title;
       display: flex;
       flex-wrap: wrap;
       align-items: center;
@@ -301,9 +476,7 @@ const html = `<!doctype html>
     }
     .mode-card h3 { margin: 0; font-size: 14px; line-height: 1.35; }
     .html-toggle {
-      grid-area: html;
-      margin: 0;
-      justify-self: end;
+      margin: 6px 0 0;
     }
     .html-toggle summary {
       display: inline-flex;
@@ -312,13 +485,29 @@ const html = `<!doctype html>
       padding: 2px 8px;
       border: 1px solid rgba(0, 0, 0, 0.14);
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.82);
+      background: #fff;
       white-space: nowrap;
     }
     .html-toggle pre {
       margin-top: 8px;
     }
     .badges { display: flex; flex-wrap: wrap; gap: 6px; }
+    .mode-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    .mode-chip {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      background: #fff;
+      color: #334155;
+      padding: 2px 7px;
+      font-size: 11px;
+      line-height: 1.4;
+    }
     .badge {
       border-radius: 999px;
       padding: 2px 8px;
@@ -354,47 +543,78 @@ const html = `<!doctype html>
     .rendered {
       border: 1px dashed rgba(0, 0, 0, 0.12);
       border-radius: 8px;
-      background: rgba(255, 255, 255, 0.85);
-      padding: 7px 12px;
+      background: #fff;
+      padding: 9px 12px;
       min-height: 0;
-      line-height: 1.55;
+      line-height: 1.75;
       font-size: 16px;
+    }
+    .rendered p { margin: 0; }
+    .rendered em {
+      color: #9a3412;
+      background: #fff7ed;
+      border-radius: 4px;
+      padding: 0 2px;
+    }
+    .rendered strong {
+      color: #991b1b;
+      background: #fef2f2;
+      border-radius: 4px;
+      padding: 0 2px;
+    }
+    .rendered code {
+      color: #334155;
+      background: #eef2f7;
+      border-radius: 4px;
+      padding: 0 3px;
+      font-size: 0.92em;
+    }
+    .literal-star {
+      color: #166534;
+      background: #e7f8ec;
+      border-radius: 3px;
+      padding: 0 1px;
+      font-weight: 700;
     }
     pre.source {
       margin: 0;
       padding: 8px 10px;
       border: 1px solid rgba(0, 0, 0, 0.12);
       border-radius: 8px;
-      background: rgba(255, 255, 255, 0.88);
+      background: #fff;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
       font-family: "Cascadia Code", "Consolas", monospace;
       font-size: 12px;
       line-height: 1.55;
     }
+    .markdown-source {
+      background: #f4f4f5;
+      color: #111827;
+      border-color: #d4d4d8;
+    }
     @media (max-width: 720px) {
       main { padding: 12px; }
       h1 { font-size: 24px; }
-      .meta { grid-template-columns: 1fr; }
-      .mode-card header {
+      .intent-grid { grid-template-columns: 1fr; }
+      .grid { grid-template-columns: 1fr; }
+      .case-header {
+        display: grid;
         grid-template-columns: 1fr;
-        grid-template-areas:
-          "title"
-          "html";
-        align-items: start;
-      }
-      .html-toggle {
-        justify-self: start;
       }
     }
   </style>
 </head>
 <body>
-  <main>
+  <main id="top">
     <h1>Author-Intent Naturalness Cases</h1>
     <p class="lead">タグ数や markdown-it 差分だけではなく、「この入力で書き手がどこを強調したかったか」を明示したケースを並べて見るための example です。</p>
     <p class="lead">このページは自動採点ページではありません。Preferred / Acceptable は、mode を見比べるための review hint です。</p>
     <p class="lead">single-sentence だけでなく、同一段落内の multi-sentence case も含めています。sentence-boundary stop や local repair が後続文に spillover しないかを見るためです。</p>
+    <div class="toolbar" aria-label="Display controls">
+      <button type="button" data-toggle-html="open">Open all HTML source</button>
+      <button type="button" data-toggle-html="close">Close all HTML source</button>
+    </div>
 
     <section class="panel">
       <h2>How to use</h2>
@@ -410,8 +630,25 @@ const html = `<!doctype html>
       </table>
     </section>
 
+    <section class="panel">
+      <h2>Case index</h2>
+      <p class="lead">各ケースへ直接移動できます。まずケース名と Preferred を見て、気になる入力だけ開いて確認してください。</p>
+      <ol class="case-index">${caseIndexHtml}
+      </ol>
+    </section>
+
     ${caseHtml}
   </main>
+  <script>
+    document.querySelectorAll('[data-toggle-html]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const open = button.getAttribute('data-toggle-html') === 'open'
+        document.querySelectorAll('.html-toggle').forEach((details) => {
+          details.open = open
+        })
+      })
+    })
+  </script>
 </body>
 </html>`
 
