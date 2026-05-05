@@ -1,7 +1,7 @@
 {
   "name": "@peaceroad/markdown-it-strong-ja",
   "description": "Extends asterisk emphasis handling for Japanese text while keeping markdown-it behavior as close as practical.",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "main": "index.js",
   "type": "module",
   "files": [
@@ -26,6 +26,7 @@
     "test:all": "node test/test-all.js",
     "bench:scan": "node test/material/perf-scan-delims.mjs",
     "bench:postprocess": "node test/material/perf-postprocess.mjs",
+    "bench:isolated": "node test/material/bench-isolated.mjs",
     "analyze:postprocess-calls": "node test/material/analyze-postprocess-calls.mjs",
     "analyze:fastpath": "node test/material/analyze-fastpath-hits.mjs"
   },
@@ -46,4 +47,3 @@
     "p7d-markdown-it-p-captions": "^0.21.0"
   }
 }
-
