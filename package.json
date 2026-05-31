@@ -1,7 +1,7 @@
 {
   "name": "@peaceroad/markdown-it-strong-ja",
   "description": "Extends asterisk emphasis handling for Japanese text while keeping markdown-it behavior as close as practical.",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "main": "index.js",
   "type": "module",
   "files": [
