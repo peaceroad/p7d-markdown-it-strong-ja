@@ -34,7 +34,7 @@
   "author": "peaceroad <peaceroad@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "markdown-it": "^14.1.0"
+    "markdown-it": "^14.2.0"
   },
   "devDependencies": {
     "@peaceroad/markdown-it-cjk-breaks-mod": "^0.1.11",
