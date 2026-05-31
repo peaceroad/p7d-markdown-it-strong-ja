@@ -3,6 +3,8 @@ import {
   REG_ATTRS,
   isJapaneseChar,
   isAsciiWordCode,
+  codePointAtSafe,
+  codePointBeforeSafe,
   hasCjkBreaksRule,
   isCjkBreaksRuleName,
   getRuntimeOpt,
@@ -119,8 +121,8 @@ const registerTokenCompat = (md, baseOpt) => {
             if (!prevToken || !nextToken) continue
             if (prevToken.type !== 'text' || !prevToken.content) continue
             if (nextToken.type !== 'text' || !nextToken.content) continue
-            const prevCharCode = prevToken.content.charCodeAt(prevToken.content.length - 1)
-            const nextCharCode = nextToken.content.charCodeAt(0)
+            const prevCharCode = codePointBeforeSafe(prevToken.content, prevToken.content.length, 0)
+            const nextCharCode = codePointAtSafe(nextToken.content, 0, 0)
             const isAsciiWord = isAsciiWordCode(nextCharCode)
             const shouldReplace = isAsciiWord &&
               isJapaneseChar(prevCharCode) && !isJapaneseChar(nextCharCode)
@@ -138,8 +140,8 @@ const registerTokenCompat = (md, baseOpt) => {
           for (let idx = 0; idx < child.content.length; idx++) {
             const ch = child.content[idx]
             if (ch === '\n') {
-              const prevCharCode = idx > 0 ? child.content.charCodeAt(idx - 1) : 0
-              const nextCharCode = idx + 1 < child.content.length ? child.content.charCodeAt(idx + 1) : 0
+              const prevCharCode = codePointBeforeSafe(child.content, idx, 0)
+              const nextCharCode = codePointAtSafe(child.content, idx + 1, 0)
               const isAsciiWord = isAsciiWordCode(nextCharCode)
               const shouldReplace = isAsciiWord &&
                 isJapaneseChar(prevCharCode) && !isJapaneseChar(nextCharCode)
@@ -187,7 +189,7 @@ const registerTokenCompat = (md, baseOpt) => {
             if (!prevTextCharCode || !isJapaneseChar(prevTextCharCode)) continue
             const next = children[j + 1]
             if (!next || next.type !== 'text' || !next.content) continue
-            const nextCharCode = next.content.charCodeAt(0)
+            const nextCharCode = codePointAtSafe(next.content, 0, 0)
             if (nextCharCode !== 0x7B) continue
             child.type = 'softbreak'
             child.tag = ''
@@ -196,7 +198,7 @@ const registerTokenCompat = (md, baseOpt) => {
             child.info = ''
             continue
           }
-          prevTextCharCode = child.content.charCodeAt(child.content.length - 1)
+          prevTextCharCode = codePointBeforeSafe(child.content, child.content.length, 0)
         }
       }
     }

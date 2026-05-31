@@ -408,6 +408,32 @@ or attach inline attributes after the closing inline token:
 
 strong-ja keeps this as dependency parity rather than adding a local workaround.
 
+### `markdown-it` 14.2 astral delimiter policy
+
+`markdown-it` 14.2 recognizes astral characters (surrogate pairs) as full Unicode code points when scanning emphasis delimiters. strong-ja keeps `compatible` mode aligned with that upstream behavior.
+
+In Japanese modes, strong-ja still only adds its own delimiter relaxation when Japanese/CJK context is present. Astral Han characters, such as CJK Extension B, are treated as CJK context:
+
+```markdown
+*𠀋?*abc*
+```
+
+```html
+<p><em>𠀋?</em>abc*</p>
+```
+
+Emoji or symbol-only English contexts remain aligned with `markdown-it` and are not promoted just because they are astral characters:
+
+```markdown
+*😀?*abc*
+```
+
+```html
+<p>*😀?<em>abc</em></p>
+```
+
+Symbols inside Japanese prose may still be emphasized by the existing Japanese-context rule, for example `**😀**です` can render as `<p><strong>😀</strong>です</p>`. Use `mode: 'compatible'` when exact `markdown-it` 14.2 delimiter behavior is required.
+
 ## Options
 
 ### `mode`

@@ -217,6 +217,7 @@ Effect:
 - Unknown malformed shapes are intentionally left as literals (fail-closed).
 - Map propagation remains range-level; per-token source precision is not guaranteed after repair.
 - `markdown-it-attrs` compatibility is dependency-parity first. In `markdown-it-attrs` 5.x, inputs such as `- e {.li-style}\n*{.ul-style}*` attach `{.li-style}` to the hidden `paragraph_open` of a tight list and leave `{.ul-style}` as literal text inside `<em>`. strong-ja does not reinterpret attrs placement locally; tests should lock parity with `markdown-it-attrs` rather than invent a different attrs contract.
+- `markdown-it` 14.2 astral delimiter behavior is preserved in `compatible` mode. Japanese modes add code-point-aware CJK context detection for astral Han (for example `*𠀋?*abc*` -> `<em>𠀋?</em>abc*`) but do not treat emoji/symbol-only English contexts as Japanese context (for example `*😀?*abc*` stays markdown-it-like).
 
 ## 6. Maintenance Rules
 

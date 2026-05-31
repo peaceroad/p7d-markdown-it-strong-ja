@@ -18,10 +18,69 @@ const VALID_CANONICAL_MODES = new Set([
 ])
 const REG_JAPANESE = /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}\u3000-\u303F\uFF00-\uFFEF]/u
 const REG_ATTRS = /{[^{}\n!@#%^&*()]+?}$/
+const CHAR_REPLACEMENT = 0xFFFD
+
+const isHighSurrogate = (code) => code >= 0xD800 && code <= 0xDBFF
+const isLowSurrogate = (code) => code >= 0xDC00 && code <= 0xDFFF
+
+const combineSurrogates = (high, low) => {
+  return 0x10000 + ((high - 0xD800) << 10) + (low - 0xDC00)
+}
+
+const codePointAtSafe = (src, index, fallback = 0) => {
+  if (typeof src !== 'string' || index < 0 || index >= src.length) return fallback
+  const first = src.charCodeAt(index)
+  if (first < 0xD800 || first > 0xDFFF) return first
+  if (first <= 0xDBFF) {
+    const second = index + 1 < src.length ? src.charCodeAt(index + 1) : 0
+    return isLowSurrogate(second) ? combineSurrogates(first, second) : CHAR_REPLACEMENT
+  }
+  return CHAR_REPLACEMENT
+}
+
+const codePointBeforeSafe = (src, index, fallback = 0) => {
+  if (typeof src !== 'string' || index <= 0 || index > src.length) return fallback
+  const last = src.charCodeAt(index - 1)
+  if (last < 0xD800 || last > 0xDFFF) return last
+  if (last >= 0xDC00) {
+    const first = index - 2 >= 0 ? src.charCodeAt(index - 2) : 0
+    return isHighSurrogate(first) ? combineSurrogates(first, last) : CHAR_REPLACEMENT
+  }
+  return CHAR_REPLACEMENT
+}
+
+const codePointStartBefore = (src, index) => {
+  if (typeof src !== 'string' || index <= 0 || index > src.length) return -1
+  const lastIdx = index - 1
+  const last = src.charCodeAt(lastIdx)
+  if (isLowSurrogate(last) && lastIdx - 1 >= 0 && isHighSurrogate(src.charCodeAt(lastIdx - 1))) {
+    return lastIdx - 1
+  }
+  return lastIdx
+}
+
+const codePointSize = (code) => code > 0xFFFF ? 2 : 1
+
+const isAstralJapaneseCode = (code) => {
+  return (code >= 0x1AFF0 && code <= 0x1AFFF) || // Kana Extended-B
+    (code >= 0x1B000 && code <= 0x1B0FF) || // Kana Supplement
+    (code >= 0x1B100 && code <= 0x1B12F) || // Kana Extended-A
+    (code >= 0x1B130 && code <= 0x1B16F) || // Small Kana Extension
+    (code >= 0x20000 && code <= 0x2A6DF) || // CJK Unified Ideographs Extension B
+    (code >= 0x2A700 && code <= 0x2B73F) || // Extension C
+    (code >= 0x2B740 && code <= 0x2B81F) || // Extension D
+    (code >= 0x2B820 && code <= 0x2CEAF) || // Extension E
+    (code >= 0x2CEB0 && code <= 0x2EBEF) || // Extension F
+    (code >= 0x2EBF0 && code <= 0x2EE5F) || // Extension I
+    (code >= 0x2F800 && code <= 0x2FA1F) || // CJK Compatibility Ideographs Supplement
+    (code >= 0x30000 && code <= 0x3134F) || // Extension G
+    (code >= 0x31350 && code <= 0x323AF) // Extension H
+}
 
 const isJapaneseChar = (ch) => {
   if (!ch) return false
-  const code = typeof ch === 'string' ? ch.charCodeAt(0) : ch
+  const code = typeof ch === 'string' ? ch.codePointAt(0) : ch
+  if (!Number.isFinite(code)) return false
   if (code < 128) return false
   if (code >= 0x3040 && code <= 0x309F) return true
   if (code >= 0x30A0 && code <= 0x30FF) return true
@@ -32,7 +91,10 @@ const isJapaneseChar = (ch) => {
   if (code >= 0xF900 && code <= 0xFAFF) return true
   if (code >= 0x3000 && code <= 0x303F) return true
   if (code >= 0xFF00 && code <= 0xFFEF) return true
-  return REG_JAPANESE.test(String.fromCharCode(code))
+  if (code > 0x10FFFF) return false
+  if (code >= 0x10000 && isAstralJapaneseCode(code)) return true
+  if (code >= 0x10000 && code < 0x20000) return false
+  return REG_JAPANESE.test(String.fromCodePoint(code))
 }
 
 const isAsciiWordCode = (code) => {
@@ -257,6 +319,10 @@ export {
   CHAR_NEWLINE,
   CHAR_IDEOGRAPHIC_SPACE,
   REG_ATTRS,
+  codePointAtSafe,
+  codePointBeforeSafe,
+  codePointStartBefore,
+  codePointSize,
   isJapaneseChar,
   isAsciiWordCode,
   isSoftSpaceCode,

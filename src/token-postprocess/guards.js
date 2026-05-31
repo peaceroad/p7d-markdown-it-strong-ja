@@ -1,4 +1,4 @@
-import { isJapaneseChar } from '../token-utils.js'
+import { codePointAtSafe, codePointBeforeSafe, codePointSize, isJapaneseChar } from '../token-utils.js'
 
 const CHAR_ASTERISK = 0x2A // *
 const INLINE_REPAIR_EM_OUTER_STRONG_SEQUENCE = 1 << 0
@@ -46,11 +46,13 @@ const tokenHasJapaneseChars = (token) => {
     return token.__strongJaHasJapaneseChar
   }
   let hasJapanese = false
-  for (let i = 0; i < content.length; i++) {
-    if (isJapaneseChar(content.charCodeAt(i))) {
+  for (let i = 0; i < content.length;) {
+    const code = codePointAtSafe(content, i)
+    if (isJapaneseChar(code)) {
       hasJapanese = true
       break
     }
+    i += codePointSize(code)
   }
   token.__strongJaJapaneseSource = content
   token.__strongJaHasJapaneseChar = hasJapanese
@@ -103,9 +105,9 @@ const countDelimiterLikeStrongRuns = (content, from = 0, limit = 0) => {
       continue
     }
     const pos = at
-    const prevCode = pos > 0 ? content.charCodeAt(pos - 1) : 0
+    const prevCode = codePointBeforeSafe(content, pos, 0)
     const nextPos = pos + 2
-    const nextCode = nextPos < len ? content.charCodeAt(nextPos) : 0
+    const nextCode = codePointAtSafe(content, nextPos, 0)
     const prevSameMarker = prevCode === CHAR_ASTERISK
     const nextSameMarker = nextCode === CHAR_ASTERISK
     if (prevSameMarker || nextSameMarker) {

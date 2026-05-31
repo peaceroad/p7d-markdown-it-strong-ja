@@ -3,6 +3,10 @@ import Token from 'markdown-it/lib/token.mjs'
 import {
   CHAR_ASTERISK,
   CHAR_NEWLINE,
+  codePointAtSafe,
+  codePointBeforeSafe,
+  codePointStartBefore,
+  codePointSize,
   isJapaneseChar,
   isAsciiWordCode,
   isSoftSpaceCode,
@@ -280,24 +284,34 @@ const buildScanDelimsLookupCache = (src) => {
 
   let prev = -1
   for (let i = 0; i < len; i++) {
-    const code = src.charCodeAt(i)
+    const code = codePointAtSafe(src, i)
     if (code === CHAR_NEWLINE) {
       prev = -1
       continue
     }
+    const size = codePointSize(code)
     if (!isSoftSpaceCode(code)) prev = i
     prevNonSpaceSameLine[i] = prev
+    if (size === 2 && i + 1 < len) {
+      prevNonSpaceSameLine[i + 1] = prev
+      i++
+    }
   }
 
   let next = -1
   for (let i = len - 1; i >= 0; i--) {
-    const code = src.charCodeAt(i)
+    const cpStart = codePointStartBefore(src, i + 1)
+    const code = cpStart === -1 ? 0 : codePointAtSafe(src, cpStart)
     if (code === CHAR_NEWLINE) {
       next = -1
       continue
     }
-    if (!isSoftSpaceCode(code)) next = i
+    if (!isSoftSpaceCode(code)) next = cpStart
     nextNonSpaceSameLine[i] = next
+    if (cpStart !== i) {
+      nextNonSpaceSameLine[cpStart] = next
+      i = cpStart
+    }
   }
 
   return {
@@ -323,11 +337,13 @@ const findPrevNonSpaceIndex = (src, start, lookupCache = null) => {
       start < lookupCache.prevNonSpaceSameLine.length) {
     return lookupCache.prevNonSpaceSameLine[start]
   }
-  for (let i = start; i >= 0; i--) {
-    const code = src.charCodeAt(i)
+  for (let i = start; i >= 0;) {
+    const cpStart = codePointStartBefore(src, i + 1)
+    if (cpStart === -1) return -1
+    const code = codePointAtSafe(src, cpStart)
     if (code === CHAR_NEWLINE) return -1
-    if (isSoftSpaceCode(code)) continue
-    return i
+    if (!isSoftSpaceCode(code)) return cpStart
+    i = cpStart - 1
   }
   return -1
 }
@@ -340,11 +356,11 @@ const findNextNonSpaceIndex = (src, start, max, lookupCache = null) => {
     const next = lookupCache.nextNonSpaceSameLine[start]
     return next !== -1 && next < max ? next : -1
   }
-  for (let i = start; i < max; i++) {
-    const code = src.charCodeAt(i)
+  for (let i = start; i < max;) {
+    const code = codePointAtSafe(src, i)
     if (code === CHAR_NEWLINE) return -1
-    if (isSoftSpaceCode(code)) continue
-    return i
+    if (!isSoftSpaceCode(code)) return i
+    i += codePointSize(code)
   }
   return -1
 }
@@ -353,26 +369,26 @@ const hasAsciiStartAfterOptionalOpenWrappers = (src, index, max, lookupCache = n
   let i = index
   // Two wrappers are enough for common shapes: * [ "word" ]*
   for (let wrappers = 0; wrappers < 2 && i >= 0 && i < max; wrappers++) {
-    const code = src.charCodeAt(i)
+    const code = codePointAtSafe(src, i)
     if (!isAsciiGuardOpenWrapper(code)) break
     i = findNextNonSpaceIndex(src, i + 1, max, lookupCache)
     if (i === -1) return false
   }
   if (i < 0 || i >= max) return false
-  return isAsciiWordCode(src.charCodeAt(i))
+  return isAsciiWordCode(codePointAtSafe(src, i))
 }
 
 const hasAsciiEndBeforeOptionalCloseWrappers = (src, index, lookupCache = null) => {
   let i = index
   // Two wrappers are enough for common shapes: *["word"] *
   for (let wrappers = 0; wrappers < 2 && i >= 0; wrappers++) {
-    const code = src.charCodeAt(i)
+    const code = codePointAtSafe(src, i)
     if (!isAsciiGuardCloseWrapper(code)) break
     i = findPrevNonSpaceIndex(src, i - 1, lookupCache)
     if (i === -1) return false
   }
   if (i < 0) return false
-  return isAsciiWordCode(src.charCodeAt(i))
+  return isAsciiWordCode(codePointAtSafe(src, i))
 }
 
 const isMarkdownStructuralOpenWrapper = (code) => {
@@ -409,18 +425,20 @@ const findPrevNonSpaceLimited = (src, start, maxLook, lookupCache = null) => {
       start < lookupCache.prevNonSpaceSameLine.length) {
     const prev = lookupCache.prevNonSpaceSameLine[start]
     if (prev !== -1 && (start - prev) < maxLook) {
-      return src.charCodeAt(prev)
+      return codePointAtSafe(src, prev)
     }
     return 0
   }
   let looked = 0
-  for (let i = start; i >= 0; i--) {
+  for (let i = start; i >= 0;) {
     if (looked >= maxLook) break
-    const code = src.charCodeAt(i)
-    looked++
+    const cpStart = codePointStartBefore(src, i + 1)
+    if (cpStart === -1) break
+    const code = codePointAtSafe(src, cpStart)
+    looked += i - cpStart + 1
     if (code === CHAR_NEWLINE) return 0
-    if (isSoftSpaceCode(code)) continue
-    return code
+    if (!isSoftSpaceCode(code)) return code
+    i = cpStart - 1
   }
   return 0
 }
@@ -432,18 +450,19 @@ const findNextNonSpaceLimited = (src, start, max, maxLook, lookupCache = null) =
       start < lookupCache.nextNonSpaceSameLine.length) {
     const next = lookupCache.nextNonSpaceSameLine[start]
     if (next !== -1 && next < max && (next - start) < maxLook) {
-      return src.charCodeAt(next)
+      return codePointAtSafe(src, next)
     }
     return 0
   }
   let looked = 0
-  for (let i = start; i < max; i++) {
+  for (let i = start; i < max;) {
     if (looked >= maxLook) break
-    const code = src.charCodeAt(i)
-    looked++
+    const code = codePointAtSafe(src, i)
+    const size = codePointSize(code)
+    looked += size
     if (code === CHAR_NEWLINE) return 0
-    if (isSoftSpaceCode(code)) continue
-    return code
+    if (!isSoftSpaceCode(code)) return code
+    i += size
   }
   return 0
 }
@@ -462,8 +481,8 @@ const hasJapaneseContextForBracketWrapper = (src, start, pos, max, lastChar, nex
 
 const scanPrevSingleStarContextFlags = (src, start) => {
   let hasJapaneseBetween = false
-  for (let i = start - 1; i >= 0; i--) {
-    const code = src.charCodeAt(i)
+  for (let i = codePointStartBefore(src, start); i >= 0; i = codePointStartBefore(src, i)) {
+    const code = codePointAtSafe(src, i)
     if (code === CHAR_NEWLINE) break
     if (isSentenceBoundaryStop(code) && i < start - 1) break
     if (code !== CHAR_ASTERISK) {
@@ -475,8 +494,8 @@ const scanPrevSingleStarContextFlags = (src, start) => {
       backslashCount++
     }
     if ((backslashCount % 2) === 1) continue
-    const prevCode = i > 0 ? src.charCodeAt(i - 1) : 0
-    const nextCode = i + 1 < src.length ? src.charCodeAt(i + 1) : 0
+    const prevCode = codePointBeforeSafe(src, i, 0)
+    const nextCode = codePointAtSafe(src, i + 1, 0)
     if (prevCode === CHAR_ASTERISK || nextCode === CHAR_ASTERISK) continue
     return hasJapaneseBetween ? PREV_STAR_HAS_OPENER | PREV_STAR_HAS_JP_BETWEEN : PREV_STAR_HAS_OPENER
   }
@@ -778,12 +797,12 @@ const patchScanDelims = (md) => {
     const aggressiveMode = (modeFlags & MODE_FLAG_AGGRESSIVE) !== 0
     const max = this.posMax
     let lookupCache = null
-    const lastChar = start > 0 ? src.charCodeAt(start - 1) : 0x20
+    const lastChar = codePointBeforeSafe(src, start, 0x20)
 
     const count = base && base.length ? base.length : 1
     const pos = start + count
 
-    const nextChar = pos < max ? src.charCodeAt(pos) : 0x20
+    const nextChar = codePointAtSafe(src, pos, 0x20)
     let prevStarFlags = -1
 
     const leftJapanese = isJapaneseChar(lastChar)
@@ -819,7 +838,7 @@ const patchScanDelims = (md) => {
         lookupCache || (lookupCache = getScanDelimsLookupCache(this))
       )
       if (prevNonSpaceIdx !== -1) {
-        const prevNonSpaceLocal = src.charCodeAt(prevNonSpaceIdx)
+        const prevNonSpaceLocal = codePointAtSafe(src, prevNonSpaceIdx)
         const plusStrictAsciiBoundary = plusMode &&
           hasAsciiEndBeforeOptionalCloseWrappers(src, prevNonSpaceIdx, lookupCache)
         if (prevNonSpaceLocal !== CHAR_ASTERISK && !plusStrictAsciiBoundary) {
@@ -835,7 +854,7 @@ const patchScanDelims = (md) => {
         lookupCache || (lookupCache = getScanDelimsLookupCache(this))
       )
       if (nextNonSpaceIdx !== -1) {
-        const nextNonSpace = src.charCodeAt(nextNonSpaceIdx)
+        const nextNonSpace = codePointAtSafe(src, nextNonSpaceIdx)
         const plusStrictAsciiBoundary = plusMode &&
           hasAsciiStartAfterOptionalOpenWrappers(src, nextNonSpaceIdx, max, lookupCache)
         if (nextNonSpace !== CHAR_ASTERISK && !plusStrictAsciiBoundary) {
