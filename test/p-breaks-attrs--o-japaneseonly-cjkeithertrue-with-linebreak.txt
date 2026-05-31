@@ -163,7 +163,7 @@ a
 *{.ul-style}*
 [HTML:false]
 <ul>
-<li>e {.li-style}
+<li>e
 <em>{.ul-style}</em></li>
 </ul>
 

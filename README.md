@@ -357,6 +357,57 @@ Supporting visuals:
 - `aggressive`:  
   `<p>broken **tail <a href="https://x.test">aa<strong>aa</strong><em>Text</em><strong>and<em>More</em>bb</strong>bb</a> after</p>`
 
+## Compatibility Notes
+
+### `markdown-it-attrs` 5.x parity
+
+When `markdown-it-attrs` is installed, strong-ja follows the token stream produced by that plugin and does not reinterpret where `{...}` attributes should be attached. This is intentional: strong-ja should not make attribute syntax mean something different from `markdown-it-attrs` alone.
+
+One edge case to be aware of is a tight list item followed by an emphasized line:
+
+```markdown
+- e {.li-style}
+*{.ul-style}*
+```
+
+With `markdown-it-attrs` 5.x, the first attribute block is consumed as a block-level attribute on the hidden `paragraph_open` inside the tight list. Because that paragraph token is hidden by markdown-it's tight-list rendering, the class is not visible in the final HTML. The second `{.ul-style}` is inside emphasis text, not a suffix after a closed inline token, so it remains literal text:
+
+```html
+<ul>
+<li>e
+<em>{.ul-style}</em></li>
+</ul>
+```
+
+This output matches `markdown-it-attrs` alone. To attach attributes intentionally, use the syntax owned by `markdown-it-attrs`, for example:
+
+```markdown
+- e
+{.ul-style}
+```
+
+```html
+<ul class="ul-style">
+<li>e</li>
+</ul>
+```
+
+or attach inline attributes after the closing inline token:
+
+```markdown
+- e
+*x*{.ul-style}
+```
+
+```html
+<ul>
+<li>e
+<em class="ul-style">x</em></li>
+</ul>
+```
+
+strong-ja keeps this as dependency parity rather than adding a local workaround.
+
 ## Options
 
 ### `mode`

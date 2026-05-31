@@ -216,6 +216,7 @@ Effect:
 
 - Unknown malformed shapes are intentionally left as literals (fail-closed).
 - Map propagation remains range-level; per-token source precision is not guaranteed after repair.
+- `markdown-it-attrs` compatibility is dependency-parity first. In `markdown-it-attrs` 5.x, inputs such as `- e {.li-style}\n*{.ul-style}*` attach `{.li-style}` to the hidden `paragraph_open` of a tight list and leave `{.ul-style}` as literal text inside `<em>`. strong-ja does not reinterpret attrs placement locally; tests should lock parity with `markdown-it-attrs` rather than invent a different attrs contract.
 
 ## 6. Maintenance Rules
 
