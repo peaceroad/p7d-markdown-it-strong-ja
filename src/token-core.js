@@ -19,6 +19,8 @@ import {
 
 const SCAN_DELIMS_PATCHED = Symbol.for('strongJaTokenScanDelimsPatched')
 const SINGLE_STAR_LOOKAROUND_MAX = 16
+const SCAN_DELIMS_LOOKUP_PROMOTE_AFTER = 8
+const SCAN_DELIMS_LOOKUP_MIN_SRC_LENGTH = 128
 const PREV_STAR_HAS_OPENER = 1
 const PREV_STAR_HAS_JP_BETWEEN = 2
 const SCAN_DELIMS_LOOKUP_KEY = Symbol.for('strongJaTokenScanDelimsLookup')
@@ -275,8 +277,11 @@ const isAsciiGuardCloseWrapper = (code) => {
     code === 0x60 // `
 }
 
-const buildScanDelimsLookupCache = (src) => {
-  const len = typeof src === 'string' ? src.length : 0
+const materializeScanDelimsLookupCache = (cache) => {
+  if (!cache || typeof cache.src !== 'string') return null
+  if (cache.prevNonSpaceSameLine && cache.nextNonSpaceSameLine) return cache
+  const src = cache.src
+  const len = src.length
   const prevNonSpaceSameLine = new Int32Array(len)
   const nextNonSpaceSameLine = new Int32Array(len)
   prevNonSpaceSameLine.fill(-1)
@@ -314,28 +319,50 @@ const buildScanDelimsLookupCache = (src) => {
     }
   }
 
+  cache.prevNonSpaceSameLine = prevNonSpaceSameLine
+  cache.nextNonSpaceSameLine = nextNonSpaceSameLine
+  return cache
+}
+
+const createScanDelimsLookupCache = (src) => {
   return {
     src,
-    prevNonSpaceSameLine,
-    nextNonSpaceSameLine
+    probeCount: 0,
+    prevNonSpaceSameLine: null,
+    nextNonSpaceSameLine: null
   }
+}
+
+const getMaterializedScanDelimsLookupCache = (cache, src) => {
+  if (!cache ||
+      cache.src !== src ||
+      typeof src !== 'string' ||
+      src.length < SCAN_DELIMS_LOOKUP_MIN_SRC_LENGTH) {
+    return null
+  }
+  if (!cache.prevNonSpaceSameLine || !cache.nextNonSpaceSameLine) {
+    cache.probeCount++
+    if (cache.probeCount >= SCAN_DELIMS_LOOKUP_PROMOTE_AFTER) {
+      materializeScanDelimsLookupCache(cache)
+    }
+  }
+  return cache.prevNonSpaceSameLine && cache.nextNonSpaceSameLine ? cache : null
 }
 
 const getScanDelimsLookupCache = (state) => {
   if (!state || typeof state.src !== 'string') return null
   const cached = state[SCAN_DELIMS_LOOKUP_KEY]
   if (cached && cached.src === state.src) return cached
-  const next = buildScanDelimsLookupCache(state.src)
+  const next = createScanDelimsLookupCache(state.src)
   state[SCAN_DELIMS_LOOKUP_KEY] = next
   return next
 }
 
 const findPrevNonSpaceIndex = (src, start, lookupCache = null) => {
   if (start < 0) return -1
-  if (lookupCache &&
-      lookupCache.src === src &&
-      start < lookupCache.prevNonSpaceSameLine.length) {
-    return lookupCache.prevNonSpaceSameLine[start]
+  const materializedLookup = getMaterializedScanDelimsLookupCache(lookupCache, src)
+  if (materializedLookup && start < materializedLookup.prevNonSpaceSameLine.length) {
+    return materializedLookup.prevNonSpaceSameLine[start]
   }
   for (let i = start; i >= 0;) {
     const cpStart = codePointStartBefore(src, i + 1)
@@ -349,11 +376,10 @@ const findPrevNonSpaceIndex = (src, start, lookupCache = null) => {
 }
 
 const findNextNonSpaceIndex = (src, start, max, lookupCache = null) => {
-  if (lookupCache &&
-      lookupCache.src === src &&
-      start >= 0 &&
-      start < lookupCache.nextNonSpaceSameLine.length) {
-    const next = lookupCache.nextNonSpaceSameLine[start]
+  if (start < 0 || start >= max || start >= src.length) return -1
+  const materializedLookup = getMaterializedScanDelimsLookupCache(lookupCache, src)
+  if (materializedLookup && start < materializedLookup.nextNonSpaceSameLine.length) {
+    const next = materializedLookup.nextNonSpaceSameLine[start]
     return next !== -1 && next < max ? next : -1
   }
   for (let i = start; i < max;) {
@@ -419,11 +445,9 @@ const isSentenceBoundaryStop = (code) => {
 }
 
 const findPrevNonSpaceLimited = (src, start, maxLook, lookupCache = null) => {
-  if (lookupCache &&
-      lookupCache.src === src &&
-      start >= 0 &&
-      start < lookupCache.prevNonSpaceSameLine.length) {
-    const prev = lookupCache.prevNonSpaceSameLine[start]
+  const materializedLookup = start >= 0 ? getMaterializedScanDelimsLookupCache(lookupCache, src) : null
+  if (materializedLookup && start < materializedLookup.prevNonSpaceSameLine.length) {
+    const prev = materializedLookup.prevNonSpaceSameLine[start]
     if (prev !== -1 && (start - prev) < maxLook) {
       return codePointAtSafe(src, prev)
     }
@@ -444,11 +468,10 @@ const findPrevNonSpaceLimited = (src, start, maxLook, lookupCache = null) => {
 }
 
 const findNextNonSpaceLimited = (src, start, max, maxLook, lookupCache = null) => {
-  if (lookupCache &&
-      lookupCache.src === src &&
-      start >= 0 &&
-      start < lookupCache.nextNonSpaceSameLine.length) {
-    const next = lookupCache.nextNonSpaceSameLine[start]
+  if (start < 0 || start >= max || start >= src.length) return 0
+  const materializedLookup = getMaterializedScanDelimsLookupCache(lookupCache, src)
+  if (materializedLookup && start < materializedLookup.nextNonSpaceSameLine.length) {
+    const next = materializedLookup.nextNonSpaceSameLine[start]
     if (next !== -1 && next < max && (next - start) < maxLook) {
       return codePointAtSafe(src, next)
     }
