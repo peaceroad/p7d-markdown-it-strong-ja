@@ -596,7 +596,8 @@ const registerTokenPostprocess = (md, baseOpt) => {
   md.core.ruler.after('inline', 'strong_ja_token_postprocess', (state) => {
     if (!state || !state.tokens) return
     const overrideOpt = state.env && state.env.__strongJaTokenOpt
-    const opt = hasRuntimeOverride(overrideOpt) ? getRuntimeOpt(state, baseOpt) : baseOpt
+    const hasOverride = hasRuntimeOverride(overrideOpt)
+    const opt = hasOverride ? getRuntimeOpt(state, baseOpt, true) : baseOpt
     if (!opt.__strongJaPostprocessActive) return
     const isJapaneseMode = opt.__strongJaIsJapaneseMode
     const strictAsciiCodeGuard = opt.__strongJaStrictAsciiCodeGuard

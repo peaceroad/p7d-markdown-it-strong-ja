@@ -30,8 +30,9 @@ const getStateSource = (state) => {
 const registerTokenCompat = (md, baseOpt) => {
   const isCompatibleMode = (state) => {
     const override = state && state.env && state.env.__strongJaTokenOpt
-    if (!hasRuntimeOverride(override)) return baseOpt.__strongJaIsCompatibleMode === true
-    const opt = getRuntimeOpt(state, baseOpt)
+    const hasOverride = hasRuntimeOverride(override)
+    if (!hasOverride) return baseOpt.__strongJaIsCompatibleMode === true
+    const opt = getRuntimeOpt(state, baseOpt, true)
     return opt.__strongJaIsCompatibleMode === true
   }
 

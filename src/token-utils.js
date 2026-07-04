@@ -210,9 +210,11 @@ const hasRuntimeOverride = (override) => {
     (HAS_OWN.call(override, 'postprocess') && override.postprocess !== undefined)
 }
 
-const getRuntimeOpt = (state, baseOpt) => {
+const getRuntimeOpt = (state, baseOpt, knownHasOverride = null) => {
   const override = state && state.env ? state.env.__strongJaTokenOpt : null
-  const hasOverride = hasRuntimeOverride(override)
+  const hasOverride = typeof knownHasOverride === 'boolean'
+    ? knownHasOverride
+    : hasRuntimeOverride(override)
   if (state &&
       state.__strongJaTokenRuntimeOpt &&
       state.__strongJaTokenRuntimeBase === baseOpt &&

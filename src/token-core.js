@@ -781,18 +781,19 @@ const patchScanDelims = (md) => {
     if (marker !== CHAR_ASTERISK) {
       return original.call(this, start, canSplitWord)
     }
-    const base = original.call(this, start, canSplitWord)
 
     const baseOpt = this.md ? this.md.__strongJaTokenOpt : null
     const overrideOpt = this.env && this.env.__strongJaTokenOpt
-    const opt = hasRuntimeOverride(overrideOpt) ? getRuntimeOpt(this, baseOpt) : baseOpt
+    const hasOverride = hasRuntimeOverride(overrideOpt)
+    const opt = hasOverride ? getRuntimeOpt(this, baseOpt, true) : baseOpt
     if (!opt) {
-      return base
+      return original.call(this, start, canSplitWord)
     }
     const modeFlags = opt.__strongJaModeFlags
     if (modeFlags & MODE_FLAG_COMPATIBLE) {
-      return base
+      return original.call(this, start, canSplitWord)
     }
+    const base = original.call(this, start, canSplitWord)
     const plusMode = (modeFlags & MODE_FLAG_JAPANESE_PLUS) !== 0
     const aggressiveMode = (modeFlags & MODE_FLAG_AGGRESSIVE) !== 0
     const max = this.posMax
