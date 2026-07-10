@@ -165,15 +165,7 @@ const getModeFlags = (mode) => {
 
 const deriveModeInfo = (opt) => {
   if (!opt || typeof opt !== 'object') return opt
-  const rawMode = opt.mode
-  if (opt.__strongJaModeRaw === rawMode &&
-      typeof opt.__strongJaMode === 'string' &&
-      typeof opt.__strongJaModeFlags === 'number') {
-    return opt
-  }
   const mode = resolveMode(opt)
-  opt.__strongJaModeRaw = rawMode
-  opt.__strongJaMode = mode
   opt.__strongJaModeFlags = getModeFlags(mode)
   return opt
 }
@@ -183,24 +175,18 @@ const deriveOptionInfo = (opt) => {
   deriveModeInfo(opt)
   const rawPostprocess = opt.postprocess
   const rawCoreRules = opt.coreRulesBeforePostprocess
-  if (opt.__strongJaPlanPostprocessRaw === rawPostprocess &&
-      opt.__strongJaPlanCoreRulesRaw === rawCoreRules &&
-      typeof opt.__strongJaPostprocessActive === 'boolean' &&
-      typeof opt.__strongJaIsCompatibleMode === 'boolean' &&
-      typeof opt.__strongJaIsJapaneseMode === 'boolean' &&
-      typeof opt.__strongJaStrictAsciiCodeGuard === 'boolean' &&
-      typeof opt.__strongJaStrictAsciiStrongGuard === 'boolean' &&
-      Array.isArray(opt.__strongJaNormalizedCoreRulesBeforePostprocess)) {
-    return opt
-  }
-  opt.__strongJaPlanPostprocessRaw = rawPostprocess
-  opt.__strongJaPlanCoreRulesRaw = rawCoreRules
+  // A per-render mode override starts from a shallow copy of the setup plan,
+  // so mode-dependent fields must be refreshed instead of trusted from it.
   opt.__strongJaIsCompatibleMode = (opt.__strongJaModeFlags & MODE_FLAG_COMPATIBLE) !== 0
   opt.__strongJaPostprocessActive = rawPostprocess !== false && !opt.__strongJaIsCompatibleMode
   opt.__strongJaIsJapaneseMode = (opt.__strongJaModeFlags & MODE_FLAG_JAPANESE_ANY) !== 0
   opt.__strongJaStrictAsciiCodeGuard = (opt.__strongJaModeFlags & MODE_FLAG_JAPANESE_PLUS) !== 0
   opt.__strongJaStrictAsciiStrongGuard = (opt.__strongJaModeFlags & MODE_FLAG_AGGRESSIVE) === 0
-  opt.__strongJaNormalizedCoreRulesBeforePostprocess = normalizeCoreRulesBeforePostprocess(rawCoreRules)
+  if (opt.__strongJaPlanCoreRulesRaw !== rawCoreRules ||
+      !Array.isArray(opt.__strongJaNormalizedCoreRulesBeforePostprocess)) {
+    opt.__strongJaPlanCoreRulesRaw = rawCoreRules
+    opt.__strongJaNormalizedCoreRulesBeforePostprocess = normalizeCoreRulesBeforePostprocess(rawCoreRules)
+  }
   return opt
 }
 

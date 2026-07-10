@@ -178,8 +178,8 @@ const registerTokenCompat = (md, baseOpt) => {
     if (!state) return
     const src = getStateSource(state)
     if (!src || src.indexOf('\n') === -1 || src.indexOf('{') === -1) return
-    if (!state.md || state.md.__strongJaRestoreSoftbreaksForAttrs !== true) return
-    if (baseOpt.hasCjkBreaks !== true && state.md) {
+    if (!state.md) return
+    if (baseOpt.hasCjkBreaks !== true) {
       baseOpt.hasCjkBreaks = hasCjkBreaksRule(state.md)
     }
     if (baseOpt.hasCjkBreaks !== true) return
@@ -219,7 +219,6 @@ const registerTokenCompat = (md, baseOpt) => {
     const added = md.core.ruler.after(anchorRule, 'strong_ja_restore_softbreaks', restoreSoftbreaksAfterCjk)
     if (added !== false) {
       md.__strongJaTokenRestoreRegistered = true
-      md.__strongJaRestoreSoftbreaksForAttrs = baseOpt.mditAttrs === false
       if (baseOpt.patchCorePush !== false && !md.__strongJaTokenPatchCorePush) {
         md.__strongJaTokenPatchCorePush = true
         const originalPush = md.core.ruler.push.bind(md.core.ruler)

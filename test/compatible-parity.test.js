@@ -94,6 +94,38 @@ export const runCompatibleParityTests = () => {
       }
     }
   }
+  runCase('mode-only per-render overrides match dedicated mode instances', () => {
+    const modes = [
+      'japanese',
+      'japanese-boundary',
+      'japanese-boundary-guard',
+      'aggressive',
+      'compatible'
+    ]
+    const inputs = [
+      '日本語です。* English* です。',
+      '和食では* `umami`*を使う。',
+      'broken **tail [aa**aa***Text***と*More*bb**bb](https://x.test) after'
+    ]
+    const dedicated = new Map()
+    for (let i = 0; i < modes.length; i++) {
+      dedicated.set(modes[i], new MarkdownIt().use(mditStrongJa, { mode: modes[i] }))
+    }
+    for (let baseIdx = 0; baseIdx < modes.length; baseIdx++) {
+      const baseMode = modes[baseIdx]
+      const md = new MarkdownIt().use(mditStrongJa, { mode: baseMode })
+      for (let targetIdx = 0; targetIdx < modes.length; targetIdx++) {
+        const targetMode = modes[targetIdx]
+        for (let inputIdx = 0; inputIdx < inputs.length; inputIdx++) {
+          const input = inputs[inputIdx]
+          assert.strictEqual(
+            md.render(input, { __strongJaTokenOpt: { mode: targetMode } }),
+            dedicated.get(targetMode).render(input),
+            `${baseMode} -> ${targetMode}: ${input}`
+          )
+        }
+      }
+    }
+  }, allPassRef)
   return allPassRef.value
 }
-
