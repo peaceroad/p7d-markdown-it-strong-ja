@@ -5,6 +5,7 @@
 - Link/reference helpers live in `src/token-link-utils.js`.
 - Current postprocess workflow: `docs/note-post-processing.md`.
 - Migration/development history: `docs/note-post-processing-dev-log.md`.
+- Current default-mode rationale: `docs/note-mode-default.md`.
 
 ## File Map
 - `index.js`: token engine entry; normalizes options and registers rules.

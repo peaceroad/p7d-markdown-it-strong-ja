@@ -90,6 +90,26 @@ const parseCases = (content) => {
   return cases
 }
 
+const validateCases = (cases) => {
+  const knownModes = new Set(MODES.map((mode) => mode.key))
+  const names = new Set()
+  for (let i = 0; i < cases.length; i++) {
+    const testCase = cases[i]
+    if (names.has(testCase.name)) {
+      throw new Error(`duplicate case name: ${testCase.name}`)
+    }
+    names.add(testCase.name)
+    if (!testCase.markdown) throw new Error(`missing markdown: ${testCase.name}`)
+    if (testCase.preferred.length === 0) throw new Error(`missing preferred mode: ${testCase.name}`)
+    const declaredModes = [...testCase.preferred, ...testCase.acceptable]
+    for (let m = 0; m < declaredModes.length; m++) {
+      if (!knownModes.has(declaredModes[m])) {
+        throw new Error(`unknown mode "${declaredModes[m]}": ${testCase.name}`)
+      }
+    }
+  }
+}
+
 const countPreferredTotals = (cases) => {
   const counts = Object.create(null)
   for (let i = 0; i < MODES.length; i++) counts[MODES[i].key] = 0
@@ -155,25 +175,43 @@ const inputPath = path.resolve(__dirname, inputArg.replace(/^\.\//, ''))
 const outputPath = path.resolve(__dirname, outArg.replace(/^\.\//, ''))
 
 const cases = parseCases(fs.readFileSync(inputPath, 'utf8'))
+validateCases(cases)
 const markdownIt = new MarkdownIt()
 const modeRenderers = Object.fromEntries(MODES.map((mode) => [mode.key, new MarkdownIt().use(mditStrongJa, mode.opt)]))
 const preferredTotals = countPreferredTotals(cases)
+const preferredOutputCoverage = Object.fromEntries(MODES.map((mode) => [mode.key, 0]))
+const sourcePreferredOutputGroups = new Map()
 
 let caseHtml = ''
 let caseIndexHtml = ''
 for (let i = 0; i < cases.length; i++) {
   const testCase = cases[i]
   const caseId = slugify(testCase.name, i)
-  const rendered = sortRenderedModes(MODES.map((mode) => {
+  const markdownItHtml = markdownIt.render(testCase.markdown)
+  const renderedModes = MODES.map((mode) => {
     const html = modeRenderers[mode.key].render(testCase.markdown)
-    const sameAsMarkdownIt = html === markdownIt.render(testCase.markdown)
     return {
       ...mode,
       html,
       role: describeModeRole(mode.key, testCase),
-      sameAsMarkdownIt
+      sameAsMarkdownIt: html === markdownItHtml
     }
-  }))
+  })
+  const preferredHtml = new Set(renderedModes
+    .filter((mode) => mode.role === 'preferred')
+    .map((mode) => mode.html))
+  let sourceGroups = sourcePreferredOutputGroups.get(testCase.markdown)
+  if (!sourceGroups) {
+    sourceGroups = new Set()
+    sourcePreferredOutputGroups.set(testCase.markdown, sourceGroups)
+  }
+  sourceGroups.add(JSON.stringify(Array.from(preferredHtml).sort()))
+  for (let m = 0; m < renderedModes.length; m++) {
+    const mode = renderedModes[m]
+    mode.preferredOutputMatch = preferredHtml.has(mode.html)
+    if (mode.preferredOutputMatch) preferredOutputCoverage[mode.key]++
+  }
+  const rendered = sortRenderedModes(renderedModes)
 
   const preferredLabels = testCase.preferred.map((key) => {
     const mode = MODES.find((candidate) => candidate.key === key)
@@ -222,14 +260,13 @@ for (let i = 0; i < cases.length; i++) {
       <div class="block-label">Markdown source</div>
       <pre class="source markdown-source">${escapeHtml(testCase.markdown)}</pre>
     </div>
-    <div class="grid">
-      ${rendered.map((mode) => `
+    <div class="grid">${rendered.map((mode) => `
       <article class="mode-card role-${mode.role}">
         <header>
           <div class="title-row">
             <h3>${escapeHtml(mode.label)}</h3>
             <div class="badges">
-              ${buildModeBadge(mode.role)}
+              ${buildModeBadge(mode.role)}${mode.role !== 'preferred' && mode.preferredOutputMatch ? '\n              <span class="badge output-match">Same output as preferred</span>' : ''}
               <span class="badge ${mode.sameAsMarkdownIt ? 'same' : 'diff'}">${mode.sameAsMarkdownIt ? 'Same as markdown-it' : 'Diff from markdown-it'}</span>
             </div>
           </div>
@@ -244,8 +281,13 @@ for (let i = 0; i < cases.length; i++) {
   </section>`
 }
 
+let sameSourceAmbiguityCount = 0
+for (const sourceGroups of sourcePreferredOutputGroups.values()) {
+  if (sourceGroups.size > 1) sameSourceAmbiguityCount++
+}
+
 const summaryRows = MODES.map((mode) => {
-  return `<tr><th>${escapeHtml(mode.label)}</th><td>${preferredTotals[mode.key] || 0}</td></tr>`
+  return `<tr><th>${escapeHtml(mode.label)}</th><td>${preferredTotals[mode.key] || 0}</td><td>${preferredOutputCoverage[mode.key] || 0}/${cases.length}</td></tr>`
 }).join('')
 
 const html = `<!doctype html>
@@ -530,6 +572,11 @@ const html = `<!doctype html>
       color: #4338ca;
       border-color: #c7d2fe;
     }
+    .badge.output-match {
+      background: #e0f2fe;
+      color: #075985;
+      border-color: #7dd3fc;
+    }
     .badge.same {
       background: var(--same-bg);
       color: var(--same-fg);
@@ -609,7 +656,9 @@ const html = `<!doctype html>
   <main id="top">
     <h1>Author-Intent Naturalness Cases</h1>
     <p class="lead">タグ数や markdown-it 差分だけではなく、「この入力で書き手がどこを強調したかったか」を明示したケースを並べて見るための example です。</p>
-    <p class="lead">このページは自動採点ページではありません。Preferred / Acceptable は、mode を見比べるための review hint です。</p>
+    <p class="lead">このページは自動採点ページではありません。Preferred / Acceptable は、mode を見比べるための編集上の仮説です。Preferred count はコーパスの注釈分布であり、mode の精度ではありません。</p>
+    <p class="lead">Preferred-output coverage は、各 mode の実際の HTML が、そのケースで Preferred に指定した mode の HTML と一致した件数です。同じ出力になる mode を同点として扱います。</p>
+    <p class="lead">同じ Markdown に相反する intent を与えた same-source ambiguity group: ${sameSourceAmbiguityCount}。入力だけを使う決定的な parser は、その group の両方を同時には満たせません。</p>
     <p class="lead">single-sentence だけでなく、同一段落内の multi-sentence case も含めています。sentence-boundary stop や local repair が後続文に spillover しないかを見るためです。</p>
     <div class="toolbar" aria-label="Display controls">
       <button type="button" data-toggle-html="open">Open all HTML source</button>
@@ -621,11 +670,12 @@ const html = `<!doctype html>
       <ul class="notes">
         <li>まず <strong>Intent</strong> と <strong>Focus</strong> を読み、そのあと上から順に mode の見た目を比較する。</li>
         <li>Preferred は「このケースで一番自然に見えてほしい mode」、Acceptable は妥協可能な mode を示す。</li>
+        <li>Preferred count の大小だけで default を決めない。同じ HTML を出す mode は Preferred-output coverage で同点として読む。</li>
         <li>迷うケースは削らずに残し、Preferred / Acceptable を見直して corpus 側に判断の揺れを蓄積する。</li>
         <li>同一段落の複数文ケースは重要だが、段落をまたぐケースは inline scope が切れるため優先度を下げてよい。</li>
       </ul>
       <table class="summary-table">
-        <thead><tr><th>Mode</th><th>Preferred count</th></tr></thead>
+        <thead><tr><th>Mode</th><th>Assigned preferred count</th><th>Preferred-output coverage</th></tr></thead>
         <tbody>${summaryRows}</tbody>
       </table>
     </section>
@@ -654,3 +704,11 @@ const html = `<!doctype html>
 
 fs.writeFileSync(outputPath, html, 'utf8')
 console.log(`wrote ${outputPath}`)
+console.log(`cases=${cases.length} same_source_ambiguity_groups=${sameSourceAmbiguityCount}`)
+for (let i = 0; i < MODES.length; i++) {
+  const key = MODES[i].key
+  console.log(
+    `${key}: assigned_preferred=${preferredTotals[key] || 0} ` +
+    `preferred_output_coverage=${preferredOutputCoverage[key] || 0}/${cases.length}`
+  )
+}

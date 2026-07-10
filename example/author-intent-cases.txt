@@ -37,6 +37,18 @@ compatible
 [markdown]
 日本語です。* English* です。
 
+[case same-source-space-leading-english-intends-emphasis]
+[intent]
+直前のケースと同じ Markdown だが、ここでは書き手が English を emphasis する意図で `*` を置いたものとして扱う。
+[preferred]
+japanese-boundary
+[acceptable]
+aggressive
+[focus]
+入力文字列だけでは、literal を残したい意図と emphasis したい意図を区別できないことを確認する same-source ambiguity control。
+[markdown]
+日本語です。* English* です。
+
 [case mixed-no-space-english-should-emphasize]
 [intent]
 英語語句そのものを普通に emphasis したい。ここでは suppress しすぎない方が自然。

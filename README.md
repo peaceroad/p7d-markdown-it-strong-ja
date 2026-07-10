@@ -29,10 +29,12 @@ Underscore emphasis (`_`, `__`) is intentionally left to plain `markdown-it`. st
 Mode selection controls how aggressively the plugin helps:
 
 - `japanese` (default): alias of `japanese-boundary-guard`. This is the recommended mode for mixed Japanese/English prose.
-- `japanese-boundary`: keeps markdown-it as baseline and enables Japanese-context local relaxation around `*` runs. It does not apply the mixed JA/EN single-`*` guard. Link/ref postprocess repairs are enabled. Target behavior is JP-friendly conservative recovery.
+- `japanese-boundary`: keeps markdown-it as baseline and enables Japanese-context local relaxation around `*` runs. It does not apply the space-leading ASCII suppression guard. Link/ref postprocess repairs are enabled. Target behavior is JP-friendly conservative recovery.
 - `japanese-boundary-guard`: includes everything from `japanese-boundary`, plus an extra mixed JA/EN guard for space-adjacent ASCII segments (for patterns like `* English*`, `** "English"**`, `*** [English](u)***`). This guard is applied consistently for `*` run lengths (`*` and longer runs). Link/ref postprocess repairs are enabled. Target behavior is JP-friendly mixed-text safety.
 - `aggressive`: is more permissive than baseline-first and is the most eager mode for early opener recovery. Japanese local relaxation and link/ref postprocess repairs are enabled. Target behavior is maximum recovery.
 - `compatible`: keeps plain markdown-it delimiter decisions as-is. It does not run Japanese local relaxation and skips link/ref postprocess repairs. Output stays aligned with plain `markdown-it` under the same plugin stack.
+
+`japanese-boundary-guard` is the default because it applies a conservative policy to ambiguous space-leading ASCII, not because the parser can fully infer author intent. If `* English*` or `* \`umami\`*` is an intentional authoring convention, select `japanese-boundary` explicitly.
 
 ### What `japanese-boundary` and `japanese-boundary-guard` Share
 
@@ -72,24 +74,31 @@ Representative differences:
 
 ### Mode Selection Guide (Practical)
 
-- default for user-facing prose: `japanese` (`japanese-boundary-guard`)
+- user-facing prose where suppressing over-conversion is the priority: `japanese` (`japanese-boundary-guard`)
 - strict markdown-it parity: `compatible`
 - maximum recovery over predictability: `aggressive`
-- niche use without guard suppression: `japanese-boundary`
+- intentional space-leading English/code emphasis: `japanese-boundary`
 
 ### Example Corpus Notes
 
 Detailed cases and visual outputs:
 
 - `example/README.md`
+- `example/author-intent-cases.html`
 - `example/mixed-ja-en-stars-mode.html`
 - `example/mixed-ja-en-stars-mode.txt`
 - `example/inline-wrapper-matrix.html`
+- `docs/note-mode-default.md`
 
 ## How `japanese` (`japanese-boundary-guard`) Decides (Step by Step)
 
-This section follows the runtime flow for `mode: 'japanese'` (which resolves to `japanese-boundary-guard`).
-The flow has three layers: Step 1 builds the baseline with plain `markdown-it`; Steps 2-8 apply helper logic only where needed; Step 9 repairs link/reference-adjacent breakage.
+This section follows the implementation phases for `mode: 'japanese'` (which resolves to `japanese-boundary-guard`):
+
+1. **Delimiter decisions (Steps 1-7):** obtain the plain `markdown-it` result for each `*` run, then adjust only the runs that need Japanese-aware handling.
+2. **Emphasis token generation (Step 8):** let the normal inline pipeline pair the adjusted opener/closer candidates.
+3. **Token postprocess (Step 9):** repair only known-safe malformed shapes next to links or references.
+
+Steps 1-7 decide delimiter direction during inline parsing; they do not rewrite an already-finished token stream. Only Step 9 operates on inline tokens after parsing.
 
 Terms used below:
 
@@ -100,31 +109,30 @@ Terms used below:
 
 ### TL;DR
 
-- Baseline: start from plain `markdown-it` delimiter pairing.
-- Local helper path: only `*` runs with local Japanese context enter strong-ja boundary logic.
-- Mixed-text guard: `japanese-boundary-guard` additionally suppresses mixed JA/EN over-conversion.
-- Postprocess: token-only repairs run only for malformed link/reference-adjacent spans.
+- **Establish a baseline:** call plain `markdown-it` delimiter scanning for each `*` run first.
+- **Adjust locally:** `japanese` enters helper logic only for runs with nearby Japanese context and preserves stable baseline decisions.
+- **Guard mixed text:** `japanese-boundary-guard` additionally protects space-adjacent, ASCII-start segments from over-conversion.
+- **Finish safely:** after normal emphasis pairing, token-only postprocess repairs only high-confidence link/reference-adjacent breakage.
 
 
-### Step 1: Build the baseline with plain `markdown-it`
+### Step 1: Use plain `markdown-it` delimiter decisions as the baseline
 
-`markdown-it` runs first. If it can already parse a pattern (including cross-line `**...**`), that baseline structure is kept.
+For every `*` run, strong-ja first calls the original `markdown-it` delimiter scanner. This returns the run length and whether it can open or close emphasis. Patterns that `markdown-it` already handles, including cross-line `**...**`, are built from this baseline.
 
 Example:
 
 - Input: `カツ**丼も\n人気**です`
 - `markdown-it` / `japanese` / `compatible`: `<p>カツ<strong>丼も\n人気</strong>です</p>`
 
-Positioning:
+How modes use it:
 
-- `mode: 'compatible'` mostly uses this baseline as-is.
-- Other modes (`japanese`, `japanese-boundary`, `japanese-boundary-guard`, `aggressive`) may add helper logic in later steps.
+- `compatible` returns this result directly and skips Steps 2-7.
+- `japanese`, `japanese-boundary`, and `japanese-boundary-guard` adjust only runs that need local help.
+- `aggressive` starts from the same result but applies helper logic more broadly, without the Japanese-context gate.
 
-### Step 2: Decide whether Japanese helper logic should run
+### Step 2: Decide per run whether Japanese-aware help is needed
 
-This decision is made per `*` run. `japanese` does not rewrite the whole line blindly. It checks non-whitespace characters adjacent to each run and only enters helper logic when local Japanese context exists.
-
-Japanese context here is mainly Hiragana, Katakana, Kanji (Han), and fullwidth punctuation/symbols. If adjacent context is mostly ASCII letters/numbers, the Step 1 result is kept.
+`japanese` does not rewrite the entire source or a finished token stream. During inline parsing, it checks the source around each run and enters Steps 3-7 only when nearby Japanese context exists. That context mainly covers Hiragana, Katakana, Han, and fullwidth punctuation/symbols; single-star bracket/quote wrappers receive limited lookaround outside the wrapper. Without such context, the Step 1 result is returned unchanged.
 
 Example that stays on baseline:
 
@@ -137,9 +145,9 @@ Example that proceeds to helper logic:
 - Input: `**味噌汁。**umami**`
 - Why: local Japanese context is adjacent.
 
-### Step 3: Keep valid `markdown-it` direction decisions
+### Step 3: Preserve stable opener/closer directions
 
-`japanese` is baseline-first. It does not overwrite already-stable direction decisions. It only adds candidates where malformed input is likely to misdirect pairing.
+Even on the helper path, stable opener/closer directions from `markdown-it` take priority. strong-ja relaxes only local cases that whitespace or Japanese punctuation would otherwise exclude.
 
 Example that stays as-is:
 
@@ -153,7 +161,7 @@ Example that continues:
 
 ### Step 4: Use same-line local context only
 
-Local helper checks only read non-whitespace characters on the same line. They do not bridge across `\n`.
+Whitespace and wrapper lookaround stays on the current line; it never treats text across `\n` as local context. This limit applies to strong-ja's additional checks, not to normal inline pairing, so it does not disable cross-line emphasis that was already valid in Step 1.
 
 Example:
 
@@ -163,7 +171,7 @@ Example:
 
 ### Step 5 (`japanese-boundary-guard` only): Suppress mixed JA/EN over-conversion
 
-This step exists only in `japanese-boundary-guard`. It suppresses emphasis when the segment is space-adjacent and ASCII-start, to avoid unnatural emphasis around English fragments.
+This extra check exists only in `japanese-boundary-guard`. It tightens emphasis candidates for space-adjacent segments whose first significant character—after optional quotes, brackets, or code-like wrappers—is an ASCII word character. The guard applies to single and multi-marker runs.
 
 Representative differences:
 
@@ -177,7 +185,7 @@ Representative differences:
 
 ### Step 6: Apply extra direction correction only to single `*`
 
-Extra direction correction is applied only to run length `1` (`*`), where malformed inputs most often flip opener/closer direction.
+For a run length of `1`, strong-ja may also inspect the previous single `*` and Japanese context between the two markers. This limits opener/closer inversion in malformed input. The correction runs in `japanese-boundary`, `japanese-boundary-guard` (`japanese`), and `aggressive`, but not `compatible`.
 
 Example:
 
@@ -191,7 +199,7 @@ Additional boundary rule:
 
 ### Step 7: Do not apply Step 6 single-star correction to `**` and longer runs
 
-Runs of `**` and longer (`***`, `****`, `*****+`) still use baseline `markdown-it` decisions and Japanese relaxations. Only the single-star-specific correction from Step 6 is excluded.
+Runs of `**` and longer still use the Step 1 baseline plus the Japanese-aware checks and guard from Steps 2-5. Only Step 6's backward lookup for a previous single `*` is excluded, because extending it to multi-marker runs can disturb unrelated pairing.
 
 Example:
 
@@ -199,18 +207,18 @@ Example:
 - `japanese`: `<p><strong>味噌汁。</strong>umami**という表現を使います。</p>`
 - `compatible`: `<p>**味噌汁。<strong>umami</strong>という表現を使います。</p>`
 
-### Step 8: Build emphasis pairs normally; keep literals when forcing is unsafe
+### Step 8: Pair normally; keep markers literal when pairing is unsafe
 
-After direction candidates are fixed, normal inline pairing builds final tokens. If forcing tags looks unsafe, markers are left literal.
+After each run has its opener/closer candidates, the normal `markdown-it` inline pipeline pairs them and emits `em_*` / `strong_*` tokens. Markers that cannot be paired safely remain literal text.
 
 Example:
 
 - Input: `**[**[x](v)](u)**`
 - Output: `<p><strong>[</strong><a href="v">x</a>](u)**</p>`
 
-### Step 9: Repair link/reference-adjacent breakage after pairing
+### Step 9: Postprocess only known link/reference-adjacent breakage
 
-Steps 1-8 decide marker direction and pairing. Step 9 is a separate phase that only adjusts malformed spans around links/references. Option name: `postprocess`.
+The processing phase changes here. Steps 1-8 belong to inline parsing; Step 9 is a core-rule token postprocess. It rearranges `*` / `**`-related tokens only when an already-built inline token range next to a link or reference matches a known-safe malformed shape. It never converts the range back to source text for reparsing. Option name: `postprocess`.
 
 #### Step 9-1: Collapsed reference matching follows `markdown-it` normalization
 
