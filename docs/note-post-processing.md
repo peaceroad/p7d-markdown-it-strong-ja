@@ -74,6 +74,8 @@ Flow:
 
 `expandSegmentEndForWrapperBalance(...)` now tracks only asterisk `strong/em` depth with fixed counters, which is both cheaper and closer to the actual broken-ref responsibility than a generic wrapper map. Direct helper fallback paths also memoize link-close maps and wrapper-prefix stats per pass, so exported repair helpers do not regress when called outside the orchestrator facts flow. Broken-ref passes now seed their signal flags from already-known inline facts and keep the `link_open` candidate branch in a dedicated helper, which reduces no-op checks in the common orchestrator path while keeping the runner shape narrow. When repeated repair passes finish on an early repair exit, the runner re-summarizes current token-level bracket/emphasis/link-close facts before returning so later stages do not depend on partial scan state.
 
+Wrapper-prefix stats are now materialized only for close-only candidate ranges that may depend on wrapper depth before the candidate. Candidates whose range already contains an opener, or has no close-only signal, stay on the range-local signal path and avoid allocating whole-inline prefix arrays.
+
 Current broken-ref fast paths:
 
 - `tryFixBrokenRefStrongAroundLinkTokenOnly`
@@ -108,6 +110,8 @@ Collapsed-ref finalize then runs:
 
 - `convertCollapsedReferenceLinks`
 - `mergeBrokenMarksAroundLinks`
+
+Bracket tokenization also treats already-atomic `[`, `]`, and `[]` text tokens as a direct fast path after bracket detection, avoiding a segment-array build for the common retry shape.
 
 Broken-ref and collapsed-ref now both use named orchestrator gate/apply helpers before the token-mutation helpers run. That keeps `processInlinePostprocessToken(...)` at the stage-dispatch level while `broken-ref.js` and `token-link-utils.js` own the candidate and rewrite details.
 

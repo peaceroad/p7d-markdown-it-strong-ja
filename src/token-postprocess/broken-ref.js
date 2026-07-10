@@ -11,8 +11,8 @@ import {
   applyBrokenRefTokenOnlyFastPath
 } from './fastpaths.js'
 
-const scanBrokenRefState = (text, out) => {
-  if (!text || text.indexOf('[') === -1) {
+const scanBrokenRefStateWithOpenBracket = (text, out) => {
+  if (!text) {
     out.depth = 0
     out.brokenEnd = false
     out.tailOpen = -1
@@ -179,6 +179,12 @@ const BROKEN_REF_FLOW_SKIP_NO_ACTIVE_SIGNATURE = 'skip-no-active-signature'
 const BROKEN_REF_FLOW_SKIP_NO_FASTPATH_MATCH = 'skip-no-fastpath-match'
 const BROKEN_REF_FLOW_REPAIRED = 'repaired'
 
+const needsBrokenRefWrapperPrefixStats = (startIdx, wrapperSignals) => {
+  if (startIdx <= 0 || !wrapperSignals) return false
+  return (wrapperSignals.strongCloseInRange > 0 && wrapperSignals.strongOpenInRange === 0) ||
+    (wrapperSignals.emCloseInRange > 0 && wrapperSignals.emOpenInRange === 0)
+}
+
 const resolveBrokenRefSegmentEnd = (children, brokenRefCandidate, closeIdx, metrics = null) => {
   let segmentEnd = expandSegmentEndForWrapperBalance(children, brokenRefCandidate.start, closeIdx)
   if (segmentEnd !== -1) return segmentEnd
@@ -208,7 +214,13 @@ const resolveBrokenRefCandidateGuardFlow = (
     bumpBrokenRefMetric(metrics, 'brokenRefCandidateFlow', 'no-active-signature')
     return BROKEN_REF_FLOW_SKIP_NO_ACTIVE_SIGNATURE
   }
-  const wrapperPrefixStats = ensureBrokenRefWrapperPrefixStats(children, facts, hooks, fallbackCache)
+  const needsWrapperPrefixStats = needsBrokenRefWrapperPrefixStats(
+    brokenRefCandidate.start,
+    wrapperSignals
+  )
+  const wrapperPrefixStats = needsWrapperPrefixStats
+    ? ensureBrokenRefWrapperPrefixStats(children, facts, hooks, fallbackCache)
+    : null
   if (!shouldAttemptBrokenRefRewrite(
     children,
     brokenRefCandidate.start,
@@ -324,7 +336,7 @@ const observeBrokenRefTextToken = (passSignals, candidateState, text, tokenIdx, 
   }
   if (candidateState.start === -1) {
     if (!hasOpenBracket) return
-    const scan = scanBrokenRefState(text, scanState)
+    const scan = scanBrokenRefStateWithOpenBracket(text, scanState)
     if (scan.brokenEnd) {
       startBrokenRefCandidateState(candidateState, tokenIdx, scan)
     }
@@ -455,7 +467,7 @@ const hasPotentialBrokenRefRepairPass = (children, scanState) => {
     const child = children[j]
     if (!child || child.type !== 'text' || !child.content) continue
     if (child.content.indexOf('[') === -1) continue
-    if (scanBrokenRefState(child.content, scanState).brokenEnd) {
+    if (scanBrokenRefStateWithOpenBracket(child.content, scanState).brokenEnd) {
       return true
     }
   }
@@ -501,7 +513,13 @@ const countGuardedBrokenRefRepairPasses = (children, scanState, facts = null, ho
       resetBrokenRefCandidateState(brokenRefCandidate)
       continue
     }
-    const wrapperPrefixStats = ensureBrokenRefWrapperPrefixStats(children, facts, hooks, fallbackCache)
+    const needsWrapperPrefixStats = needsBrokenRefWrapperPrefixStats(
+      brokenRefCandidate.start,
+      wrapperSignals
+    )
+    const wrapperPrefixStats = needsWrapperPrefixStats
+      ? ensureBrokenRefWrapperPrefixStats(children, facts, hooks, fallbackCache)
+      : null
     if (shouldAttemptBrokenRefRewrite(
       children,
       brokenRefCandidate.start,

@@ -282,39 +282,51 @@ const materializeScanDelimsLookupCache = (cache) => {
   if (cache.prevNonSpaceSameLine && cache.nextNonSpaceSameLine) return cache
   const src = cache.src
   const len = src.length
+  // Store indexes as `index + 1` so the typed arrays' zero-filled state is
+  // also the "not found" sentinel. This avoids two full-array fill passes on
+  // every promoted inline-state cache.
   const prevNonSpaceSameLine = new Int32Array(len)
   const nextNonSpaceSameLine = new Int32Array(len)
-  prevNonSpaceSameLine.fill(-1)
-  nextNonSpaceSameLine.fill(-1)
 
   let prev = -1
   for (let i = 0; i < len; i++) {
-    const code = codePointAtSafe(src, i)
+    const code = src.charCodeAt(i)
     if (code === CHAR_NEWLINE) {
       prev = -1
       continue
     }
-    const size = codePointSize(code)
     if (!isSoftSpaceCode(code)) prev = i
-    prevNonSpaceSameLine[i] = prev
-    if (size === 2 && i + 1 < len) {
-      prevNonSpaceSameLine[i + 1] = prev
+    const encodedPrev = prev + 1
+    prevNonSpaceSameLine[i] = encodedPrev
+    if (code >= 0xD800 && code <= 0xDBFF &&
+        i + 1 < len &&
+        src.charCodeAt(i + 1) >= 0xDC00 &&
+        src.charCodeAt(i + 1) <= 0xDFFF) {
+      prevNonSpaceSameLine[i + 1] = encodedPrev
       i++
     }
   }
 
   let next = -1
   for (let i = len - 1; i >= 0; i--) {
-    const cpStart = codePointStartBefore(src, i + 1)
-    const code = cpStart === -1 ? 0 : codePointAtSafe(src, cpStart)
+    let cpStart = i
+    let code = src.charCodeAt(i)
+    if (code >= 0xDC00 && code <= 0xDFFF &&
+        i > 0 &&
+        src.charCodeAt(i - 1) >= 0xD800 &&
+        src.charCodeAt(i - 1) <= 0xDBFF) {
+      cpStart = i - 1
+      code = src.charCodeAt(cpStart)
+    }
     if (code === CHAR_NEWLINE) {
       next = -1
       continue
     }
     if (!isSoftSpaceCode(code)) next = cpStart
-    nextNonSpaceSameLine[i] = next
+    const encodedNext = next + 1
+    nextNonSpaceSameLine[i] = encodedNext
     if (cpStart !== i) {
-      nextNonSpaceSameLine[cpStart] = next
+      nextNonSpaceSameLine[cpStart] = encodedNext
       i = cpStart
     }
   }
@@ -362,7 +374,7 @@ const findPrevNonSpaceIndex = (src, start, lookupCache = null) => {
   if (start < 0) return -1
   const materializedLookup = getMaterializedScanDelimsLookupCache(lookupCache, src)
   if (materializedLookup && start < materializedLookup.prevNonSpaceSameLine.length) {
-    return materializedLookup.prevNonSpaceSameLine[start]
+    return materializedLookup.prevNonSpaceSameLine[start] - 1
   }
   for (let i = start; i >= 0;) {
     const cpStart = codePointStartBefore(src, i + 1)
@@ -379,7 +391,7 @@ const findNextNonSpaceIndex = (src, start, max, lookupCache = null) => {
   if (start < 0 || start >= max || start >= src.length) return -1
   const materializedLookup = getMaterializedScanDelimsLookupCache(lookupCache, src)
   if (materializedLookup && start < materializedLookup.nextNonSpaceSameLine.length) {
-    const next = materializedLookup.nextNonSpaceSameLine[start]
+    const next = materializedLookup.nextNonSpaceSameLine[start] - 1
     return next !== -1 && next < max ? next : -1
   }
   for (let i = start; i < max;) {
@@ -447,7 +459,7 @@ const isSentenceBoundaryStop = (code) => {
 const findPrevNonSpaceLimited = (src, start, maxLook, lookupCache = null) => {
   const materializedLookup = start >= 0 ? getMaterializedScanDelimsLookupCache(lookupCache, src) : null
   if (materializedLookup && start < materializedLookup.prevNonSpaceSameLine.length) {
-    const prev = materializedLookup.prevNonSpaceSameLine[start]
+    const prev = materializedLookup.prevNonSpaceSameLine[start] - 1
     if (prev !== -1 && (start - prev) < maxLook) {
       return codePointAtSafe(src, prev)
     }
@@ -471,7 +483,7 @@ const findNextNonSpaceLimited = (src, start, max, maxLook, lookupCache = null) =
   if (start < 0 || start >= max || start >= src.length) return 0
   const materializedLookup = getMaterializedScanDelimsLookupCache(lookupCache, src)
   if (materializedLookup && start < materializedLookup.nextNonSpaceSameLine.length) {
-    const next = materializedLookup.nextNonSpaceSameLine[start]
+    const next = materializedLookup.nextNonSpaceSameLine[start] - 1
     if (next !== -1 && next < max && (next - start) < maxLook) {
       return codePointAtSafe(src, next)
     }
@@ -853,8 +865,8 @@ const patchScanDelims = (md) => {
     }
 
     // 1) Normalize soft-space neighborhood around the current delimiter run.
-    let isLastWhiteSpace = isWhiteSpace(lastChar) || isSoftSpaceCode(lastChar)
-    let isNextWhiteSpace = isWhiteSpace(nextChar) || isSoftSpaceCode(nextChar)
+    let isLastWhiteSpace = isWhiteSpace(lastChar)
+    let isNextWhiteSpace = isWhiteSpace(nextChar)
     if (isLastWhiteSpace && isSoftSpaceCode(lastChar)) {
       const prevNonSpaceIdx = findPrevNonSpaceIndex(
         src,

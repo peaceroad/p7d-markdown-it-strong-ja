@@ -27,6 +27,28 @@ const getStateSource = (state) => {
   return state && typeof state.src === 'string' ? state.src : ''
 }
 
+const normalizeJapaneseAsciiNewlines = (text, firstNewlineIdx = -1) => {
+  let newlineIdx = firstNewlineIdx
+  if (newlineIdx === -1) return text
+  let parts = null
+  let segmentStart = 0
+  while (newlineIdx !== -1) {
+    const prevCharCode = codePointBeforeSafe(text, newlineIdx, 0)
+    const nextCharCode = codePointAtSafe(text, newlineIdx + 1, 0)
+    const shouldReplace = isAsciiWordCode(nextCharCode) &&
+      isJapaneseChar(prevCharCode)
+    if (shouldReplace) {
+      if (parts === null) parts = []
+      parts.push(text.slice(segmentStart, newlineIdx), ' ')
+      segmentStart = newlineIdx + 1
+    }
+    newlineIdx = text.indexOf('\n', newlineIdx + 1)
+  }
+  if (parts === null) return text
+  parts.push(text.slice(segmentStart))
+  return parts.join('')
+}
+
 const registerTokenCompat = (md, baseOpt) => {
   const isCompatibleMode = (state) => {
     const override = state && state.env && state.env.__strongJaTokenOpt
@@ -124,9 +146,8 @@ const registerTokenCompat = (md, baseOpt) => {
             if (nextToken.type !== 'text' || !nextToken.content) continue
             const prevCharCode = codePointBeforeSafe(prevToken.content, prevToken.content.length, 0)
             const nextCharCode = codePointAtSafe(nextToken.content, 0, 0)
-            const isAsciiWord = isAsciiWordCode(nextCharCode)
-            const shouldReplace = isAsciiWord &&
-              isJapaneseChar(prevCharCode) && !isJapaneseChar(nextCharCode)
+            const shouldReplace = isAsciiWordCode(nextCharCode) &&
+              isJapaneseChar(prevCharCode)
             if (!shouldReplace) continue
             child.type = 'text'
             child.tag = ''
@@ -136,23 +157,9 @@ const registerTokenCompat = (md, baseOpt) => {
             continue
           }
           if (child.type !== 'text' || !child.content) continue
-          if (child.content.indexOf('\n') === -1) continue
-          let normalized = ''
-          for (let idx = 0; idx < child.content.length; idx++) {
-            const ch = child.content[idx]
-            if (ch === '\n') {
-              const prevCharCode = codePointBeforeSafe(child.content, idx, 0)
-              const nextCharCode = codePointAtSafe(child.content, idx + 1, 0)
-              const isAsciiWord = isAsciiWordCode(nextCharCode)
-              const shouldReplace = isAsciiWord &&
-                isJapaneseChar(prevCharCode) && !isJapaneseChar(nextCharCode)
-              if (shouldReplace) {
-                normalized += ' '
-                continue
-              }
-            }
-            normalized += ch
-          }
+          const firstNewlineIdx = child.content.indexOf('\n')
+          if (firstNewlineIdx === -1) continue
+          const normalized = normalizeJapaneseAsciiNewlines(child.content, firstNewlineIdx)
           if (normalized !== child.content) {
             child.content = normalized
           }

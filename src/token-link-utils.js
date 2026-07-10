@@ -143,6 +143,10 @@ const splitBracketToken = (tokens, index) => {
     }
     token.__strongJaHasBracket = true
   }
+  if (content === '[' || content === ']' || content === '[]') {
+    applyBracketSegmentFlags(token, content)
+    return false
+  }
   const segments = []
   const contentLen = content.length
   let pos = 0

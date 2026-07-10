@@ -97,6 +97,26 @@ export const runAstralDelimiterTests = () => {
     )
   }, allPassRef)
 
+  runCase('promoted delimiter lookup keeps astral indexes and empty sentinels stable', () => {
+    const rightLookupSource = '𠀋* English*𠀋'.repeat(24)
+    const leftLookupSource = '𠀋*English *𠀋'.repeat(24)
+    const emptyLookupSource = '  *𠀋* \n'.repeat(24)
+    const mdBoundary = new MarkdownIt().use(mditStrongJa, { mode: 'japanese-boundary' })
+    const mdGuard = new MarkdownIt().use(mditStrongJa, { mode: 'japanese-boundary-guard' })
+
+    assert.strictEqual(
+      mdBoundary.renderInline(rightLookupSource),
+      '𠀋<em> English</em>𠀋'.repeat(24)
+    )
+    assert.strictEqual(
+      mdBoundary.renderInline(leftLookupSource),
+      '𠀋<em>English </em>𠀋'.repeat(24)
+    )
+    const emptyLookupExpected = '  <em>𠀋</em>\n' + '<em>𠀋</em>\n'.repeat(23)
+    assert.strictEqual(mdBoundary.renderInline(emptyLookupSource), emptyLookupExpected)
+    assert.strictEqual(mdGuard.renderInline(emptyLookupSource), emptyLookupExpected)
+  }, allPassRef)
+
   return allPassRef.value
 }
 

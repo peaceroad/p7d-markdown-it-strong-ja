@@ -116,7 +116,6 @@ const countDelimiterLikeStrongRuns = (content, from = 0, limit = 0) => {
     }
     const prevSoft = prevCode !== 0 && isStrongRunSoftSpace(prevCode)
     const nextSoft = nextCode !== 0 && isStrongRunSoftSpace(nextCode)
-    const hasPrevOrNext = prevCode !== 0 || nextCode !== 0
     const prevTextLike = isStrongRunTextLike(prevCode)
     const nextTextLike = isStrongRunTextLike(nextCode)
     const hasTextNeighbor = prevTextLike || nextTextLike
@@ -129,7 +128,7 @@ const countDelimiterLikeStrongRuns = (content, from = 0, limit = 0) => {
       at = pos + 2
       continue
     }
-    if (hasPrevOrNext && !prevSoft && !nextSoft) {
+    if (!prevSoft && !nextSoft) {
       count++
       if (limit > 0 && count >= limit) return count
     }
