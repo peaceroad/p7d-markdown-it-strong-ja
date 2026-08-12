@@ -1,4 +1,4 @@
-import Token from 'markdown-it/lib/token.mjs'
+import { Token } from '../markdown-it-runtime.js'
 import { buildLinkCloseMap, convertCollapsedReferenceLinks, mergeBrokenMarksAroundLinks } from '../token-link-utils.js'
 import { runBrokenRefRepairs } from './broken-ref.js'
 import {
@@ -114,12 +114,13 @@ const createInlineChangeMarker = (facts) => {
   }
 }
 
-const finalizeInlineLinkRepairStage = (children, facts, markChangedFrom) => {
+const finalizeInlineLinkRepairStage = (children, facts, state, markChangedFrom) => {
   invalidateInlineDerivedCaches(facts)
-  if (!mergeBrokenMarksAroundLinks(children, markChangedFrom)) return false
-  invalidateInlineDerivedCaches(facts)
-  rebuildInlineLevelsForFacts(children, facts)
-  return true
+  const isWhiteSpace = state && state.md && state.md.utils && state.md.utils.isWhiteSpace
+  if (mergeBrokenMarksAroundLinks(children, isWhiteSpace, markChangedFrom)) {
+    invalidateInlineDerivedCaches(facts)
+    rebuildInlineLevelsForFacts(children, facts)
+  }
 }
 
 const BROKEN_REF_REPAIR_HOOKS = {
@@ -143,14 +144,10 @@ const scanTailRepairCandidateAfterLinkClose = (tokens, linkCloseIdx) => {
   if (!tokens || linkCloseIdx < 0 || linkCloseIdx >= tokens.length) return null
   let startIdx = -1
   let foundStrongClose = -1
-  let foundStrongOpen = -1
   for (let j = linkCloseIdx + 1; j < tokens.length; j++) {
     const node = tokens[j]
     if (!node) continue
-    if (node.type === 'strong_open') {
-      foundStrongOpen = j
-      break
-    }
+    if (node.type === 'strong_open') return null
     if (node.type === 'strong_close') {
       foundStrongClose = j
       break
@@ -159,7 +156,7 @@ const scanTailRepairCandidateAfterLinkClose = (tokens, linkCloseIdx) => {
       startIdx = j
     }
   }
-  if (foundStrongClose === -1 || foundStrongOpen !== -1) return null
+  if (foundStrongClose === -1) return null
   if (startIdx === -1) startIdx = foundStrongClose
   return { startIdx, strongCloseIdx: foundStrongClose }
 }
@@ -443,7 +440,7 @@ const runInlineEmphasisRepairStage = (
   const metrics = getPostprocessMetrics(state)
   const repairMask = forceBalanceSanitize
     ? INLINE_REPAIR_ALL_EMPHASIS_FIXERS
-    : (facts.repairMask || 0)
+    : facts.repairMask
   if ((repairMask & INLINE_REPAIR_EM_OUTER_STRONG_SEQUENCE) &&
       fixEmOuterStrongSequence(children, markChangedFrom)) {
     changed = true
@@ -455,7 +452,7 @@ const runInlineEmphasisRepairStage = (
       changed = true
     }
     if ((repairMask & INLINE_REPAIR_LEADING_ASTERISK_EM) &&
-        fixLeadingAsteriskEm(children, markChangedFrom)) {
+        fixLeadingAsteriskEm(children, state.md.utils.isWhiteSpace, markChangedFrom)) {
       changed = true
       bumpPostprocessMetric(metrics, 'emphasisFixers', 'leading-asterisk-em')
     }
@@ -500,7 +497,7 @@ const runInlineCollapsedRefStage = (children, facts, state) => {
   if (!convertCollapsedReferenceLinks(children, state, facts, markChangedFrom)) return false
   facts.hasLinkOpen = true
   facts.hasLinkClose = true
-  finalizeInlineLinkRepairStage(children, facts, markChangedFrom)
+  finalizeInlineLinkRepairStage(children, facts, state, markChangedFrom)
   return true
 }
 
@@ -551,7 +548,6 @@ const processInlinePostprocessToken = (
   strictAsciiCodeGuard,
   strictAsciiStrongGuard
 ) => {
-  if (!token || token.type !== 'inline' || !token.children || token.children.length === 0) return
   const children = token.children
   const facts = buildInlinePostprocessFacts(children, inlineContent, isJapaneseMode)
   if (shouldSkipInlinePostprocessToken(facts, isJapaneseMode)) return

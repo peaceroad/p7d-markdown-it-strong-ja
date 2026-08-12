@@ -1,9 +1,11 @@
 import assert from 'assert'
 import { pathToFileURL } from 'url'
 import MarkdownIt from 'markdown-it'
-import Token from 'markdown-it/lib/token.mjs'
 import mditStrongJa from '../index.js'
 import { convertCollapsedReferenceLinks, mergeBrokenMarksAroundLinks } from '../src/token-link-utils.js'
+
+const Token = MarkdownIt.Token
+const isWhiteSpace = new MarkdownIt().utils.isWhiteSpace
 
 const getFirstInlineChildren = (markdown) => {
   const md = new MarkdownIt().use(mditStrongJa, { mode: 'aggressive', postprocess: false })
@@ -69,6 +71,7 @@ export const runLinkHelperTests = () => {
       ['link_open', 'strong_open', 'text', 'strong_close', 'link_close']
     )
     assert.deepStrictEqual(children[0].attrs, [['href', 'https://example.com'], ['title', 'T']])
+    assert.deepStrictEqual(children[0].meta, { label: '**寿司**' })
     assert.deepStrictEqual(children[0].map, [4, 5])
     assert.deepStrictEqual(children[2].map, [4, 5])
     assert.deepStrictEqual(children[4].map, [4, 5])
@@ -188,7 +191,7 @@ export const runLinkHelperTests = () => {
         children[i].__strongJaMergeMarksAroundLink = true
       }
     }
-    const changed = mergeBrokenMarksAroundLinks(children)
+    const changed = mergeBrokenMarksAroundLinks(children, isWhiteSpace)
 
     assert.strictEqual(changed, true)
     assert.strictEqual(children.filter((token) => token.type === 'strong_open').length, 1)
@@ -206,7 +209,7 @@ export const runLinkHelperTests = () => {
   runCase('merge helper keeps unflagged strong wrappers around a link unchanged', () => {
     const children = getFirstInlineChildren('**店**[x](u)**東京**')
     const before = children.map((token) => token.type)
-    const changed = mergeBrokenMarksAroundLinks(children)
+    const changed = mergeBrokenMarksAroundLinks(children, isWhiteSpace)
 
     assert.strictEqual(changed, false)
     assert.deepStrictEqual(children.map((token) => token.type), before)
@@ -220,7 +223,7 @@ export const runLinkHelperTests = () => {
         children[i].__strongJaMergeMarksAroundLink = true
       }
     }
-    const changed = mergeBrokenMarksAroundLinks(children)
+    const changed = mergeBrokenMarksAroundLinks(children, isWhiteSpace)
 
     assert.strictEqual(changed, true)
     assert.strictEqual(children[3].content, ' ')

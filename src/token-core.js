@@ -1,5 +1,4 @@
-import { isWhiteSpace } from 'markdown-it/lib/common/utils.mjs'
-import Token from 'markdown-it/lib/token.mjs'
+import { Token } from './markdown-it-runtime.js'
 import {
   CHAR_ASTERISK,
   CHAR_NEWLINE,
@@ -712,7 +711,14 @@ function fixEmOuterStrongSequence(tokens, onChangeStart = null) {
   return changed
 }
 
-const shiftEmWithLeadingStar = (tokens, rangeStart, rangeEnd, closeIdx, onChangeStart = null) => {
+const shiftEmWithLeadingStar = (
+  tokens,
+  rangeStart,
+  rangeEnd,
+  closeIdx,
+  isWhiteSpace,
+  onChangeStart = null
+) => {
   let openIdx = findMatchingEmOpen(tokens, closeIdx)
   if (openIdx === -1 || openIdx < rangeStart || openIdx >= rangeEnd) return false
 
@@ -783,7 +789,8 @@ const shiftEmWithLeadingStar = (tokens, rangeStart, rangeEnd, closeIdx, onChange
   return true
 }
 
-const fixLeadingAsteriskEm = (tokens, onChangeStart = null) => {
+const fixLeadingAsteriskEm = (tokens, isWhiteSpace, onChangeStart = null) => {
+  if (typeof isWhiteSpace !== 'function') return false
   let changed = false
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i]
@@ -793,7 +800,14 @@ const fixLeadingAsteriskEm = (tokens, onChangeStart = null) => {
     const linkCloseIdx = nextIdx
     const linkOpenIdx = findLinkOpen(tokens, linkCloseIdx)
     if (linkOpenIdx === -1) continue
-    if (shiftEmWithLeadingStar(tokens, linkOpenIdx + 1, linkCloseIdx, i, onChangeStart)) {
+    if (shiftEmWithLeadingStar(
+      tokens,
+      linkOpenIdx + 1,
+      linkCloseIdx,
+      i,
+      isWhiteSpace,
+      onChangeStart
+    )) {
       changed = true
       i = linkCloseIdx
     }
@@ -841,28 +855,31 @@ const patchScanDelims = (md) => {
     const nextChar = codePointAtSafe(src, pos, 0x20)
     let prevStarFlags = -1
 
-    const leftJapanese = isJapaneseChar(lastChar)
-    const rightJapanese = isJapaneseChar(nextChar)
-    let hasJapaneseContext = leftJapanese || rightJapanese
-    if (!hasJapaneseContext && count === 1) {
-      hasJapaneseContext = hasJapaneseContextForBracketWrapper(
-        src,
-        start,
-        pos,
-        max,
-        lastChar,
-        nextChar,
-        lookupCache || (lookupCache = getScanDelimsLookupCache(this))
-      )
+    let leftJapanese = false
+    let rightJapanese = false
+    if (!aggressiveMode) {
+      leftJapanese = isJapaneseChar(lastChar)
+      rightJapanese = isJapaneseChar(nextChar)
+      let hasJapaneseContext = leftJapanese || rightJapanese
+      if (!hasJapaneseContext && count === 1) {
+        hasJapaneseContext = hasJapaneseContextForBracketWrapper(
+          src,
+          start,
+          pos,
+          max,
+          lastChar,
+          nextChar,
+          lookupCache || (lookupCache = getScanDelimsLookupCache(this))
+        )
+      }
+      if (!hasJapaneseContext && count === 1 && isExtraSingleStarClosePunct(lastChar)) {
+        prevStarFlags = ensurePrevStarFlags(src, start, prevStarFlags)
+        hasJapaneseContext = (prevStarFlags & PREV_STAR_HAS_JP_BETWEEN) !== 0
+      }
+      if (!hasJapaneseContext) return base
     }
-    if (!hasJapaneseContext && count === 1 && isExtraSingleStarClosePunct(lastChar)) {
-      prevStarFlags = ensurePrevStarFlags(src, start, prevStarFlags)
-      hasJapaneseContext = (prevStarFlags & PREV_STAR_HAS_JP_BETWEEN) !== 0
-    }
-    const useRelaxed = aggressiveMode || hasJapaneseContext
-    if (!useRelaxed) {
-      return base
-    }
+    const isWhiteSpace = this.md && this.md.utils && this.md.utils.isWhiteSpace
+    if (typeof isWhiteSpace !== 'function') return base
 
     // 1) Normalize soft-space neighborhood around the current delimiter run.
     let isLastWhiteSpace = isWhiteSpace(lastChar)

@@ -12,6 +12,7 @@ import { runBrokenRefHelperTests } from './post-processing-broken-ref-helper.tes
 import { runPostprocessEmphasisHelperTests } from './post-processing-emphasis-helper.test.js'
 import { runPostprocessEmphasisMetricsTests } from './post-processing-emphasis-metrics.test.js'
 import { runLinkHelperTests } from './post-processing-link-helper.test.js'
+import { runMarkdownItV15ContractTests } from './markdown-it-v15-contract.test.js'
 import { pathToFileURL } from 'url'
 
 export const runEdgeTests = () => {
@@ -29,6 +30,7 @@ export const runEdgeTests = () => {
   allPass = runPostprocessEmphasisHelperTests() && allPass
   allPass = runPostprocessEmphasisMetricsTests() && allPass
   allPass = runLinkHelperTests() && allPass
+  allPass = runMarkdownItV15ContractTests() && allPass
   allPass = runTokenOnlyProgressTests() && allPass
   return allPass
 }

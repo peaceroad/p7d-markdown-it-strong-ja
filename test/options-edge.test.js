@@ -1,8 +1,9 @@
 import assert from 'assert'
 import MarkdownIt from 'markdown-it'
-import Token from 'markdown-it/lib/token.mjs'
 import mditStrongJa from '../index.js'
 import mditCJKBreaks from '@peaceroad/markdown-it-cjk-breaks-mod'
+
+const Token = MarkdownIt.Token
 
 const runCase = (name, fn, allPassRef) => {
   try {
@@ -361,6 +362,20 @@ export const runOptionEdgeTests = () => {
     const ruleNames = md.core.ruler.__rules__.map((rule) => rule.name)
     assert.strictEqual(ruleNames.filter((name) => name === 'strong_ja_token_postprocess').length, 1)
   }, allPassRef)
+
+  runCase('repeated .use ignores later invalid options', () => {
+    const md = new MarkdownIt().use(mditStrongJa, { mode: 'compatible' })
+    assert.doesNotThrow(() => md.use(mditStrongJa, { engine: 'legacy', mode: 'unknown' }))
+    assert.strictEqual(md.__strongJaTokenOpt.mode, 'compatible')
+  }, allPassRef)
+
+  runCase('invalid first install leaves the instance reusable', () => {
+    const md = new MarkdownIt()
+    assert.throws(() => md.use(mditStrongJa, { engine: 'legacy' }), /legacy engine/i)
+    assert.doesNotThrow(() => md.use(mditStrongJa, { mode: 'compatible' }))
+    assert.strictEqual(md.__strongJaTokenOpt.mode, 'compatible')
+  }, allPassRef)
+
   runCase('postprocess off keeps collapsed ref literal', () => {
     const input = '[**Text**][]'
     const env = { references: { TEXT: { href: 'https://example.com', title: '' } } }
@@ -1247,6 +1262,4 @@ export const runOptionEdgeTests = () => {
 
   return allPassRef.value
 }
-
-
 

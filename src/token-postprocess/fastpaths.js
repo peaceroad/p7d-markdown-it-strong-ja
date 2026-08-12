@@ -1,4 +1,4 @@
-import Token from 'markdown-it/lib/token.mjs'
+import { Token } from '../markdown-it-runtime.js'
 import { cloneMap } from '../token-utils.js'
 
 const cloneTextLike = (source, content) => {

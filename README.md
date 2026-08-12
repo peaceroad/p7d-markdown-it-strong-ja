@@ -5,7 +5,7 @@
 ## Install
 
 ```bash
-npm i @peaceroad/markdown-it-strong-ja
+npm i markdown-it @peaceroad/markdown-it-strong-ja
 ```
 
 ## Quick Start
@@ -416,9 +416,9 @@ or attach inline attributes after the closing inline token:
 
 strong-ja keeps this as dependency parity rather than adding a local workaround.
 
-### `markdown-it` 14.2 astral delimiter policy
+### `markdown-it` 15 astral delimiter compatibility
 
-`markdown-it` 14.2 recognizes astral characters (surrogate pairs) as full Unicode code points when scanning emphasis delimiters. strong-ja keeps `compatible` mode aligned with that upstream behavior.
+`markdown-it` 15 keeps the code-point-aware astral delimiter behavior introduced in 14.2. strong-ja keeps `compatible` mode aligned with that upstream behavior.
 
 In Japanese modes, strong-ja still only adds its own delimiter relaxation when Japanese/CJK context is present. Astral Han characters, such as CJK Extension B, are treated as CJK context:
 
@@ -440,7 +440,7 @@ Emoji or symbol-only English contexts remain aligned with `markdown-it` and are 
 <p>*😀?<em>abc</em></p>
 ```
 
-Symbols inside Japanese prose may still be emphasized by the existing Japanese-context rule, for example `**😀**です` can render as `<p><strong>😀</strong>です</p>`. Use `mode: 'compatible'` when exact `markdown-it` 14.2 delimiter behavior is required.
+Symbols inside Japanese prose may still be emphasized by the existing Japanese-context rule, for example `**😀**です` can render as `<p><strong>😀</strong>です</p>`. Use `mode: 'compatible'` when exact `markdown-it` 15 delimiter behavior is required.
 
 ## Options
 
@@ -485,6 +485,6 @@ Symbols inside Japanese prose may still be emphasized by the existing Japanese-c
 - Repeated `.use(...)` on the same `MarkdownIt` instance is treated as first-install-wins no-op. Create a new `MarkdownIt` instance for a different plugin option set.
 - Runtime-effective override keys are merged with plugin options, but setup-time behavior (such as rule registration/order) cannot be switched at render time and cannot be retrofitted after the first `.use(...)` on the same `MarkdownIt` instance.
 - `mode` and `postprocess` are runtime-effective via initial install or per-render override. `mditAttrs`, `patchCorePush`, and `coreRulesBeforePostprocess` are setup-time effective after the first `.use(...)` on a `MarkdownIt` instance.
-- This is an ESM plugin (`type: module`) and is tested against `markdown-it` 14.x in Node.js, browser bundlers, and VS Code extension pipelines that use `markdown-it` ESM.
-- The implementation relies on `markdown-it` internal ESM modules / core rule internals (`lib/token.mjs`, `lib/common/utils.mjs`, `ruler.__rules__`) plus a `scanDelims` prototype patch, so internal `markdown-it` changes may require plugin updates.
+- This is an ESM plugin (`type: module`) and requires `markdown-it` 15.x as a peer dependency.
+- Token construction uses the public `MarkdownIt.Token` static class, and whitespace classification uses the active parser's `md.utils`. The implementation still relies on core rule inspection (`ruler.__rules__`) and a `scanDelims` prototype patch, so parser-internal changes may require plugin updates.
 - `scanDelims` patch is applied once per `MarkdownIt` prototype in the same process.

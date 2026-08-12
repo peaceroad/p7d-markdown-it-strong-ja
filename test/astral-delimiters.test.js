@@ -55,7 +55,7 @@ export const runAstralDelimiterTests = () => {
     )
   }, allPassRef)
 
-  runCase('compatible follows markdown-it 14.2 astral punctuation behavior', () => {
+  runCase('compatible follows markdown-it 15 astral punctuation behavior', () => {
     const cases = [
       '**😀**x',
       '**🀄**x',

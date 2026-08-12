@@ -1,11 +1,10 @@
-import Token from 'markdown-it/lib/token.mjs'
-import { isWhiteSpace } from 'markdown-it/lib/common/utils.mjs'
+import { Token } from './markdown-it-runtime.js'
 import { cloneMap, getReferenceCount } from './token-utils.js'
 
 const CHAR_OPEN_BRACKET = 0x5B // [
 const CHAR_CLOSE_BRACKET = 0x5D // ]
 
-const isWhitespaceToken = (token) => {
+const isWhitespaceToken = (token, isWhiteSpace) => {
   if (!token || token.type !== 'text') return false
   const content = token.content
   if (token.__strongJaWhitespaceSource === content &&
@@ -256,10 +255,6 @@ const resolveWrappedLabelReplaceRange = (wrapperPairs, collapsedStartIdx, collap
   }
 }
 
-const resolveInsertedWrapperMap = (pairMap, labelMap) => {
-  return pairMap || labelMap
-}
-
 const buildWrappedLabelReplacement = (labelTokens, linkOpenToken, linkCloseToken, wrapperPairs, labelMap) => {
   const firstLabelToken = labelTokens[0]
   const linkLevel = firstLabelToken ? Math.max(firstLabelToken.level - 1, 0) : 0
@@ -279,8 +274,8 @@ const buildWrappedLabelReplacement = (labelTokens, linkOpenToken, linkCloseToken
     const innerOpen = new Token(pair.base + '_open', pair.tag, 1)
     innerOpen.markup = pair.markup
     innerOpen.level = linkLevel + 1 + wp
-    const openMap = resolveInsertedWrapperMap(pair.openMap, labelMap)
-    if (openMap && !innerOpen.map) innerOpen.map = cloneMap(openMap)
+    const openMap = pair.openMap || labelMap
+    if (openMap) innerOpen.map = cloneMap(openMap)
     replacement.push(innerOpen)
   }
   replacement.push(...labelTokens)
@@ -289,8 +284,8 @@ const buildWrappedLabelReplacement = (labelTokens, linkOpenToken, linkCloseToken
     const innerClose = new Token(pair.base + '_close', pair.tag, -1)
     innerClose.markup = pair.markup
     innerClose.level = linkLevel + 1 + wp
-    const closeMap = resolveInsertedWrapperMap(pair.closeMap, labelMap)
-    if (closeMap && !innerClose.map) innerClose.map = cloneMap(closeMap)
+    const closeMap = pair.closeMap || labelMap
+    if (closeMap) innerClose.map = cloneMap(closeMap)
     replacement.push(innerClose)
   }
   replacement.push(linkCloseToken)
@@ -374,13 +369,14 @@ const resolveCollapsedReferenceTarget = (
   }
 }
 
-const buildAutoCollapsedReferenceLinkPair = (ref) => {
+const buildAutoCollapsedReferenceLinkPair = (ref, label) => {
   if (!ref) return null
   const linkOpenToken = new Token('link_open', 'a', 1)
   linkOpenToken.attrs = [['href', ref.href]]
   if (ref.title) linkOpenToken.attrPush(['title', ref.title])
   linkOpenToken.markup = '[]'
   linkOpenToken.info = 'auto'
+  linkOpenToken.meta = { label }
 
   const linkCloseToken = new Token('link_close', 'a', -1)
   linkCloseToken.markup = '[]'
@@ -397,7 +393,7 @@ const resolveCollapsedReferenceLinkPair = (references, target) => {
     }
   }
   if (!target.refKey) return null
-  return buildAutoCollapsedReferenceLinkPair(references[target.refKey])
+  return buildAutoCollapsedReferenceLinkPair(references[target.refKey], target.refKey)
 }
 
 const applyCollapsedReferenceRewrite = (
@@ -478,6 +474,9 @@ const buildCollapsedReferenceCandidate = (
   const labelEnd = closeIdx - 1
   if (!hasReferenceLabelMarkerRange(tokens, labelStart, labelEnd)) return null
 
+  const isWhiteSpace = state && state.md && state.md.utils && state.md.utils.isWhiteSpace
+  if (typeof isWhiteSpace !== 'function') return null
+
   let labelText = null
   const getLabelText = () => {
     if (labelText === null) labelText = buildReferenceLabelRange(tokens, labelStart, labelEnd)
@@ -486,7 +485,7 @@ const buildCollapsedReferenceCandidate = (
 
   const whitespaceStart = closeIdx + 1
   let refRemoveStart = whitespaceStart
-  while (refRemoveStart < tokens.length && isWhitespaceToken(tokens[refRemoveStart])) {
+  while (refRemoveStart < tokens.length && isWhitespaceToken(tokens[refRemoveStart], isWhiteSpace)) {
     refRemoveStart++
   }
   const refStartToken = tokens[refRemoveStart]
@@ -589,7 +588,8 @@ const convertCollapsedReferenceLinks = (tokens, state, cache = null, onChangeSta
   return changed
 }
 
-const collectBrokenMarkLinkMergeRemovals = (tokens) => {
+const collectBrokenMarkLinkMergeRemovals = (tokens, isWhiteSpace) => {
+  if (typeof isWhiteSpace !== 'function') return []
   const removals = []
   let i = 0
   while (i < tokens.length) {
@@ -601,7 +601,7 @@ const collectBrokenMarkLinkMergeRemovals = (tokens) => {
     }
     const openType = closeToken.type.replace('_close', '_open')
     let j = i + 1
-    while (j < tokens.length && isWhitespaceToken(tokens[j])) j++
+    while (j < tokens.length && isWhitespaceToken(tokens[j], isWhiteSpace)) j++
     if (j >= tokens.length ||
         tokens[j].type !== 'link_open' ||
         tokens[j].__strongJaMergeMarksAroundLink !== true) {
@@ -619,7 +619,7 @@ const collectBrokenMarkLinkMergeRemovals = (tokens) => {
       i++
       continue
     }
-    while (j < tokens.length && isWhitespaceToken(tokens[j])) j++
+    while (j < tokens.length && isWhitespaceToken(tokens[j], isWhiteSpace)) j++
     if (j >= tokens.length) {
       i++
       continue
@@ -657,8 +657,12 @@ const applyBrokenMarkLinkMergeRemovals = (tokens, removals, onChangeStart = null
   return true
 }
 
-const mergeBrokenMarksAroundLinks = (tokens, onChangeStart = null) => {
-  return applyBrokenMarkLinkMergeRemovals(tokens, collectBrokenMarkLinkMergeRemovals(tokens), onChangeStart)
+const mergeBrokenMarksAroundLinks = (tokens, isWhiteSpace, onChangeStart = null) => {
+  return applyBrokenMarkLinkMergeRemovals(
+    tokens,
+    collectBrokenMarkLinkMergeRemovals(tokens, isWhiteSpace),
+    onChangeStart
+  )
 }
 
 export {

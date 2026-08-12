@@ -20,11 +20,11 @@ const buildNormalizedOption = (md, option) => {
 }
 
 const mditStrongJa = (md, option) => {
-  if (option && typeof option.engine === 'string' && option.engine !== 'token') {
-    throw new Error('mditStrongJa: legacy engine was removed; use token (default)')
-  }
   if (md.__strongJaTokenInstalled) {
     return md
+  }
+  if (option && typeof option.engine === 'string' && option.engine !== 'token') {
+    throw new Error('mditStrongJa: legacy engine was removed; use token (default)')
   }
   const nextOpt = buildNormalizedOption(md, option)
   md.__strongJaTokenOpt = nextOpt

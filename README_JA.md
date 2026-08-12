@@ -5,7 +5,7 @@
 ## インストール
 
 ```bash
-npm i @peaceroad/markdown-it-strong-ja
+npm i markdown-it @peaceroad/markdown-it-strong-ja
 ```
 
 ## クイックスタート
@@ -455,9 +455,9 @@ Step 9 では、リンクや参照リンクの周辺で崩れた強調記号を�
 
 strong-jaでは、このケースをローカルに補正せず、依存プラグインとのparityとして扱います。
 
-### `markdown-it` 14.2のastral delimiter方針
+### `markdown-it` 15のastral delimiter互換性
 
-`markdown-it` 14.2では、強調 delimiter の前後判定でastral文字（サロゲートペア）を1つのUnicode code pointとして扱います。strong-jaの`compatible` modeは、この上流挙動に追随します。
+`markdown-it` 15は、14.2で導入された、強調 delimiter の前後判定でastral文字（サロゲートペア）を1つのUnicode code pointとして扱う挙動を維持しています。strong-jaの`compatible` modeは、この上流挙動に追随します。
 
 一方、Japanese modeでは、strong-ja独自の緩和は日本語/CJK文脈がある場合だけ追加します。CJK統合漢字拡張Bなどのastral Han文字は、CJK文脈として扱います。
 
@@ -479,7 +479,7 @@ emojiやsymbolだけで英字文脈にある場合は、astral文字であって
 <p>*😀?<em>abc</em></p>
 ```
 
-ただし、日本語文中の記号列は既存の日本語文脈ルールにより強調されることがあります。たとえば`**😀**です`は`<p><strong>😀</strong>です</p>`になり得ます。`markdown-it` 14.2と完全に同じdelimiter挙動が必要な場合は、`mode: 'compatible'`を使ってください。
+ただし、日本語文中の記号列は既存の日本語文脈ルールにより強調されることがあります。たとえば`**😀**です`は`<p><strong>😀</strong>です</p>`になり得ます。`markdown-it` 15と完全に同じdelimiter挙動が必要な場合は、`mode: 'compatible'`を使ってください。
 
 ## オプション
 
@@ -524,5 +524,6 @@ emojiやsymbolだけで英字文脈にある場合は、astral文字であって
 - 同じ `MarkdownIt` instance に対する repeated `.use(...)` は、first-install-wins の no-op として扱います。別の plugin option set を使いたい場合は `MarkdownIt` instance を作り直してください。
 - runtime-effective な上書きキーは plugin オプションとマージされますが、rule 登録順など setup 時点で確定する挙動はレンダー時に切り替えできません。
 - `mode` と `postprocess` は初回 install か per-render override 経由で runtime-effective です。`mditAttrs`、`patchCorePush`、`coreRulesBeforePostprocess` は最初の `.use(...)` 後は setup-time effective のままです。
-- このプラグインは ESM（`type: module`）です。Node.js / browser bundler / VS Code extension など、`markdown-it` ESM を使うパイプラインで利用できます。
+- このプラグインは ESM（`type: module`）で、peer dependencyとして`markdown-it` 15.xを必要とします。
+- Token生成には公開APIの`MarkdownIt.Token` static classを使い、空白判定には実行中parserの`md.utils`を使います。core ruleの調査（`ruler.__rules__`）と`scanDelims` prototype patchには引き続き依存するため、parser内部の変更時は追随が必要になる場合があります。
 - `scanDelims` patch は同一プロセス内で `MarkdownIt` prototype ごとに 1 回だけ適用されます。

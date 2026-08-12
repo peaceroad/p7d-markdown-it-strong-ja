@@ -1,6 +1,6 @@
 import assert from 'assert'
 import { pathToFileURL } from 'url'
-import Token from 'markdown-it/lib/token.mjs'
+import MarkdownIt from 'markdown-it'
 import {
   rebuildInlineLevelsFrom,
   fixTrailingStrong,
@@ -14,6 +14,9 @@ import {
   INLINE_REPAIR_LEADING_ASTERISK_EM,
   INLINE_REPAIR_BALANCE_SANITIZE
 } from '../src/token-postprocess/guards.js'
+
+const Token = MarkdownIt.Token
+const isWhiteSpace = new MarkdownIt().utils.isWhiteSpace
 
 const createTextToken = (content) => {
   const token = new Token('text', '', 0)
@@ -136,7 +139,7 @@ export const runPostprocessEmphasisHelperTests = () => {
     ]
     const tracker = trackEarliestChange()
 
-    assert.strictEqual(fixLeadingAsteriskEm(tokens, tracker.mark), true)
+    assert.strictEqual(fixLeadingAsteriskEm(tokens, isWhiteSpace, tracker.mark), true)
     assert.strictEqual(tracker.earliest, 1)
     rebuildInlineLevelsFrom(tokens, tracker.earliest)
 

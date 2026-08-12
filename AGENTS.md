@@ -9,6 +9,7 @@
 
 ## File Map
 - `index.js`: token engine entry; normalizes options and registers rules.
+- `src/markdown-it-runtime.js`: markdown-it 15 public-runtime adapter (`MarkdownIt.Token`).
 - `src/token-core.js`: scanDelims patch + emphasis fixers.
 - `src/token-compat.js`: attrs/cjk_breaks compatibility rules.
 - `src/token-postprocess.js`: postprocess entry (re-export).
@@ -28,7 +29,7 @@
 
 ### Option Notes
 - `mode` and `postprocess` are runtime-effective via the initial install or per-render override.
-- Repeated `.use(...)` on the same `MarkdownIt` instance is first-install-wins no-op; create a new instance for a different plugin option set.
+- Repeated `.use(...)` on the same `MarkdownIt` instance is first-install-wins no-op, including later invalid option objects; create a new instance for a different plugin option set. Keep the installed sentinel check before option validation.
 - `mditAttrs`, `patchCorePush`, and `coreRulesBeforePostprocess` are setup-time effective (registration/order is fixed after the first `.use(...)` on a `MarkdownIt` instance).
 
 ## Per-render override
@@ -73,6 +74,7 @@
 - `scanDelims` now creates its per-inline lookup object lazily and only materializes same-line prev/next non-space arrays on the first actual neighborhood lookup, so marker-light inputs avoid upfront O(n) cache work.
 - Materialized `scanDelims` lookup arrays encode indexes as `index + 1`, reusing typed-array zero initialization as the missing-index sentinel and avoiding two full fill passes; their builder walks UTF-16 code units directly while preserving astral-pair start indexes.
 - Previous single-star context stays memoized per delimiter call (`prevStarFlags`) instead of a state-wide per-position cache, because each `*` start is typically scanned once.
+- `aggressive` delimiter scans skip Japanese-context classification entirely because that mode relaxes every asterisk run; Japanese modes still classify context before entering the relaxed path.
 - Runtime option resolution is cached per parse-state + override object (`state.__strongJaTokenRuntimeOpt`), including no-override renders, so repeated `scanDelims` calls reuse the same resolved option object.
 - Japanese-context scans in postprocess are gated by mode (`japanese-boundary`/`japanese-boundary-guard` only); `aggressive`/`compatible` avoid that extra pass.
 - Postprocess now checks marker presence (`*`) before Japanese-context scans and bracket-text checks on each inline token.
@@ -107,6 +109,7 @@
 
 ## Risks / Watchpoints
 - Prototype patch is shared across MarkdownIt instances in the same process (now patched once per prototype).
+- Runtime token construction uses the public markdown-it 15 `MarkdownIt.Token` class, and parser-sensitive whitespace checks use the active instance's `md.utils`; package-internal `markdown-it/lib/*` imports are unsupported.
 - Pattern-based fixers (e.g., `fixEmOuterStrongSequence`) are sensitive to Markdown-it output changes.
 - Map repair is coarse (range-level); per-token source positions can still be lost.
 - Strict token-only repair intentionally leaves unknown malformed shapes as fail-closed literals; conversion coverage for unseen shapes may be lower than former fallback behavior.
@@ -133,6 +136,7 @@
 - No-op heavy regressions: `node test/post-processing-noop.test.js` (fuzz-mined pathological inputs; bounds extra inline-parse delta `<=0` and asserts HTML parity vs `postprocess:false`).
 - Fail-safe matrix: `node test/post-processing.test.js` validates skip/fail-closed paths and checks no-extra-call conditions via `md.inline.parse` delta (`postprocess:true/false`).
 - Compatible parity: `test/compatible-parity.test.js` asserts `mode: compatible` output equals plain `markdown-it` under the same plugin stacks used by fixtures.
+- markdown-it 15 contract: `test/markdown-it-v15-contract.test.js` locks public `Token`, utility access, reference metadata, image alt, linkify, entities, and compatible-mode parity.
 - Option edges: `test/options-edge.test.js` includes complex broken/tail regressions across mode+mditAttrs matrix and meta-bearing token coverage.
 - Token-only progress: `node test/post-processing-progress.test.js` now measures `md.inline.parse` delta (`postprocess:true` vs `false`) rather than `MarkdownIt.prototype.parseInline`.
 - Token-only progress fixtures are currently all `expect_calls=none` and act as zero-extra-call regression locks.

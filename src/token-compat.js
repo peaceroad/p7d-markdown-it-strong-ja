@@ -1,4 +1,4 @@
-import Token from 'markdown-it/lib/token.mjs'
+import { Token } from './markdown-it-runtime.js'
 import {
   REG_ATTRS,
   isJapaneseChar,
@@ -266,19 +266,15 @@ const registerTokenCompat = (md, baseOpt) => {
           }
           break
         }
-        for (let j = 0; j <= lastMeaningful; j++) {
-          const child = children[j]
-          if (!child || child.type !== 'text' || !child.content) continue
-          const content = child.content
-          if (content.charCodeAt(0) !== 0x7B || content.charCodeAt(content.length - 1) !== 0x7D) continue
-          if (REG_ATTRS.test(content)) continue
-          if (j !== lastMeaningful) continue
-          const placeholder = new Token('text', '', 0)
-          placeholder.content = ''
-          children.splice(j + 1, 0, placeholder)
-          lastMeaningful = j
-          j++
-        }
+        if (lastMeaningful < 0) continue
+        const child = children[lastMeaningful]
+        if (child.type !== 'text' || !child.content) continue
+        const content = child.content
+        if (content.charCodeAt(0) !== 0x7B || content.charCodeAt(content.length - 1) !== 0x7D) continue
+        if (REG_ATTRS.test(content)) continue
+        const placeholder = new Token('text', '', 0)
+        placeholder.content = ''
+        children.splice(lastMeaningful + 1, 0, placeholder)
       }
     })
   }

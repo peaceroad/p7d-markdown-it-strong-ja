@@ -1,4 +1,11 @@
-import { codePointAtSafe, codePointBeforeSafe, codePointSize, isJapaneseChar } from '../token-utils.js'
+import {
+  codePointAtSafe,
+  codePointBeforeSafe,
+  codePointSize,
+  isAsciiWordCode,
+  isJapaneseChar,
+  isSoftSpaceCode
+} from '../token-utils.js'
 
 const CHAR_ASTERISK = 0x2A // *
 const INLINE_REPAIR_EM_OUTER_STRONG_SEQUENCE = 1 << 0
@@ -80,18 +87,12 @@ const hasEmphasisSignalInRange = (tokens, startIdx, endIdx) => {
 }
 
 const isStrongRunSoftSpace = (code) => {
-  return code === 0x20 || code === 0x09 || code === 0x0A || code === 0x3000
-}
-
-const isStrongRunAsciiWord = (code) => {
-  return (code >= 0x30 && code <= 0x39) ||
-    (code >= 0x41 && code <= 0x5A) ||
-    (code >= 0x61 && code <= 0x7A)
+  return code === 0x0A || isSoftSpaceCode(code)
 }
 
 const isStrongRunTextLike = (code) => {
   if (!code) return false
-  return isStrongRunAsciiWord(code) || isJapaneseChar(code)
+  return isAsciiWordCode(code) || isJapaneseChar(code)
 }
 
 const countDelimiterLikeStrongRuns = (content, from = 0, limit = 0) => {
@@ -427,29 +428,31 @@ const scanInlinePostprocessSignals = (children, collectJapaneseContext = false) 
   let emOpenCount = 0
   let emCloseCount = 0
   let hasAsteriskWrapperImbalance = false
-  const emphasisStack = []
+  let emphasisStack = null
   for (let j = 0; j < children.length; j++) {
     const child = children[j]
     if (!child) continue
+    const type = child.type
     if (collectJapaneseContext && !hasJapaneseContext && tokenHasJapaneseChars(child)) {
       hasJapaneseContext = true
     }
-    if (!hasTextStrongMarker && child.type === 'text' && child.content && child.content.indexOf('**') !== -1) {
+    if (!hasTextStrongMarker && type === 'text' && child.content && child.content.indexOf('**') !== -1) {
       hasTextStrongMarker = true
     }
     const isAsteriskEmphasis = isAsteriskEmphasisToken(child)
     if (isAsteriskEmphasis) {
       hasEmphasis = true
-      if (child.type === 'strong_open') strongOpenCount++
-      else if (child.type === 'strong_close') strongCloseCount++
-      else if (child.type === 'em_open') emOpenCount++
-      else if (child.type === 'em_close') emCloseCount++
+      if (type === 'strong_open') strongOpenCount++
+      else if (type === 'strong_close') strongCloseCount++
+      else if (type === 'em_open') emOpenCount++
+      else if (type === 'em_close') emCloseCount++
       if (!hasAsteriskWrapperImbalance) {
-        if (child.type === 'strong_open' || child.type === 'em_open') {
-          emphasisStack.push(child.type)
+        if (type === 'strong_open' || type === 'em_open') {
+          if (emphasisStack === null) emphasisStack = []
+          emphasisStack.push(type)
         } else {
-          const expected = child.type === 'strong_close' ? 'strong_open' : 'em_open'
-          if (emphasisStack.length > 0 && emphasisStack[emphasisStack.length - 1] === expected) {
+          const expected = type === 'strong_close' ? 'strong_open' : 'em_open'
+          if (emphasisStack && emphasisStack[emphasisStack.length - 1] === expected) {
             emphasisStack.pop()
           } else {
             hasAsteriskWrapperImbalance = true
@@ -457,17 +460,17 @@ const scanInlinePostprocessSignals = (children, collectJapaneseContext = false) 
         }
       }
     }
-    if (!hasLinkOpen && child.type === 'link_open') {
+    if (!hasLinkOpen && type === 'link_open') {
       hasLinkOpen = true
     }
-    if (!hasLinkClose && child.type === 'link_close') {
+    if (!hasLinkClose && type === 'link_close') {
       hasLinkClose = true
     }
-    if (!hasCodeInline && child.type === 'code_inline') {
+    if (!hasCodeInline && type === 'code_inline') {
       hasCodeInline = true
     }
   }
-  if (!hasAsteriskWrapperImbalance && emphasisStack.length > 0) {
+  if (!hasAsteriskWrapperImbalance && emphasisStack && emphasisStack.length > 0) {
     hasAsteriskWrapperImbalance = true
   }
   let repairMask = 0
